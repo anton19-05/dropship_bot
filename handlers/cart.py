@@ -16,27 +16,23 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data[f"temp_product_{user_id}"] = product_code
 
-    # Удаляем текущее сообщение
     try:
         await query.message.delete()
     except:
         pass
 
     if product.has_sizes:
-        sizes = product.attributes.get(
-            "sizes", [36, 37, 38, 39, 40, 41, 42, 43, 44, 45])
+        sizes = product.attributes.get("sizes", [36, 37, 38, 39, 40, 41, 42, 43, 44, 45])
         size_buttons = []
         row = []
         for i, size in enumerate(sizes):
-            row.append(InlineKeyboardButton(
-                str(size), callback_data=f"cart_size_{product_code}_{size}"))
+            row.append(InlineKeyboardButton(str(size), callback_data=f"cart_size_{product_code}_{size}"))
             if (i + 1) % 3 == 0:
                 size_buttons.append(row)
                 row = []
         if row:
             size_buttons.append(row)
-        size_buttons.append([InlineKeyboardButton(
-            "🔙 Назад", callback_data=f"back_to_product_{product.id}")])
+        size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
 
         await context.bot.send_message(
             chat_id=query.message.chat_id,
@@ -61,7 +57,6 @@ async def cart_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def add_quantity_selection(update, context, product_code):
-    """Выбор количества товара"""
     query = update.callback_query
     user_id = query.from_user.id
     product = products_manager.get_by_code(product_code)
@@ -72,21 +67,16 @@ async def add_quantity_selection(update, context, product_code):
 
     quantity_buttons = [
         [InlineKeyboardButton("1 шт", callback_data=f"cart_qty_{product_code}_1"),
-         InlineKeyboardButton(
-             "2 шт", callback_data=f"cart_qty_{product_code}_2"),
+         InlineKeyboardButton("2 шт", callback_data=f"cart_qty_{product_code}_2"),
          InlineKeyboardButton("3 шт", callback_data=f"cart_qty_{product_code}_3")],
         [InlineKeyboardButton("4 шт", callback_data=f"cart_qty_{product_code}_4"),
-         InlineKeyboardButton(
-             "5 шт", callback_data=f"cart_qty_{product_code}_5"),
+         InlineKeyboardButton("5 шт", callback_data=f"cart_qty_{product_code}_5"),
          InlineKeyboardButton("6 шт", callback_data=f"cart_qty_{product_code}_6")],
         [InlineKeyboardButton("7 шт", callback_data=f"cart_qty_{product_code}_7"),
-         InlineKeyboardButton(
-             "8 шт", callback_data=f"cart_qty_{product_code}_8"),
+         InlineKeyboardButton("8 шт", callback_data=f"cart_qty_{product_code}_8"),
          InlineKeyboardButton("9 шт", callback_data=f"cart_qty_{product_code}_9")],
-        [InlineKeyboardButton(
-            "10 шт", callback_data=f"cart_qty_{product_code}_10")],
-        [InlineKeyboardButton(
-            "🔙 Назад", callback_data=f"back_to_product_{product.id}")]
+        [InlineKeyboardButton("10 шт", callback_data=f"cart_qty_{product_code}_10")],
+        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")]
     ]
 
     size = context.user_data.get(f"temp_size_{user_id}")
@@ -130,7 +120,6 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data.pop(f"temp_size_{user_id}", None)
     context.user_data.pop(f"temp_product_{user_id}", None)
 
-    # Удаляем сообщение с выбором количества
     try:
         await query.message.delete()
     except:
@@ -143,8 +132,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text=f"✅ *Товар добавлен в корзину!*\n\n👟 {product.name}\n{f'📏 Размер: {size}' if size else ''}\n📦 Количество: {
-            quantity} шт",
+        text=f"✅ *Товар добавлен в корзину!*\n\n👟 {product.name}\n{f'📏 Размер: {size}' if size else ''}\n📦 Количество: {quantity} шт",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -176,17 +164,14 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if product:
             subtotal = item["price"] * item["quantity"]
             total += subtotal
-            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{f'📏 Размер: {item["size"]}' if item.get(
-                'size') else ''}\n💰 {subtotal} руб"
+            size_text = f"📏 Размер: {item['size']}" if item.get('size') else ""
+            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{size_text}\n💰 {subtotal} руб"
             keyboard = [
                 [InlineKeyboardButton("➖", callback_data=f"cart_decr_{item_key}"),
-                 InlineKeyboardButton(
-                     f"{item['quantity']} шт", callback_data="noop"),
+                 InlineKeyboardButton(f"{item['quantity']} шт", callback_data="noop"),
                  InlineKeyboardButton("➕", callback_data=f"cart_incr_{item_key}")],
-                [InlineKeyboardButton(
-                    "❌ Удалить", callback_data=f"cart_remove_{item_key}")],
-                [InlineKeyboardButton(
-                    "🔗 К товару", callback_data=f"goto_product_{product.id}")]
+                [InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{item_key}")],
+                [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
             ]
             photo = product.get_photo()
             if photo:
@@ -202,8 +187,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"💰 *ИТОГО: {total} руб*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ ОФОРМИТЬ ЗАКАЗ",
-                                  callback_data="checkout")],
+            [InlineKeyboardButton("✅ ОФОРМИТЬ ЗАКАЗ", callback_data="checkout")],
             [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
         ])
     )
