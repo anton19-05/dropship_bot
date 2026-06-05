@@ -1,0 +1,4 @@
+# config.py - Настройки бота
+
+TOKEN = "8883773859:AAGLg8D-AEGmKldn_6jNUYdV37DV0WZWJw4"
+ADMIN_ID = 1941249302
