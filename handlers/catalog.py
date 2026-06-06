@@ -347,7 +347,7 @@ async def show_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]]
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=f"⭐ *ОТЗЫВЫ* ⭐\n\n📝 Для {color_name} цвета отзывов пока нет",
+            text = f"⭐ *ОТЗЫВЫ* ⭐\n\n📝 Для {current_color} цвета отзывов пока нет",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
