@@ -107,21 +107,21 @@ def start_webhook():
 
 # 6. ЗАПУСК
 if __name__ == '__main__':
-    # Инициализируем бота
-    telegram_app.initialize()
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # Правильная инициализация через loop
+    loop.run_until_complete(telegram_app.initialize())   # <-- это правильно!
     
     # Устанавливаем вебхук
     render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
     if render_hostname:
         webhook_url = f'https://{render_hostname}/webhook/{TOKEN}'
     else:
-        webhook_url = f'https://dropship-bot.onrender.com/webhook/{TOKEN}'
+        webhook_url = f'https://dropship-bot-706z.onrender.com/webhook/{TOKEN}'
     
     print(f'🔄 Устанавливаем вебхук: {webhook_url}')
-    
-    # Используем asyncio для вызова асинхронной функции set_webhook
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     loop.run_until_complete(telegram_app.bot.set_webhook(webhook_url))
     print("✅ Вебхук успешно установлен!")
     
