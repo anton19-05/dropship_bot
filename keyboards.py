@@ -1,91 +1,105 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from models_categories import categories_manager
 
 
 def get_main_menu():
-    keyboard = [
-        [InlineKeyboardButton("📦 Каталог товаров",
-                              callback_data="menu_catalog")],
-        [InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")],
-        [InlineKeyboardButton("👤 Мой профиль", callback_data="menu_profile")],
-        [InlineKeyboardButton("❓ Как заказать", callback_data="menu_help")],
-        [InlineKeyboardButton("📞 Контакты", callback_data="menu_contacts")]
-    ]
+    """Главное меню с категориями из JSON"""
+    keyboard = []
+    
+    # Добавляем категории из JSON
+    for cat in categories_manager.get_all():
+        keyboard.append([InlineKeyboardButton(
+            cat["name"], 
+            callback_data=f"category_{cat['id']}"
+        )])
+    
+    # Добавляем остальные кнопки
+    keyboard.append([InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")])
+    keyboard.append([InlineKeyboardButton("👤 Мой профиль", callback_data="menu_profile")])
+    keyboard.append([InlineKeyboardButton("❓ Как заказать", callback_data="menu_help")])
+    keyboard.append([InlineKeyboardButton("📞 Контакты", callback_data="menu_contacts")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_subcategories_keyboard(category_id):
+    """Клавиатура с подкатегориями для выбранной категории"""
+    subcategories = categories_manager.get_subcategories(category_id)
+    
+    if not subcategories:
+        return None
+    
+    keyboard = []
+    for subcat in subcategories:
+        keyboard.append([InlineKeyboardButton(
+            subcat["name"],
+            callback_data=f"subcat_{subcat['id']}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Назад в главное меню", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_categories_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("👟 Обувь", callback_data="cat_shoes")],
-        [InlineKeyboardButton("👕 Одежда", callback_data="cat_clothing")],
-        [InlineKeyboardButton(
-            "🕶️ Аксессуары", callback_data="cat_accessories")],
-        [InlineKeyboardButton("🏠 Дом и сад", callback_data="cat_home")],
-        [InlineKeyboardButton(
-            "📱 Электроника", callback_data="cat_electronics")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
-    ]
+    """Клавиатура для старого каталога (для совместимости)"""
+    keyboard = []
+    for cat in categories_manager.get_all():
+        keyboard.append([InlineKeyboardButton(
+            cat["name"],
+            callback_data=f"cat_{cat['id']}"
+        )])
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_product_keyboard(product, current_color=None, category=None, page=0):
+    """Клавиатура для карточки товара"""
     keyboard = []
 
     # Кнопки выбора цвета
     if "colors" in product.get_attributes():
         colors_row = []
-        color_emoji = {
-            "белый": "белый",
-            "синий": "синий",
-            "коричневый": "коричневый",
-            "зеленый": "зеленый",
-            "черный": "черный"
-        }
         for color in product.get_attributes()["colors"]:
-            display = color_emoji.get(color, color.capitalize())
             marker = "✅ " if color == current_color else ""
             colors_row.append(InlineKeyboardButton(
-                f"{marker}{display}",
+                f"{marker}{color}",
                 callback_data=f"color_{product.id}_{color}"
             ))
         keyboard.append(colors_row)
 
     keyboard.extend([
-        [InlineKeyboardButton(
-            "⭐ Отзывы", callback_data=f"reviews_{product.id}")],
+        [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),
          InlineKeyboardButton("❤️ В избранное", callback_data=f"fav_add_{product.code}")],
         [InlineKeyboardButton("🛍️ Корзина", callback_data="view_cart"),
          InlineKeyboardButton("⭐ Избранное", callback_data="view_favorites")],
-        [InlineKeyboardButton(
-            "✅ Заказать", callback_data=f"order_{product.id}")],
-        [InlineKeyboardButton(
-            "🔙 Назад", callback_data=f"back_to_category_{category}_{page}")]
+        [InlineKeyboardButton("✅ Заказать", callback_data=f"order_{product.id}")],
+        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_category_{category}_{page}")]
     ])
 
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_pagination_keyboard(page, total_pages, category):
+    """Клавиатура для пагинации"""
     nav_buttons = []
+    
     if page > 0:
-        nav_buttons.append(InlineKeyboardButton(
-            "◀️ Назад", callback_data=f"page_{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"page_{page-1}"))
     else:
-        nav_buttons.append(InlineKeyboardButton(
-            "◀️ Назад", callback_data="noop"))
+        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data="noop"))
 
     if page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton(
-            "Вперед ▶️", callback_data=f"page_{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"page_{page+1}"))
     else:
-        nav_buttons.append(InlineKeyboardButton(
-            "Вперед ▶️", callback_data="noop"))
+        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data="noop"))
 
     return InlineKeyboardMarkup([
         nav_buttons,
-        [InlineKeyboardButton("🏠 Главная страница", callback_data="main_back")]
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ])
 
 
 def get_back_keyboard(callback):
+    """Простая кнопка назад"""
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data=callback)]])

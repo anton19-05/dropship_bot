@@ -1,8 +1,9 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from keyboards import get_categories_keyboard, get_product_keyboard
+from keyboards import get_categories_keyboard, get_product_keyboard, get_subcategories_keyboard
 from models import products_manager, msg_manager
+from models_categories import categories_manager
 from debug import info, debug, error, success, warning, print_state
 
 user_states = {}
@@ -60,6 +61,99 @@ async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_products_page(update, user_id, 0, context)
     success(
         "CATALOG", f"Показана страница с товарами для категории {category}")
+
+
+# НОВЫЙ ОБРАБОТЧИК: Выбор категории из главного меню
+async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик выбора категории из главного меню"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    category_id = query.data.replace("category_", "")
+    category = categories_manager.get_by_id(category_id)
+    
+    if not category:
+        await query.answer("❌ Категория не найдена!", show_alert=True)
+        return
+    
+    # Сохраняем выбранную категорию
+    context.user_data[f"current_category_{user_id}"] = category_id
+    
+    # Проверяем, есть ли подкатегории
+    subcategories = categories_manager.get_subcategories(category_id)
+    
+    if subcategories:
+        # Показываем подкатегории
+        keyboard = get_subcategories_keyboard(category_id)
+        await query.edit_message_text(
+            text=f"📂 *{category['name']}*\n\n👇 Выберите подкатегорию:",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    else:
+        # Показываем товары сразу
+        products = categories_manager.get_products_by_subcategory(category_id)
+        if products:
+            user_states[user_id] = {
+                "products": products,
+                "page": 0,
+                "category": category_id
+            }
+            await show_products_page(update, user_id, 0, context)
+        else:
+            await query.edit_message_text(
+                text=f"📦 *{category['name']}*\n\nТоваров пока нет.\n✨ Скоро появятся!",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад", callback_data="main_back")
+                ]])
+            )
+
+
+# НОВЫЙ ОБРАБОТЧИК: Выбор подкатегории
+async def show_subcategory_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик выбора подкатегории"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    subcategory_id = query.data.replace("subcat_", "")
+    
+    # Получаем родительскую категорию (для кнопки "Назад")
+    parent_category_id = None
+    for cat in categories_manager.get_all():
+        for subcat in cat.get("subcategories", []):
+            if subcat["id"] == subcategory_id:
+                parent_category_id = cat["id"]
+                break
+        if parent_category_id:
+            break
+    
+    context.user_data[f"current_category_{user_id}"] = parent_category_id
+    context.user_data[f"current_subcategory_{user_id}"] = subcategory_id
+    
+    # Получаем товары подкатегории
+    products = categories_manager.get_products_by_subcategory(subcategory_id)
+    
+    if not products:
+        await query.edit_message_text(
+            text="📦 *Товаров пока нет*\n\n✨ Скоро появятся!",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад", callback_data=f"category_{parent_category_id}")
+            ]])
+        )
+        return
+    
+    # Сохраняем в user_states и показываем товары
+    user_states[user_id] = {
+        "products": products,
+        "page": 0,
+        "category": subcategory_id
+    }
+    
+    await show_products_page(update, user_id, 0, context)
 
 
 async def show_products_page(update, user_id, page, context=None, edit=False):
@@ -347,7 +441,7 @@ async def show_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]]
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text = f"⭐ *ОТЗЫВЫ* ⭐\n\n📝 Для {current_color} цвета отзывов пока нет",
+            text=f"⭐ *ОТЗЫВЫ* ⭐\n\n📝 Для {current_color} цвета отзывов пока нет",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )

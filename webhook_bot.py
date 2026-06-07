@@ -18,18 +18,21 @@ from handlers.start import start, main_back
 from handlers.catalog import (
     catalog, show_category, show_product_detail, change_color, change_page,
     back_to_catalog, show_reviews, review_next, review_prev, back_to_product,
-    goto_product, back_to_category, back_to_product_from_reviews
+    goto_product, back_to_category, back_to_product_from_reviews, 
+    show_category_by_id, show_subcategory_products  # ← новые импорты
 )
 
 def main() -> None:
     # Создаём приложение
     application = Application.builder().token(TOKEN).build()
 
-    # --- Регистрация всех хендлеров (без изменений) ---
+    # --- Регистрация всех хендлеров ---
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(main_back, pattern="^main_back$"))
     application.add_handler(CallbackQueryHandler(profile, pattern="^menu_profile$"))
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))
+    
+    # Каталог (старые обработчики)
     application.add_handler(CallbackQueryHandler(show_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^product_"))
@@ -38,10 +41,18 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(back_to_product, pattern="^back_to_product_"))
     application.add_handler(CallbackQueryHandler(goto_product, pattern="^goto_product_"))
     application.add_handler(CallbackQueryHandler(back_to_category, pattern="^back_to_category_"))
+    
+    # НОВЫЕ ОБРАБОТЧИКИ для категорий и подкатегорий
+    application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))
+    application.add_handler(CallbackQueryHandler(show_subcategory_products, pattern="^subcat_"))
+    
+    # Отзывы
     application.add_handler(CallbackQueryHandler(show_reviews, pattern="^reviews_"))
     application.add_handler(CallbackQueryHandler(review_next, pattern="^review_next$"))
     application.add_handler(CallbackQueryHandler(review_prev, pattern="^review_prev$"))
     application.add_handler(CallbackQueryHandler(back_to_product_from_reviews, pattern="^back_to_product_from_reviews_"))
+    
+    # Корзина
     application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^cart_add_"))
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
     application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
@@ -49,29 +60,37 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_increase, pattern="^cart_incr_"))
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
+    
+    # Избранное
     application.add_handler(CallbackQueryHandler(add_to_favorites, pattern="^fav_add_"))
     application.add_handler(CallbackQueryHandler(view_favorites, pattern="^view_favorites$"))
     application.add_handler(CallbackQueryHandler(fav_to_cart, pattern="^fav_to_cart_"))
     application.add_handler(CallbackQueryHandler(fav_remove, pattern="^fav_remove_"))
+    
+    # Заказать
     application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
+    
+    # Профиль
     application.add_handler(CallbackQueryHandler(profile, pattern="^profile$"))
     application.add_handler(CallbackQueryHandler(edit_profile, pattern="^edit_profile$"))
     application.add_handler(CallbackQueryHandler(edit_name, pattern="^edit_name$"))
     application.add_handler(CallbackQueryHandler(edit_phone, pattern="^edit_phone$"))
     application.add_handler(CallbackQueryHandler(edit_address, pattern="^edit_address$"))
+    
+    # Обработчики текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
 
+    # Неактивные кнопки
     async def noop(update: Update, context):
         query = update.callback_query
         await query.answer("⛔ Эта кнопка неактивна", show_alert=True)
     application.add_handler(CallbackQueryHandler(noop, pattern="^noop$"))
 
-    # --- Запуск через вебхуки (встроенный метод) ---
+    # --- Запуск через вебхуки ---
     port = int(os.environ.get('PORT', 10000))
     webhook_url = f'https://{os.environ["RENDER_EXTERNAL_HOSTNAME"]}/webhook/{TOKEN}'
 
     print(f'🔄 Устанавливаем вебхук на {webhook_url}')
-    # Эта строка инициализирует и запускает вебхук-сервер внутри библиотеки
     application.run_webhook(
         listen='0.0.0.0',
         port=port,
