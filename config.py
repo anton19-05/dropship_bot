@@ -1,4 +1,3 @@
-# config.py - Настройки бота
-
-TOKEN = "8883773859:AAGLg8D-AEGmKldn_6jNUYdV37DV0WZWJw4"
+import os
+TOKEN = os.environ.get("8883773859:AAEBGc9i5c_ux520PZJ5gUV0tYOruXKtzoQ")  # Без хардкода!
 ADMIN_ID = 1941249302
