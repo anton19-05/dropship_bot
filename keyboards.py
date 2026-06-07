@@ -3,27 +3,31 @@ from models_categories import categories_manager
 
 
 def get_main_menu():
-    """Главное меню с категориями из JSON"""
+    """Главное меню (без категорий!)"""
+    keyboard = [
+        [InlineKeyboardButton("📦 Каталог товаров", callback_data="menu_catalog")],
+        [InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")],
+        [InlineKeyboardButton("👤 Мой профиль", callback_data="menu_profile")],
+        [InlineKeyboardButton("❓ Как заказать", callback_data="menu_help")],
+        [InlineKeyboardButton("📞 Контакты", callback_data="menu_contacts")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_categories_keyboard():
+    """Клавиатура с категориями (для кнопки Каталог)"""
     keyboard = []
-    
-    # Добавляем категории из JSON
     for cat in categories_manager.get_all():
         keyboard.append([InlineKeyboardButton(
-            cat["name"], 
+            cat["name"],
             callback_data=f"category_{cat['id']}"
         )])
-    
-    # Добавляем остальные кнопки
-    keyboard.append([InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")])
-    keyboard.append([InlineKeyboardButton("👤 Мой профиль", callback_data="menu_profile")])
-    keyboard.append([InlineKeyboardButton("❓ Как заказать", callback_data="menu_help")])
-    keyboard.append([InlineKeyboardButton("📞 Контакты", callback_data="menu_contacts")])
-    
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_subcategories_keyboard(category_id):
-    """Клавиатура с подкатегориями для выбранной категории"""
+    """Клавиатура с подкатегориями"""
     subcategories = categories_manager.get_subcategories(category_id)
     
     if not subcategories:
@@ -36,18 +40,6 @@ def get_subcategories_keyboard(category_id):
             callback_data=f"subcat_{subcat['id']}"
         )])
     
-    keyboard.append([InlineKeyboardButton("🔙 Назад в главное меню", callback_data="main_back")])
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_categories_keyboard():
-    """Клавиатура для старого каталога (для совместимости)"""
-    keyboard = []
-    for cat in categories_manager.get_all():
-        keyboard.append([InlineKeyboardButton(
-            cat["name"],
-            callback_data=f"cat_{cat['id']}"
-        )])
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 

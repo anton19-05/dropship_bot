@@ -10,11 +10,17 @@ user_states = {}
 
 
 async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает список категорий при нажатии на кнопку Каталог"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
+    
     await msg_manager.clear(context.bot, chat_id, user_id)
+    
+    # Используем get_categories_keyboard() для показа категорий
+    from keyboards import get_categories_keyboard
+    
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text="📦 *КАТАЛОГ ТОВАРОВ*\n\n👇 Выберите категорию:",
