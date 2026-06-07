@@ -1,0 +1,22 @@
+{
+  "categories": [
+    {
+      "id": "shoes",
+      "name": "👟 Обувь",
+      "order": 1,
+      "subcategories": []
+    },
+    {
+      "id": "clothing",
+      "name": "👕 Одежда",
+      "order": 2,
+      "subcategories": []
+    },
+    {
+      "id": "accessories",
+      "name": "🕶️ Аксессуары",
+      "order": 3,
+      "subcategories": []
+    }
+  ]
+}
