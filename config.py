@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
 
-TOKEN = os.environ.get("TOKEN")
+load_dotenv()  # Загружает переменные из секретного файла
+
+TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 1941249302
