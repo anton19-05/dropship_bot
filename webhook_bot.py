@@ -63,18 +63,26 @@ async def noop(update, context):
     await query.answer("⛔ Эта кнопка неактивна", show_alert=True)
 telegram_app.add_handler(CallbackQueryHandler(noop, pattern="^noop$"))
 
-# --- Webhook endpoint ---
+# --- Глобальный event loop (один на всё приложение) ---
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+# --- Webhook endpoint (синхронный, использует глобальный loop) ---
 @flask_app.route(f'/webhook/{TOKEN}', methods=['POST'])
 def webhook():
     json_data = request.get_json()
     if not json_data:
         return jsonify({'status': 'error', 'message': 'No JSON received'}), 400
     
-    async def process():
+    try:
         update = Update.de_json(json_data, telegram_app.bot)
-        await telegram_app.process_update(update)
+        # Запускаем обработку в глобальном event loop
+        future = asyncio.run_coroutine_threadsafe(telegram_app.process_update(update), loop)
+        future.result(timeout=10)  # Ждём результат до 10 секунд
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
     
-    asyncio.run(process())
     return jsonify({'status': 'ok'}), 200
 
 @flask_app.route('/')
@@ -85,8 +93,16 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     
-    # Асинхронная инициализация и установка вебхука
-    async def init_and_start():
+    # Запускаем event loop в отдельном потоке
+    def run_loop():
+        loop.run_forever()
+    
+    import threading
+    thread = threading.Thread(target=run_loop, daemon=True)
+    thread.start()
+    
+    # Инициализируем бота в глобальном loop
+    async def init_bot():
         await telegram_app.initialize()
         print("✅ Бот инициализирован")
         
@@ -96,8 +112,7 @@ if __name__ == '__main__':
         await telegram_app.bot.set_webhook(webhook_url)
         print("✅ Вебхук успешно установлен!")
     
-    # Запускаем инициализацию
-    asyncio.run(init_and_start())
+    asyncio.run_coroutine_threadsafe(init_bot(), loop).result()
     
     # Запускаем Flask сервер
     print(f'🚀 Запускаем веб-сервер на порту {port}...')
