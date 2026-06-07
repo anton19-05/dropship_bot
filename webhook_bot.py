@@ -19,7 +19,7 @@ from handlers.catalog import (
     catalog, show_category, show_product_detail, change_color, change_page,
     back_to_catalog, show_reviews, review_next, review_prev, back_to_product,
     goto_product, back_to_category, back_to_product_from_reviews, 
-    show_category_by_id, show_subcategory_products  # ← новые импорты
+    show_category_by_id, show_subcategory_products, back_to_catalog_from_products  # ← новые импорты
 )
 
 def main() -> None:
@@ -41,6 +41,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(back_to_product, pattern="^back_to_product_"))
     application.add_handler(CallbackQueryHandler(goto_product, pattern="^goto_product_"))
     application.add_handler(CallbackQueryHandler(back_to_category, pattern="^back_to_category_"))
+    application.add_handler(CallbackQueryHandler(back_to_catalog_from_products, pattern="^back_to_catalog_from_products$"))
     
     # НОВЫЕ ОБРАБОТЧИКИ для категорий и подкатегорий
     application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))

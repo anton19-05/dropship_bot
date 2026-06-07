@@ -251,10 +251,13 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
     # Информация о странице
     page_info = f"📄 *Страница {page + 1} из {total_pages}*"
 
-    # Клавиатура пагинации
+        # Клавиатура пагинации
+    # Получаем текущую категорию из state
+    current_category = state.get("category", "shoes")
+    
     keyboard = [
         nav_buttons_row,
-        [InlineKeyboardButton("🏠 Главная страница", callback_data="main_back")]
+        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_catalog_from_products")]
     ]
 
     # Отправляем панель пагинации
@@ -734,3 +737,25 @@ async def back_to_product_from_reviews(update: Update, context: ContextTypes.DEF
     # Показываем карточку товара
     from utils import show_product
     await show_product(query.message.chat_id, prod_id, color_id, context, context.bot, category, page)
+
+
+async def back_to_catalog_from_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Возврат к списку категорий из страницы с товарами"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    
+    # Очищаем старые сообщения
+    await msg_manager.clear(context.bot, chat_id, user_id)
+    
+    # Показываем категории
+    from keyboards import get_categories_keyboard
+    
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="📦 *КАТАЛОГ ТОВАРОВ*\n\n👇 Выберите категорию:",
+        parse_mode="Markdown",
+        reply_markup=get_categories_keyboard()
+    )
