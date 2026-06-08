@@ -42,13 +42,11 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
     """Показывает выбор размера перед заказом"""
     query = update.callback_query
     
-    # Удаляем сообщение с карточкой товара
     try:
         await query.message.delete()
-    except Exception as e:
-        print(f"Ошибка удаления: {e}")
+    except:
+        pass
     
-    # Получаем список размеров
     sizes = product.get_sizes()
     size_buttons = []
     row = []
@@ -57,11 +55,11 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
         size_value = size_data["value"]
         available = size_data.get("available", True)
         
-        # Форматируем отображение
         if available:
             display = str(size_value)
-            # ✅ ПРАВИЛЬНЫЙ callback_data
             callback = f"order_size_{product.id}_{size_value}"
+            # 👇 ДОБАВЬТЕ ЭТУ СТРОКУ ДЛЯ ДИАГНОСТИКИ
+            print(f"🔘 Создана кнопка: {display} -> callback: {callback}")
         else:
             display = f"❌ {size_value}"
             callback = "noop"
@@ -73,19 +71,15 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
     if row:
         size_buttons.append(row)
     
-    # Кнопка "Назад"
     size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
     
-    # Текущий цвет
     color = context.user_data.get(f"order_color_{user_id}", "белый")
     
     text = f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
     text += f"👟 *{product.name}*\n"
     text += f"🎨 Цвет: {color}\n"
     text += f"💰 Цена: {product.price} руб\n\n"
-    text += f"👇 *Выберите размер:*\n"
-    if any(not size.get("available", True) for size in sizes):
-        text += f"❌ — размер отсутствует в наличии"
+    text += f"👇 *Выберите размер:*"
     
     await context.bot.send_message(
         chat_id=query.message.chat_id,
@@ -97,50 +91,35 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
 
 async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора размера для заказа"""
+    print("🎯 order_select_size ВЫЗВАНА!")  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ
     query = update.callback_query
     await query.answer()
     
+    print(f"📦 query.data = {query.data}")  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ
+    
     user_id = query.from_user.id
-    callback_data = query.data
+    data = query.data.replace("order_size_", "")
     
-    print(f"DEBUG order_select_size: callback_data = {callback_data}")
-    
-    # Убираем "order_size_"
-    data = callback_data.replace("order_size_", "")
-    
-    # Разделяем: "classic_shoes_37" -> ["classic_shoes", "37"]
-    # Нужно отделить product_id от размера
-    # Размер может быть числом или буквами (XS, S, M, L, XL)
-    
-    # Ищем последнее подчёркивание, которое отделяет размер
     last_underscore = data.rfind("_")
     
     if last_underscore == -1:
-        error("ORDER", f"Неверный формат callback_data: {callback_data}")
         await query.answer("❌ Ошибка выбора размера!", show_alert=True)
         return
     
     product_id = data[:last_underscore]
     size = data[last_underscore + 1:]
     
-    print(f"DEBUG order_select_size: product_id={product_id}, size={size}")
-    
-    # Получаем товар
     product = products_manager.get_by_id(product_id)
     if not product:
-        error("ORDER", f"Товар {product_id} не найден")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # Проверяем наличие размера
     if not product.is_size_available(size):
         await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
         return
     
-    # Сохраняем выбранный размер
     context.user_data[f"order_size_{user_id}"] = size
     
-    # Переходим к форме заказа
     await show_order_form(update, context, product, user_id, size)
 
 
