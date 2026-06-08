@@ -91,36 +91,56 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
 
 async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора размера для заказа"""
-    print("🎯 order_select_size ВЫЗВАНА!")  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ
+    print("🎯 order_select_size ВЫЗВАНА!")
     query = update.callback_query
     await query.answer()
     
-    print(f"📦 query.data = {query.data}")  # 👈 ДОБАВЬТЕ ЭТУ СТРОКУ
+    print(f"📦 query.data = {query.data}")
     
     user_id = query.from_user.id
     data = query.data.replace("order_size_", "")
     
+    print(f"📦 data после replace = {data}")
+    
     last_underscore = data.rfind("_")
+    print(f"📦 last_underscore = {last_underscore}")
     
     if last_underscore == -1:
+        print("❌ Нет подчёркивания!")
         await query.answer("❌ Ошибка выбора размера!", show_alert=True)
         return
     
     product_id = data[:last_underscore]
     size = data[last_underscore + 1:]
     
+    print(f"📦 product_id = {product_id}, size = {size}")
+    
     product = products_manager.get_by_id(product_id)
     if not product:
+        print(f"❌ Товар {product_id} не найден!")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
+    print(f"✅ Товар найден: {product.name}")
+    
     if not product.is_size_available(size):
+        print(f"❌ Размер {size} отсутствует в наличии!")
         await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
         return
     
-    context.user_data[f"order_size_{user_id}"] = size
+    print(f"✅ Размер {size} доступен")
     
-    await show_order_form(update, context, product, user_id, size)
+    # Сохраняем выбранный размер
+    context.user_data[f"order_size_{user_id}"] = size
+    print(f"✅ Размер сохранён в user_data")
+    
+    # Переходим к форме заказа
+    print("🔄 Вызываем show_order_form...")
+    try:
+        await show_order_form(update, context, product, user_id, size)
+        print("✅ show_order_form выполнена успешно")
+    except Exception as e:
+        print(f"❌ Ошибка в show_order_form: {e}")
 
 
 async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size=None):
