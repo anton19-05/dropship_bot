@@ -296,9 +296,18 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    if f"color_{user_id}" not in context.user_data:
-        context.user_data[f"color_{user_id}"] = "white"
-    current_color = context.user_data.get(f"color_{user_id}", "white")
+    # ✅ НОВЫЙ КОД: Определяем первый цвет из attributes
+    attributes = product.get_attributes()
+    colors = attributes.get("colors", [])
+    
+    if colors:
+        default_color = colors[0]
+    else:
+        default_color = "белый"
+    
+    # Сохраняем выбранный цвет
+    context.user_data[f"color_{user_id}"] = default_color
+    current_color = default_color
 
     # Удаляем старое сообщение
     try:
@@ -625,19 +634,39 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         debug(
             "PRODUCT", f"Сохранена страница {current_page}, категория {current_category} для возврата")
     else:
-        # Если нет состояния, используем категорию товара
         context.user_data[f"back_page_{user_id}"] = 0
         context.user_data[f"back_category_{user_id}"] = product.category
         debug(
             "PRODUCT", f"Создано состояние: страница 0, категория {product.category}")
 
-    current_color = context.user_data.get(f"color_{user_id}", "белый")
+    # ✅ НОВЫЙ КОД: Определяем первый цвет из attributes
+    attributes = product.get_attributes()
+    colors = attributes.get("colors", [])
+    
+    if colors:
+        # Если есть цвета, выбираем первый
+        default_color = colors[0]
+    else:
+        # Если цветов нет, используем "белый" или значение по умолчанию
+        default_color = "белый"
+    
+    # Сохраняем выбранный цвет
+    context.user_data[f"color_{user_id}"] = default_color
+    current_color = default_color
 
     await msg_manager.clear(context.bot, query.message.chat_id, user_id)
     debug("PRODUCT", "Старые сообщения очищены")
 
     from utils import show_product
-    await show_product(query.message.chat_id, product_id, current_color, context, context.bot, product.category, context.user_data.get(f"back_page_{user_id}", 0))
+    await show_product(
+        query.message.chat_id, 
+        product_id, 
+        current_color, 
+        context, 
+        context.bot, 
+        product.category, 
+        context.user_data.get(f"back_page_{user_id}", 0)
+    )
 
     try:
         await query.message.delete()

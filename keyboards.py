@@ -52,6 +52,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0):
     if "colors" in product.get_attributes():
         colors_row = []
         for color in product.get_attributes()["colors"]:
+            # ✅ Если цвет совпадает с current_color — ставим галочку
             marker = "✅ " if color == current_color else ""
             colors_row.append(InlineKeyboardButton(
                 f"{marker}{color}",
