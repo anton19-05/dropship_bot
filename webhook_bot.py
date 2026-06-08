@@ -33,7 +33,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))
     application.add_handler(CallbackQueryHandler(order_select_size, pattern="^order_size_"))
     application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, order_handle))
     
     # Каталог (старые обработчики)
     application.add_handler(CallbackQueryHandler(show_category, pattern="^cat_"))
@@ -83,6 +82,7 @@ def main() -> None:
     
     # Обработчики текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, order_handle))
 
     # Неактивные кнопки
     async def noop(update: Update, context):
