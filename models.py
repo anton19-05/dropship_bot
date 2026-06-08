@@ -78,7 +78,8 @@ class Product:
         """Проверить, есть ли размер в наличии"""
         sizes = self.get_sizes()
         for size in sizes:
-            if size["value"] == size_value:
+        # Преобразуем оба значения к строке для корректного сравнения
+            if str(size["value"]) == str(size_value):
                 return size.get("available", True)
         return False
 
