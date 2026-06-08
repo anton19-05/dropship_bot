@@ -64,7 +64,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0):
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),
          InlineKeyboardButton("❤️ В избранное", callback_data=f"fav_add_{product.code}")],
-        [InlineKeyboardButton("🛍️ Корзина", callback_data="view_cart"),
+        [InlineKeyboardButton("🛍️ Корзина", callback_data="view_cart_from_product"),
          InlineKeyboardButton("⭐ Избранное", callback_data="view_favorites")],
         [InlineKeyboardButton("✅ Заказать", callback_data=f"order_{product.id}")],
         [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_category_{category}_{page}")]

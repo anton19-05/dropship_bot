@@ -285,6 +285,12 @@ async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # ... существующий код ...
+    
+    # Сохраняем ID товара для возврата из корзины
+    context.user_data[f"last_product_id_{user_id}"] = product_id
+    
+    # ... остальной код ...
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id

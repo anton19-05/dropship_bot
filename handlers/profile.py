@@ -30,7 +30,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
 
     keyboard = [
-        [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart"),
+        [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
         [InlineKeyboardButton("📝 Редактировать профиль",
                               callback_data="edit_profile")],
