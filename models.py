@@ -55,31 +55,40 @@ class Product:
             return self.colors_reviews_text[color]
         color_name = color.capitalize()
         return f"⭐ ОТЗЫВЫ НА {color_name} КРОССОВКИ ⭐"
-    
+
     def get_sizes(self):
-        """Получить список размеров для товара"""
+        """Получить список размеров с информацией о наличии"""
         if not self.has_sizes:
             return []
         
-        # Сначала проверяем в attributes.sizes
         if "sizes" in self.attributes:
-            return self.attributes["sizes"]
+            sizes_data = self.attributes["sizes"]
+            # Если sizes - список объектов с available
+            if sizes_data and isinstance(sizes_data[0], dict):
+                return sizes_data
+            # Если sizes - простой список чисел/строк
+            else:
+                return [{"value": s, "available": True} for s in sizes_data]
         
-        # Если нет, возвращаем стандартный список
-        return [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
-    
-    def get_size_type(self):
-        """Определить тип размера: 'eu' (числовой) или 'letter' (буквенный)"""
+        # Стандартные размеры по умолчанию (все в наличии)
+        default_sizes = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
+        return [{"value": s, "available": True} for s in default_sizes]
+
+    def is_size_available(self, size_value):
+        """Проверить, есть ли размер в наличии"""
         sizes = self.get_sizes()
-        if sizes and isinstance(sizes[0], str):
-            return "letter"
-        return "eu"
-    
-    def format_size(self, size):
-        """Отформатировать размер для отображения"""
-        if self.get_size_type() == "letter":
-            return str(size)
-        return str(size)
+        for size in sizes:
+            if size["value"] == size_value:
+                return size.get("available", True)
+        return False
+
+    def format_size(self, size_value):
+        """Отформатировать размер для отображения с крестиком если нет в наличии"""
+        available = self.is_size_available(size_value)
+        if available:
+            return str(size_value)
+        else:
+            return f"❌ {size_value}"
 
 
 class ProductManager:

@@ -21,35 +21,35 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    # ✅ ОБНОВЛЁННЫЙ КОД: проверяем наличие размеров
     if product.has_sizes:
-        sizes = product.get_sizes()  # ← используем новый метод
-        
-        # Проверяем, есть ли вообще размеры
-        if not sizes:
-            # Если размеров нет, переходим к выбору количества
-            await add_quantity_selection(update, context, product_code)
-            return
+        sizes = product.get_sizes()
         
         size_buttons = []
         row = []
-        for i, size in enumerate(sizes):
-            # Форматируем размер для отображения
-            display_size = product.format_size(size)
-            row.append(InlineKeyboardButton(
-                str(display_size), 
-                callback_data=f"cart_size_{product_code}_{size}"
-            ))
+        for i, size_data in enumerate(sizes):
+            size_value = size_data["value"]
+            available = size_data.get("available", True)
+            
+            # Форматируем отображение
+            if available:
+                display = str(size_value)
+                callback = f"cart_size_{product_code}_{size_value}"
+            else:
+                display = f"❌ {size_value}"
+                callback = "noop"  # Неактивная кнопка
+            
+            row.append(InlineKeyboardButton(display, callback_data=callback))
             if (i + 1) % 3 == 0:
                 size_buttons.append(row)
                 row = []
         if row:
             size_buttons.append(row)
+        
         size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
 
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=f"📏 *Выберите размер для {product.name}*",
+            text=f"📏 *Выберите размер для {product.name}*\n\n❌ — размер отсутствует в наличии",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(size_buttons)
         )

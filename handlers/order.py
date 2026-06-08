@@ -42,40 +42,42 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
     """Показывает выбор размера перед заказом"""
     query = update.callback_query
     
-    # Удаляем сообщение с карточкой товара
     try:
         await query.message.delete()
     except:
         pass
     
-    # Получаем список размеров
     sizes = product.get_sizes()
     size_buttons = []
     row = []
     
-    for i, size in enumerate(sizes):
-        display_size = product.format_size(size)
-        row.append(InlineKeyboardButton(
-            str(display_size),
-            callback_data=f"order_size_{product.id}_{size}"
-        ))
+    for i, size_data in enumerate(sizes):
+        size_value = size_data["value"]
+        available = size_data.get("available", True)
+        
+        # Форматируем отображение
+        display = str(size_value) if available else f"❌ {size_value}"
+        
+        # Если нет в наличии — кнопка неактивна
+        callback = f"order_size_{product.id}_{size_value}" if available else "noop"
+        
+        row.append(InlineKeyboardButton(display, callback_data=callback))
         if (i + 1) % 3 == 0:
             size_buttons.append(row)
             row = []
     if row:
         size_buttons.append(row)
     
-    # Кнопка "Назад"
     size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
     
-    # Текущий цвет
     color = context.user_data.get(f"order_color_{user_id}", "белый")
     
     text = f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
     text += f"👟 *{product.name}*\n"
     text += f"🎨 Цвет: {color}\n"
     text += f"💰 Цена: {product.price} руб\n\n"
-    text += f"👇 *Выберите размер:*"
+    text += f"👇 *Выберите размер:*\n"
+    text += f"❌ — размер отсутствует в наличии"
     
     await context.bot.send_message(
         chat_id=query.message.chat_id,
@@ -96,11 +98,14 @@ async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     product_id = parts[0]
     size = parts[1]
     
+    # Проверяем, есть ли размер в наличии
+    product = products_manager.get_by_id(product_id)
+    if not product.is_size_available(size):
+        await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
+        return
+    
     # Сохраняем выбранный размер
     context.user_data[f"order_size_{user_id}"] = size
-    
-    # Получаем товар
-    product = products_manager.get_by_id(product_id)
     
     # Переходим к форме заказа
     await show_order_form(update, context, product, user_id, size)
