@@ -21,12 +21,25 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
+    # ✅ ОБНОВЛЁННЫЙ КОД: проверяем наличие размеров
     if product.has_sizes:
-        sizes = product.attributes.get("sizes", [36, 37, 38, 39, 40, 41, 42, 43, 44, 45])
+        sizes = product.get_sizes()  # ← используем новый метод
+        
+        # Проверяем, есть ли вообще размеры
+        if not sizes:
+            # Если размеров нет, переходим к выбору количества
+            await add_quantity_selection(update, context, product_code)
+            return
+        
         size_buttons = []
         row = []
         for i, size in enumerate(sizes):
-            row.append(InlineKeyboardButton(str(size), callback_data=f"cart_size_{product_code}_{size}"))
+            # Форматируем размер для отображения
+            display_size = product.format_size(size)
+            row.append(InlineKeyboardButton(
+                str(display_size), 
+                callback_data=f"cart_size_{product_code}_{size}"
+            ))
             if (i + 1) % 3 == 0:
                 size_buttons.append(row)
                 row = []

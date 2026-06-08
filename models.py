@@ -55,6 +55,31 @@ class Product:
             return self.colors_reviews_text[color]
         color_name = color.capitalize()
         return f"⭐ ОТЗЫВЫ НА {color_name} КРОССОВКИ ⭐"
+    
+    def get_sizes(self):
+        """Получить список размеров для товара"""
+        if not self.has_sizes:
+            return []
+        
+        # Сначала проверяем в attributes.sizes
+        if "sizes" in self.attributes:
+            return self.attributes["sizes"]
+        
+        # Если нет, возвращаем стандартный список
+        return [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
+    
+    def get_size_type(self):
+        """Определить тип размера: 'eu' (числовой) или 'letter' (буквенный)"""
+        sizes = self.get_sizes()
+        if sizes and isinstance(sizes[0], str):
+            return "letter"
+        return "eu"
+    
+    def format_size(self, size):
+        """Отформатировать размер для отображения"""
+        if self.get_size_type() == "letter":
+            return str(size)
+        return str(size)
 
 
 class ProductManager:
