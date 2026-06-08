@@ -285,12 +285,6 @@ async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ... существующий код ...
-    
-    # Сохраняем ID товара для возврата из корзины
-    context.user_data[f"last_product_id_{user_id}"] = product_id
-    
-    # ... остальной код ...
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -301,6 +295,11 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
+
+    # ✅ СОХРАНЯЕМ ID ТОВАРА ДЛЯ ВОЗВРАТА
+    context.user_data[f"last_product_id_{user_id}"] = product_id
+
+    # ... остальной код функции
 
     # ✅ НОВЫЙ КОД: Определяем первый цвет из attributes
     attributes = product.get_attributes()
@@ -570,48 +569,50 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Возврат к карточке товара из отзывов"""
+    """Возврат к карточке товара"""
     query = update.callback_query
     await query.answer()
 
     data = query.data.replace("back_to_product_", "")
-
-    # Убираем возможные лишние части
-    if "from_reviews_" in data:
-        data = data.replace("from_reviews_", "")
-
-    debug("REVIEWS", f"Возврат к товару", {"data": data})
-
-    product = products_manager.get_by_id(data)
+    
+    # Если в data есть цвет (через подчёркивание), отделяем
+    if "_" in data and data.count("_") == 1:
+        product_id, color = data.split("_")
+    else:
+        product_id = data
+        color = context.user_data.get(f"color_{query.from_user.id}", "белый")
+    
+    debug("PRODUCT", f"Возврат к товару", {"product_id": product_id, "color": color})
+    
+    product = products_manager.get_by_id(product_id)
     if not product:
-        error("REVIEWS", f"Товар {data} не найден")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
-
+    
     user_id = query.from_user.id
-
-    # Получаем текущий цвет из сохранённых данных отзывов
-    color = context.user_data.get(f"reviews_color_{user_id}", "белый")
     context.user_data[f"color_{user_id}"] = color
-
-    debug("REVIEWS", f"Найден товар", {
-          "product_id": product.id, "color": color})
-
+    
     # Получаем сохранённую страницу и категорию
     page = context.user_data.get(f"back_page_{user_id}", 0)
     category = product.category
-
-    # Удаляем сообщение с отзывами
+    
+    # Удаляем сообщение с отзывами или корзиной
     try:
         await query.message.delete()
-        debug("REVIEWS", "Сообщение с отзывами удалено")
     except:
         pass
-
+    
     # Показываем карточку товара
     from utils import show_product
-    await show_product(query.message.chat_id, product.id, color, context, context.bot, category, page)
-    success("REVIEWS", f"Возврат к карточке товара {product.name}")
+    await show_product(
+        query.message.chat_id, 
+        product_id, 
+        color, 
+        context, 
+        context.bot, 
+        category, 
+        page
+    )
 
 
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -620,6 +621,11 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     product_id = query.data.replace("goto_product_", "")
+    
+    # ✅ СОХРАНЯЕМ ID ТОВАРА ДЛЯ ВОЗВРАТА
+    context.user_data[f"last_product_id_{user_id}"] = product_id
+
+    # ... остальной код функции
 
     debug("PRODUCT", f"Переход к товару {product_id}", {"user_id": user_id})
 

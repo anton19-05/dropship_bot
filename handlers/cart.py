@@ -164,18 +164,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     context.user_data[f"cart_from_product_{user_id}"] = from_product_card
 
     if not cart:
-        # Корзина пуста
         if from_product_card:
-            # Пришли из карточки товара → кнопка "Назад к товару"
             product_id = context.user_data.get(f"last_product_id_{user_id}")
             if product_id:
+                # ✅ ПРАВИЛЬНЫЙ callback_data
                 back_button = [InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]
             else:
                 back_button = [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
         else:
-            # Пришли из профиля → кнопка "В профиль"
             back_button = [InlineKeyboardButton("🔙 В профиль", callback_data="profile")]
-        
+    
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text="🛒 *Корзина пуста*",
