@@ -31,8 +31,8 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(main_back, pattern="^main_back$"))
     application.add_handler(CallbackQueryHandler(profile, pattern="^menu_profile$"))
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))
-    application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
     application.add_handler(CallbackQueryHandler(order_select_size, pattern="^order_size_"))
+    application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, order_handle))
     
     # Каталог (старые обработчики)

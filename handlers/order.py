@@ -42,11 +42,13 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
     """Показывает выбор размера перед заказом"""
     query = update.callback_query
     
+    # Удаляем сообщение с карточкой товара
     try:
         await query.message.delete()
     except:
         pass
     
+    # Получаем список размеров
     sizes = product.get_sizes()
     size_buttons = []
     row = []
@@ -58,8 +60,11 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
         # Форматируем отображение
         display = str(size_value) if available else f"❌ {size_value}"
         
-        # Если нет в наличии — кнопка неактивна
-        callback = f"order_size_{product.id}_{size_value}" if available else "noop"
+        # ✅ ИСПРАВЛЕНО: правильный callback_data
+        if available:
+            callback = f"order_size_{product.id}_{size_value}"
+        else:
+            callback = "noop"
         
         row.append(InlineKeyboardButton(display, callback_data=callback))
         if (i + 1) % 3 == 0:
@@ -68,9 +73,11 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
     if row:
         size_buttons.append(row)
     
+    # Кнопка "Назад"
     size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
     
-    color = context.user_data.get(f"order_color_{user_id}", "белый")
+    # Текущий цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
     
     text = f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
     text += f"👟 *{product.name}*\n"
@@ -94,12 +101,21 @@ async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     data = query.data.replace("order_size_", "")
+    
+    # ✅ ИСПРАВЛЕНО: правильное извлечение product_id и size
+    # data имеет формат: "classic_shoes_37"
     parts = data.split("_")
-    product_id = parts[0]
-    size = parts[1]
+    # Последняя часть - это размер
+    size = parts[-1]
+    # Всё что до последнего подчёркивания - product_id
+    product_id = "_".join(parts[:-1])
     
     # Проверяем, есть ли размер в наличии
     product = products_manager.get_by_id(product_id)
+    if not product:
+        await query.answer("❌ Товар не найден!", show_alert=True)
+        return
+    
     if not product.is_size_available(size):
         await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
         return
