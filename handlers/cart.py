@@ -167,7 +167,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # Корзина пуста
         if from_product_card:
             # Пришли из карточки товара → кнопка "Назад к товару"
-            # Нужно получить product_id из user_data
             product_id = context.user_data.get(f"last_product_id_{user_id}")
             if product_id:
                 back_button = [InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]
@@ -192,7 +191,11 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         if product:
             subtotal = item["price"] * item["quantity"]
             total += subtotal
-            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{f'📏 Размер: {item["size"]}' if item.get('size') else ''}\n💰 {subtotal} руб"
+            
+            # ✅ ИСПРАВЛЕНО: выносим формирование размера
+            size_text = f"📏 Размер: {item['size']}" if item.get('size') else ""
+            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{size_text}\n💰 {subtotal} руб"
+            
             keyboard = [
                 [InlineKeyboardButton("➖", callback_data=f"cart_decr_{item_key}"),
                  InlineKeyboardButton(f"{item['quantity']} шт", callback_data="noop"),
