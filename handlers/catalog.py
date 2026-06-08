@@ -570,7 +570,9 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Возврат к карточке товара"""
+    print("🎯 back_to_product ВЫЗВАНА!")  # 👈 ДОБАВЬТЕ
     query = update.callback_query
+    print(f"📦 query.data = {query.data}")  # 👈 ДОБАВЬТЕ
     await query.answer()
 
     data = query.data.replace("back_to_product_", "")

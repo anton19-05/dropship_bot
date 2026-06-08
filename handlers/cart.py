@@ -1,3 +1,4 @@
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
@@ -152,6 +153,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
+    """Просмотр корзины с возможностью вернуться к товару"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -164,16 +166,24 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     context.user_data[f"cart_from_product_{user_id}"] = from_product_card
 
     if not cart:
+        # Корзина пуста
+        print(f"🔍 view_cart: from_product_card={from_product_card}, user_id={user_id}")
+        
         if from_product_card:
+            # Пришли из карточки товара → кнопка "Назад к товару"
             product_id = context.user_data.get(f"last_product_id_{user_id}")
+            print(f"🔍 last_product_id_{user_id} = {product_id}")
+            
             if product_id:
-                # ✅ ПРАВИЛЬНЫЙ callback_data
                 back_button = [InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]
+                print(f"🔘 Создана кнопка с callback: back_to_product_{product_id}")
             else:
                 back_button = [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
+                print(f"🔘 product_id не найден, кнопка Назад на главную")
         else:
+            # Пришли из профиля → кнопка "В профиль"
             back_button = [InlineKeyboardButton("🔙 В профиль", callback_data="profile")]
-    
+        
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text="🛒 *Корзина пуста*",
@@ -183,6 +193,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         await msg_manager.add(context.bot, chat_id, user_id, msg)
         return
 
+    # Корзина не пуста
     total = 0
     for item_key, item in cart.items():
         product = products_manager.get_by_code(item["product_code"])
@@ -190,8 +201,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             subtotal = item["price"] * item["quantity"]
             total += subtotal
             
-            # ✅ ИСПРАВЛЕНО: выносим формирование размера
-            size_text = f"📏 Размер: {item['size']}" if item.get('size') else ""
+            # Формируем текст с размером
+            if item.get('size'):
+                size_text = f"📏 Размер: {item['size']}"
+            else:
+                size_text = ""
+            
             text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{size_text}\n💰 {subtotal} руб"
             
             keyboard = [
@@ -202,12 +217,33 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
             ]
             photo = product.get_photo()
-            if photo:
-                with open(photo, 'rb') as f:
-                    msg = await context.bot.send_photo(chat_id=chat_id, photo=f, caption=text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+            try:
+                if photo and os.path.exists(photo):
+                    with open(photo, 'rb') as f:
+                        msg = await context.bot.send_photo(
+                            chat_id=chat_id, 
+                            photo=f, 
+                            caption=text, 
+                            parse_mode="Markdown", 
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                        await msg_manager.add(context.bot, chat_id, user_id, msg)
+                else:
+                    msg = await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=text, 
+                        parse_mode="Markdown", 
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
                     await msg_manager.add(context.bot, chat_id, user_id, msg)
-            else:
-                msg = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as e:
+                print(f"Ошибка отправки товара в корзине: {e}")
+                msg = await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=text, 
+                    parse_mode="Markdown", 
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
 
     # Кнопка оформления заказа
