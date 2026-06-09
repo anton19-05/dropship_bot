@@ -571,51 +571,46 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # Отправляем себе данные
-    await send_debug(context.bot, f"🔍 back_to_product вызвана!\n📦 query.data: {query.data}")
-    
+    print(f"back_to_product вызвана! query.data: {query.data}")
     await query.answer()
+    
     data = query.data.replace("back_to_product_", "")
-    await send_debug(context.bot, f"✂️ data после replace: {data}")
+    print(f"data после replace: {data}")
     
-    # Если в data есть цвет (через подчёркивание), отделяем
-    if "_" in data and data.count("_") == 1:
-        product_id, color = data.split("_")
-    else:
-        product_id = data
-        color = context.user_data.get(f"color_{query.from_user.id}", "белый")
-    
-    debug("PRODUCT", f"Возврат к товару", {"product_id": product_id, "color": color})
+    # Извлекаем product_id (если есть цвет, отделяем)
+    parts = data.split("_")
+    product_id = parts[0]  # classic_shoes
     
     product = products_manager.get_by_id(product_id)
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
+    # Получаем цвет из сохранённых данных
     user_id = query.from_user.id
-    context.user_data[f"color_{user_id}"] = color
+    color = context.user_data.get(f"color_{user_id}", "белый")
     
-    # Получаем сохранённую страницу и категорию
-    page = context.user_data.get(f"back_page_{user_id}", 0)
+    # Получаем категорию и страницу для возврата
     category = product.category
-    
-    # Удаляем сообщение с отзывами или корзиной
-    try:
-        await query.message.delete()
-    except:
-        pass
+    page = context.user_data.get(f"back_page_{user_id}", 0)
     
     # Показываем карточку товара
     from utils import show_product
     await show_product(
-        query.message.chat_id, 
-        product_id, 
-        color, 
-        context, 
-        context.bot, 
-        category, 
-        page
+        chat_id=query.message.chat_id,
+        prod_id=product_id,
+        color_id=color,
+        context=context,
+        bot=context.bot,
+        category=category,
+        page=page
     )
+    
+    # Удаляем сообщение с корзиной
+    try:
+        await query.message.delete()
+    except:
+        pass
 
 
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
