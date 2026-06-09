@@ -570,6 +570,18 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Возврат к карточке товара"""
+    
+    # 👇 ПРИНУДИТЕЛЬНАЯ ДИАГНОСТИКА
+    try:
+        await context.bot.send_message(
+            chat_id=1941249302,
+            text=f"🔍 back_to_product ВЫЗВАНА!\nquery.data = {update.callback_query.data}"
+        )
+    except Exception as e:
+        print(f"Ошибка отправки диагностики: {e}")
+    
+    # ... остальной код
     query = update.callback_query
     print(f"back_to_product вызвана! query.data: {query.data}")
     await query.answer()
