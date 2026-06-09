@@ -5,6 +5,7 @@ from keyboards import get_categories_keyboard, get_product_keyboard, get_subcate
 from models import products_manager, msg_manager
 from models_categories import categories_manager
 from debug import info, debug, error, success, warning, print_state
+from logger import send_debug
 
 user_states = {}
 
@@ -569,13 +570,13 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Возврат к карточке товара"""
-    print("🎯 back_to_product ВЫЗВАНА!")  # 👈 ДОБАВЬТЕ
     query = update.callback_query
-    print(f"📦 query.data = {query.data}")  # 👈 ДОБАВЬТЕ
+    # Отправляем себе данные
+    await send_debug(context.bot, f"🔍 back_to_product вызвана!\n📦 query.data: {query.data}")
+    
     await query.answer()
-
     data = query.data.replace("back_to_product_", "")
+    await send_debug(context.bot, f"✂️ data после replace: {data}")
     
     # Если в data есть цвет (через подчёркивание), отделяем
     if "_" in data and data.count("_") == 1:
