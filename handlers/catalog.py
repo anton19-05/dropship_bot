@@ -571,43 +571,57 @@ async def review_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Возврат к карточке товара"""
-    
-    # 👇 ПРИНУДИТЕЛЬНАЯ ДИАГНОСТИКА
-    try:
-        await context.bot.send_message(
-            chat_id=1941249302,
-            text=f"🔍 back_to_product ВЫЗВАНА!\nquery.data = {update.callback_query.data}"
-        )
-    except Exception as e:
-        print(f"Ошибка отправки диагностики: {e}")
-    
-    # ... остальной код
     query = update.callback_query
-    print(f"back_to_product вызвана! query.data: {query.data}")
     await query.answer()
     
     data = query.data.replace("back_to_product_", "")
-    print(f"data после replace: {data}")
     
-    # Извлекаем product_id (если есть цвет, отделяем)
+    # Диагностика
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"1️⃣ data = {data}"
+    )
+    
     parts = data.split("_")
-    product_id = parts[0]  # classic_shoes
+    product_id = parts[0]
+    
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"2️⃣ product_id = {product_id}"
+    )
     
     product = products_manager.get_by_id(product_id)
+    
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"3️⃣ product найден = {product is not None}"
+    )
+    
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # Получаем цвет из сохранённых данных
     user_id = query.from_user.id
     color = context.user_data.get(f"color_{user_id}", "белый")
-    
-    # Получаем категорию и страницу для возврата
     category = product.category
     page = context.user_data.get(f"back_page_{user_id}", 0)
     
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"4️⃣ color={color}, category={category}, page={page}"
+    )
+    
+    # Удаляем сообщение с корзиной
+    try:
+        await query.message.delete()
+        await context.bot.send_message(chat_id=1941249302, text="5️⃣ Сообщение удалено")
+    except Exception as e:
+        await context.bot.send_message(chat_id=1941249302, text=f"5️⃣ Ошибка удаления: {e}")
+    
     # Показываем карточку товара
     from utils import show_product
+    await context.bot.send_message(chat_id=1941249302, text="6️⃣ Вызываем show_product...")
+    
     await show_product(
         chat_id=query.message.chat_id,
         prod_id=product_id,
@@ -618,11 +632,7 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         page=page
     )
     
-    # Удаляем сообщение с корзиной
-    try:
-        await query.message.delete()
-    except:
-        pass
+    await context.bot.send_message(chat_id=1941249302, text="7️⃣ show_product завершён")
 
 
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
