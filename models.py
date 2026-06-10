@@ -63,14 +63,11 @@ class Product:
         
         if "sizes" in self.attributes:
             sizes_data = self.attributes["sizes"]
-            # Если sizes - список объектов с available
             if sizes_data and isinstance(sizes_data[0], dict):
                 return sizes_data
-            # Если sizes - простой список чисел/строк
             else:
                 return [{"value": s, "available": True} for s in sizes_data]
         
-        # Стандартные размеры по умолчанию (все в наличии)
         default_sizes = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
         return [{"value": s, "available": True} for s in default_sizes]
 
@@ -78,13 +75,12 @@ class Product:
         """Проверить, есть ли размер в наличии"""
         sizes = self.get_sizes()
         for size in sizes:
-        # Преобразуем оба значения к строке для корректного сравнения
             if str(size["value"]) == str(size_value):
                 return size.get("available", True)
         return False
 
     def format_size(self, size_value):
-        """Отформатировать размер для отображения с крестиком если нет в наличии"""
+        """Отформатировать размер для отображения"""
         available = self.is_size_available(size_value)
         if available:
             return str(size_value)
@@ -97,9 +93,14 @@ class ProductManager:
         self.products = []
         self.products_by_id = {}
         self.products_by_code = {}
-        self._load(json_path)
+        
+        # ✅ ИСПРАВЛЕНО: абсолютный путь
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        full_path = os.path.join(base_dir, json_path)
+        self._load(full_path)
 
     def _load(self, path):
+        print(f"🔍 Загрузка товаров из: {path}")
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -108,6 +109,9 @@ class ProductManager:
                     self.products.append(product)
                     self.products_by_id[product.id] = product
                     self.products_by_code[product.code] = product
+            print(f"✅ Загружено {len(self.products)} товаров")
+        else:
+            print(f"❌ Файл НЕ НАЙДЕН: {path}")
 
     def get_by_id(self, prod_id):
         return self.products_by_id.get(prod_id)
