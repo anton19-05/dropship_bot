@@ -32,17 +32,34 @@ async def catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает товары выбранной категории"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     category = query.data.replace("cat_", "")
 
-    info("CATALOG", f"Выбрана категория: {category}", {"user_id": user_id})
+    # 📨 ДИАГНОСТИКА: отправляем себе в Telegram
+    try:
+        await context.bot.send_message(
+            chat_id=1941249302,
+            text=f"🔍 show_category\ncategory={category}\nВсего товаров в БД: {len(products_manager.products)}"
+        )
+    except Exception as e:
+        print(f"Ошибка отправки диагностики: {e}")
 
+    # Получаем товары по категории
     products = products_manager.get_by_category(category)
 
-    debug("CATALOG", f"Найдено товаров: {len(products)}")
+    # 📨 ДИАГНОСТИКА: сколько найдено
+    try:
+        categories_list = [p.category for p in products_manager.products]
+        await context.bot.send_message(
+            chat_id=1941249302,
+            text=f"🔍 Результат: найдено {len(products)} товаров для '{category}'\nКатегории всех товаров: {categories_list}"
+        )
+    except Exception as e:
+        print(f"Ошибка отправки диагностики: {e}")
 
     if not products:
         warning("CATALOG", f"Нет товаров в категории {category}")
@@ -66,8 +83,7 @@ async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         warning("CATALOG", f"Не удалось удалить сообщение: {e}")
 
     await show_products_page(update, user_id, 0, context)
-    success(
-        "CATALOG", f"Показана страница с товарами для категории {category}")
+    success("CATALOG", f"Показана страница с товарами для категории {category}")
 
 
 # НОВЫЙ ОБРАБОТЧИК: Выбор категории из главного меню
