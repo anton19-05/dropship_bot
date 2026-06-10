@@ -96,7 +96,7 @@ class ProductManager:
         
         # ✅ ПРАВИЛЬНЫЙ АБСОЛЮТНЫЙ ПУТЬ
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        full_path = os.path.join(base_dir, json_path)
+        full_path = "/app/data/products.json"
         
         print(f"🔍 Загрузка товаров из: {full_path}")
         
