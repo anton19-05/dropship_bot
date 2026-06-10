@@ -112,6 +112,10 @@ class ProductManager:
         else:
             print(f"❌ Файл НЕ НАЙДЕН: {full_path}")
 
+    def get_by_category(self, category):
+        """Получить товары по категории"""
+        return [p for p in self.products if p.category == category]
+
 
 class MessageManager:
     def __init__(self):
