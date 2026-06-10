@@ -47,6 +47,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(back_to_catalog_from_products, pattern="^back_to_catalog_from_products$"))
     
     # НОВЫЕ ОБРАБОТЧИКИ для категорий и подкатегорий
+    application.add_handler(CallbackQueryHandler(show_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))
     application.add_handler(CallbackQueryHandler(show_subcategory_products, pattern="^subcat_"))
     
