@@ -37,7 +37,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
     
     # Каталог (старые обработчики)
-    application.add_handler(CallbackQueryHandler(show_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^product_"))
     application.add_handler(CallbackQueryHandler(change_color, pattern="^color_"))

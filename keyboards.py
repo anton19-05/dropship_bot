@@ -15,12 +15,11 @@ def get_main_menu():
 
 
 def get_categories_keyboard():
-    """Клавиатура с категориями (для кнопки Каталог)"""
     keyboard = []
     for cat in categories_manager.get_all():
         keyboard.append([InlineKeyboardButton(
             cat["name"],
-            callback_data=f"category_{cat['id']}"
+            callback_data=f"category_{cat['id']}"  # ← было "cat_", стало "category_"
         )])
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
