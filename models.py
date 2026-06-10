@@ -94,7 +94,7 @@ class ProductManager:
         self.products_by_id = {}
         self.products_by_code = {}
         
-        # ✅ ИСПРАВЛЕНО: правильный абсолютный путь
+        # ✅ ПРАВИЛЬНЫЙ АБСОЛЮТНЫЙ ПУТЬ
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         full_path = os.path.join(base_dir, json_path)
         
@@ -111,11 +111,9 @@ class ProductManager:
             print(f"✅ Загружено {len(self.products)} товаров")
         else:
             print(f"❌ Файл НЕ НАЙДЕН: {full_path}")
-
+    
     def get_by_category(self, category):
-        """Получить товары по категории"""
         return [p for p in self.products if p.category == category]
-
 
 class MessageManager:
     def __init__(self):
