@@ -7,10 +7,7 @@ from telegram.ext import (
 from config import TOKEN
 
 # Импорты всех ваших хендлеров
-from handlers.profile import (
-    profile, edit_profile_start, 
-    handle_profile_input, get_profile_data, is_profile_complete
-)
+from handlers.profile import profile, edit_profile_start, handle_profile_input
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
     add_to_cart, cart_select_size, cart_confirm_quantity, view_cart,
@@ -24,6 +21,7 @@ from handlers.catalog import (
     goto_product, back_to_category, back_to_product_from_reviews, 
     show_category_by_id, show_subcategory_products, back_to_catalog_from_products
 )
+from handlers.helpers import get_profile_data, is_profile_complete
 
 def main() -> None:
     # Создаём приложение
