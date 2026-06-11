@@ -61,7 +61,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
-        [InlineKeyboardButton("📝 Редактировать профиль", callback_data="edit_profile_start")],
+        [InlineKeyboardButton("📝 Заполнить профиль", callback_data="edit_profile_start")],
+        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_start")],  # ← НОВАЯ КНОПКА
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
 
