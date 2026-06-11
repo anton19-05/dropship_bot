@@ -39,27 +39,8 @@ async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     category = query.data.replace("cat_", "")
 
-    # 📨 ДИАГНОСТИКА: отправляем себе в Telegram
-    try:
-        await context.bot.send_message(
-            chat_id=1941249302,
-            text=f"🔍 show_category\ncategory={category}\nВсего товаров в БД: {len(products_manager.products)}"
-        )
-    except Exception as e:
-        print(f"Ошибка отправки диагностики: {e}")
-
     # Получаем товары по категории
     products = products_manager.get_by_category(category)
-
-    # 📨 ДИАГНОСТИКА: сколько найдено
-    try:
-        categories_list = [p.category for p in products_manager.products]
-        await context.bot.send_message(
-            chat_id=1941249302,
-            text=f"🔍 Результат: найдено {len(products)} товаров для '{category}'\nКатегории всех товаров: {categories_list}"
-        )
-    except Exception as e:
-        print(f"Ошибка отправки диагностики: {e}")
 
     if not products:
         warning("CATALOG", f"Нет товаров в категории {category}")
