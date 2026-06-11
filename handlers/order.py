@@ -184,6 +184,11 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
 
     hint = f"\n\n📋 *Ваши сохранённые данные:*\n{profile_hint}\n💡 Вы можете изменить их в профиле." if profile_hint else ""
 
+    # ✅ ДОБАВЛЯЕМ КНОПКУ "НАЗАД"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Назад к выбору размера", callback_data=f"back_to_size_{product.id}")]
+    ])
+
     await context.bot.send_message(
         chat_id=query.message.chat_id,
         text=f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
@@ -197,7 +202,8 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
         f"4️⃣ Адрес\n"
         f"5️⃣ Телефон\n\n"
         f"📌 *Пример:* Иван Иванов, 123456, Москва, ул. Ленина 5, +79991234567{hint}",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=keyboard  # ✅ ДОБАВЛЕНА КЛАВИАТУРА
     )
 
 
@@ -279,3 +285,24 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
+
+async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Возврат к выбору размера из формы заказа"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    product_id = query.data.replace("back_to_size_", "")
+    
+    product = products_manager.get_by_id(product_id)
+    if not product:
+        await query.answer("❌ Товар не найден!", show_alert=True)
+        return
+    
+    # Очищаем данные заказа
+    context.user_data.pop(f"ordering_{user_id}", None)
+    context.user_data.pop(f"order_size_{user_id}", None)
+    # Цвет сохраняем, он нужен
+    
+    # Показываем выбор размера
+    await show_order_size_selection(update, context, product, user_id)
