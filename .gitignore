@@ -22,4 +22,4 @@ backup_old/
 
 # Временные файлы
 *.tmp
-*.temp
+*.temp.DS_Store
