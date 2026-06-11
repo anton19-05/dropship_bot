@@ -13,7 +13,7 @@ from handlers.cart import (
     add_to_cart, cart_select_size, cart_confirm_quantity, view_cart,
     cart_increase, cart_decrease, cart_remove, view_cart_from_profile, view_cart_from_product
 )
-from handlers.order import order_start, order_handle, order_select_size
+from handlers.order import order_start, order_handle, order_select_size, back_to_size
 from handlers.start import start, main_back
 from handlers.catalog import (
     catalog, show_category, show_product_detail, change_color, change_page,
@@ -35,6 +35,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
     application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
     application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
+    application.add_handler(CallbackQueryHandler(back_to_size, pattern="^back_to_size_"))
     
     # Каталог (старые обработчики)
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
