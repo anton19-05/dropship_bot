@@ -1,9 +1,15 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import msg_manager
+import re
+
+
+# Словарь для хранения состояния редактирования
+editing_state = {}
 
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает профиль пользователя"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -12,17 +18,39 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg_manager.clear(context.bot, chat_id, user_id)
 
     user_data = context.user_data.get(f"user_data_{user_id}", {})
-    cart_count = sum(item["quantity"] for item in context.user_data.get(
-        f"cart_{user_id}", {}).values())
+    cart_count = sum(item["quantity"] for item in context.user_data.get(f"cart_{user_id}", {}).values())
     fav_count = len(context.user_data.get(f"favorites_{user_id}", []))
+
+    # Проверяем, заполнен ли профиль
+    is_profile_complete = all([
+        user_data.get('last_name'),
+        user_data.get('first_name'),
+        user_data.get('phone'),
+        user_data.get('country'),
+        user_data.get('region'),
+        user_data.get('city'),
+        user_data.get('postal_code'),
+        user_data.get('address'),
+        user_data.get('email')
+    ])
+
+    profile_status = "✅ *Профиль полностью заполнен*" if is_profile_complete else "⚠️ *Профиль заполнен не полностью*"
 
     text = f"""
 👤 *МОЙ ПРОФИЛЬ* 👤
 
+{profile_status}
+
 📋 *Личные данные:*
-• Имя: {user_data.get('name', 'Не указано')}
+• Фамилия: {user_data.get('last_name', 'Не указано')}
+• Имя: {user_data.get('first_name', 'Не указано')}
 • Телефон: {user_data.get('phone', 'Не указан')}
+• Страна: {user_data.get('country', 'Не указана')}
+• Регион/Область: {user_data.get('region', 'Не указан')}
+• Город: {user_data.get('city', 'Не указан')}
+• Индекс: {user_data.get('postal_code', 'Не указан')}
 • Адрес: {user_data.get('address', 'Не указан')}
+• Email: {user_data.get('email', 'Не указан')}
 
 📊 *Статистика:*
 • 🛒 В корзине: {cart_count} товаров
@@ -32,8 +60,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
-        [InlineKeyboardButton("📝 Редактировать профиль",
-                              callback_data="edit_profile")],
+        [InlineKeyboardButton("📝 Редактировать профиль", callback_data="edit_profile_start")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
 
@@ -46,100 +73,177 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg_manager.add(context.bot, chat_id, user_id, msg)
 
 
-async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начало редактирования профиля — показываем инструкцию"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
 
-    keyboard = [
-        [InlineKeyboardButton("👤 Имя", callback_data="edit_name")],
-        [InlineKeyboardButton("📞 Телефон", callback_data="edit_phone")],
-        [InlineKeyboardButton("📍 Адрес", callback_data="edit_address")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="profile")]
-    ]
-
     await msg_manager.clear(context.bot, chat_id, user_id)
 
-    msg = await context.bot.send_message(
+    editing_state[user_id] = {"step": "waiting_for_data"}
+
+    instruction = """
+📝 *ИНСТРУКЦИЯ ПО ЗАПОЛНЕНИЮ ПРОФИЛЯ*
+
+Напишите одним сообщением через запятую ВСЕ данные в следующем порядке:
+
+1️⃣ Фамилия
+2️⃣ Имя
+3️⃣ Телефон (в формате +7...)
+4️⃣ Страна
+5️⃣ Регион / Область
+6️⃣ Город
+7️⃣ Индекс
+8️⃣ Адрес (улица, дом, корпус, квартира)
+9️⃣ Email
+
+📌 *Пример правильного заполнения:*
+Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru
+
+⚠️ *Важно:*
+• Все 9 пунктов обязательны для заполнения
+• Телефон должен начинаться с +7
+• Email должен быть корректным
+• Не используйте нецензурную лексику
+
+Нажмите "Отмена", чтобы вернуться в профиль.
+    """
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Отмена", callback_data="profile")]
+    ])
+
+    await context.bot.send_message(
         chat_id=chat_id,
-        text="📝 *РЕДАКТИРОВАНИЕ ПРОФИЛЯ*\n\nВыберите, что хотите изменить:",
+        text=instruction,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=keyboard
     )
-    await msg_manager.add(context.bot, chat_id, user_id, msg)
-
-
-async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    context.user_data["editing_field"] = "name"
-    await msg_manager.clear(context.bot, chat_id, user_id)
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text="📝 *Введите ваше имя*\n\nПример: Иван Иванов",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Назад", callback_data="edit_profile")]])
-    )
-    await msg_manager.add(context.bot, chat_id, user_id, msg)
-
-
-async def edit_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    context.user_data["editing_field"] = "phone"
-    await msg_manager.clear(context.bot, chat_id, user_id)
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text="📞 *Введите ваш номер телефона*\n\nФормат: +79991234567",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Назад", callback_data="edit_profile")]])
-    )
-    await msg_manager.add(context.bot, chat_id, user_id, msg)
-
-
-async def edit_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    context.user_data["editing_field"] = "address"
-    await msg_manager.clear(context.bot, chat_id, user_id)
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text="📍 *Введите ваш адрес*\n\nПример: Москва, ул. Ленина 5",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Назад", callback_data="edit_profile")]])
-    )
-    await msg_manager.add(context.bot, chat_id, user_id, msg)
 
 
 async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    field = context.user_data.get("editing_field")
-    if not field:
-        return
-
+    """Обработка введённых данных профиля"""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    value = update.message.text.strip()
-
+    
+    # Проверяем, находится ли пользователь в процессе редактирования
+    if user_id not in editing_state:
+        return
+    
+    text = update.message.text.strip()
+    parts = [p.strip() for p in text.split(",")]
+    
+    if len(parts) < 9:
+        await update.message.reply_text(
+            "❌ *Недостаточно данных!*\n\nПожалуйста, введите ВСЕ 9 пунктов через запятую.\n\n"
+            "📌 Пример:\nСмирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
+            parse_mode="Markdown"
+        )
+        return
+    
+    if len(parts) > 9:
+        await update.message.reply_text(
+            "❌ *Слишком много данных!*\n\nПожалуйста, введите ровно 9 пунктов через запятую.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Валидация данных
+    last_name = parts[0]
+    first_name = parts[1]
+    phone = parts[2]
+    country = parts[3]
+    region = parts[4]
+    city = parts[5]
+    postal_code = parts[6]
+    address = parts[7]
+    email = parts[8]
+    
+    # Простая проверка на матерные слова (базовые)
+    bad_words = ['мат', 'хер', 'хуй', 'пизда', 'бля', 'залупа', 'мудак', 'сука', 'ёба', 'ебан']
+    all_text = text.lower()
+    for bad_word in bad_words:
+        if bad_word in all_text:
+            await update.message.reply_text(
+                "❌ *Некорректные данные!*\n\nПожалуйста, используйте культурную лексику.",
+                parse_mode="Markdown"
+            )
+            return
+    
+    # Валидация телефона
+    phone_pattern = re.compile(r'^\+7\d{10}$')
+    if not phone_pattern.match(phone):
+        await update.message.reply_text(
+            "❌ *Неверный формат телефона!*\n\nТелефон должен быть в формате +7XXXXXXXXXX (10 цифр после +7).\n\nПример: +79077777777",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Валидация email
+    email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    if not email_pattern.match(email):
+        await update.message.reply_text(
+            "❌ *Неверный формат email!*\n\nПример: example@mail.ru",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Валидация индекса (цифры)
+    if not postal_code.isdigit():
+        await update.message.reply_text(
+            "❌ *Неверный формат индекса!*\n\nИндекс должен состоять только из цифр.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Сохраняем данные
     user_data_key = f"user_data_{user_id}"
     if user_data_key not in context.user_data:
         context.user_data[user_data_key] = {}
-    context.user_data[user_data_key][field] = value
-    context.user_data.pop("editing_field", None)
-
+    
+    context.user_data[user_data_key]["last_name"] = last_name
+    context.user_data[user_data_key]["first_name"] = first_name
+    context.user_data[user_data_key]["phone"] = phone
+    context.user_data[user_data_key]["country"] = country
+    context.user_data[user_data_key]["region"] = region
+    context.user_data[user_data_key]["city"] = city
+    context.user_data[user_data_key]["postal_code"] = postal_code
+    context.user_data[user_data_key]["address"] = address
+    context.user_data[user_data_key]["email"] = email
+    
+    # Удаляем состояние редактирования
+    del editing_state[user_id]
+    
+    # Удаляем сообщение пользователя
     try:
         await update.message.delete()
     except:
         pass
-
+    
     await msg_manager.clear(context.bot, chat_id, user_id)
+    
+    # Показываем обновлённый профиль
     await profile(update, context)
+
+
+async def get_profile_data(user_id, context):
+    """Вспомогательная функция для получения данных профиля"""
+    return context.user_data.get(f"user_data_{user_id}", {})
+
+
+async def is_profile_complete(user_id, context):
+    """Проверяет, заполнен ли профиль полностью"""
+    user_data = await get_profile_data(user_id, context)
+    return all([
+        user_data.get('last_name'),
+        user_data.get('first_name'),
+        user_data.get('phone'),
+        user_data.get('country'),
+        user_data.get('region'),
+        user_data.get('city'),
+        user_data.get('postal_code'),
+        user_data.get('address'),
+        user_data.get('email')
+    ])
