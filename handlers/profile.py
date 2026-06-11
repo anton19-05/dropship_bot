@@ -1,7 +1,8 @@
+import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import msg_manager
-import re
+from handlers.helpers import get_profile_data, is_profile_complete
 
 
 # Словарь для хранения состояния редактирования
@@ -100,7 +101,7 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 9️⃣ Email
 
 📌 *Пример правильного заполнения:*
-Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru
+Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина д. 10 кв. 25, olga@mail.ru
 
 ⚠️ *Важно:*
 • Все 9 пунктов обязательны для заполнения
@@ -138,7 +139,7 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     if len(parts) < 9:
         await update.message.reply_text(
             "❌ *Недостаточно данных!*\n\nПожалуйста, введите ВСЕ 9 пунктов через запятую.\n\n"
-            "📌 Пример:\nСмирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
+            "📌 *Пример:*\nСмирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
             parse_mode="Markdown"
         )
         return
@@ -224,5 +225,14 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     
     await msg_manager.clear(context.bot, chat_id, user_id)
     
-    # Показываем обновлённый профиль
-    await profile(update, context)
+    # ✅ НОВОЕ: показываем сообщение об успешном сохранении с кнопкой "В профиль"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤 Перейти в профиль", callback_data="profile")]
+    ])
+    
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="✅ *Данные профиля успешно сохранены!*\n\nВаша информация обновлена.",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
