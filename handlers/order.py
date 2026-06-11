@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from models import products_manager
 from config import ADMIN_ID
 from debug import info, debug, error, success, warning
+from handlers.helpers import get_profile_data, is_profile_complete
 
 
 async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,10 +32,8 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Проверяем, есть ли у товара размеры
     if product.has_sizes:
-        # Показываем выбор размера
         await show_order_size_selection(update, context, product, user_id)
     else:
-        # Если нет размеров — сразу переходим к форме
         await show_order_form(update, context, product, user_id, size=None)
 
 
@@ -58,8 +57,6 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
         if available:
             display = str(size_value)
             callback = f"order_size_{product.id}_{size_value}"
-            # 👇 ДОБАВЬТЕ ЭТУ СТРОКУ ДЛЯ ДИАГНОСТИКИ
-            print(f"🔘 Создана кнопка: {display} -> callback: {callback}")
         else:
             display = f"❌ {size_value}"
             callback = "noop"
@@ -91,56 +88,33 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
 
 async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора размера для заказа"""
-    print("🎯 order_select_size ВЫЗВАНА!")
     query = update.callback_query
     await query.answer()
-    
-    print(f"📦 query.data = {query.data}")
     
     user_id = query.from_user.id
     data = query.data.replace("order_size_", "")
     
-    print(f"📦 data после replace = {data}")
-    
     last_underscore = data.rfind("_")
-    print(f"📦 last_underscore = {last_underscore}")
     
     if last_underscore == -1:
-        print("❌ Нет подчёркивания!")
         await query.answer("❌ Ошибка выбора размера!", show_alert=True)
         return
     
     product_id = data[:last_underscore]
     size = data[last_underscore + 1:]
     
-    print(f"📦 product_id = {product_id}, size = {size}")
-    
     product = products_manager.get_by_id(product_id)
     if not product:
-        print(f"❌ Товар {product_id} не найден!")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    print(f"✅ Товар найден: {product.name}")
-    
     if not product.is_size_available(size):
-        print(f"❌ Размер {size} отсутствует в наличии!")
         await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
         return
     
-    print(f"✅ Размер {size} доступен")
-    
-    # Сохраняем выбранный размер
     context.user_data[f"order_size_{user_id}"] = size
-    print(f"✅ Размер сохранён в user_data")
     
-    # Переходим к форме заказа
-    print("🔄 Вызываем show_order_form...")
-    try:
-        await show_order_form(update, context, product, user_id, size)
-        print("✅ show_order_form выполнена успешно")
-    except Exception as e:
-        print(f"❌ Ошибка в show_order_form: {e}")
+    await show_order_form(update, context, product, user_id, size)
 
 
 async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size=None):
@@ -159,14 +133,11 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
         pass
     
     # Проверяем, заполнен ли профиль
-    from handlers.profile import is_profile_complete
     profile_complete = await is_profile_complete(user_id, context)
     
     if profile_complete:
-        # Если профиль заполнен — автоматически оформляем заказ
         await auto_order_from_profile(update, context, product, user_id, final_size, final_color)
     else:
-        # Если профиль не заполнен — показываем форму
         context.user_data[f"ordering_{user_id}"] = True
         
         keyboard = InlineKeyboardMarkup([
@@ -203,11 +174,10 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
         )
 
 
-async def auto_order_from_profile(update, context, product, user_id, size, color):
+async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size, color):
     """Автоматическое оформление заказа из данных профиля"""
     query = update.callback_query
     
-    from handlers.profile import get_profile_data
     profile = await get_profile_data(user_id, context)
     
     order_info = {
@@ -250,7 +220,7 @@ async def auto_order_from_profile(update, context, product, user_id, size, color
     admin_text += f"👤 @{order_info['username']}"
     
     await context.bot.send_message(
-        chat_id=1941249302,
+        chat_id=ADMIN_ID,
         text=admin_text,
         parse_mode="Markdown"
     )
@@ -269,8 +239,29 @@ async def auto_order_from_profile(update, context, product, user_id, size, color
     context.user_data.pop(f"order_size_{user_id}", None)
 
 
+async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Возврат к выбору размера из формы заказа"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    product_id = query.data.replace("back_to_size_", "")
+    
+    product = products_manager.get_by_id(product_id)
+    if not product:
+        await query.answer("❌ Товар не найден!", show_alert=True)
+        return
+    
+    # Очищаем данные заказа
+    context.user_data.pop(f"ordering_{user_id}", None)
+    context.user_data.pop(f"order_size_{user_id}", None)
+    
+    # Показываем выбор размера
+    await show_order_size_selection(update, context, product, user_id)
+
+
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка введённых данных заказа"""
+    """Обработка введённых данных заказа (если профиль не заполнен)"""
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
         return
@@ -279,9 +270,10 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     parts = [p.strip() for p in text.split(",")]
 
-    if len(parts) < 5:
+    if len(parts) < 9:
         await update.message.reply_text(
-            "❌ *Недостаточно данных!*\n\nПожалуйста, введите все 5 пунктов через запятую:\n\nФИО, Индекс, Город, Адрес, Телефон",
+            "❌ *Недостаточно данных!*\n\nПожалуйста, введите ВСЕ 9 пунктов через запятую.\n\n"
+            "📌 *Пример:* Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
             parse_mode="Markdown"
         )
         return
@@ -304,11 +296,15 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "price": product.price,
         "size": size,
         "color": color,
-        "fio": parts[0],
-        "index": parts[1],
-        "city": parts[2],
-        "address": parts[3],
-        "phone": parts[4],
+        "last_name": parts[0],
+        "first_name": parts[1],
+        "phone": parts[2],
+        "country": parts[3],
+        "region": parts[4],
+        "city": parts[5],
+        "postal_code": parts[6],
+        "address": parts[7],
+        "email": parts[8],
         "user_id": user_id,
         "username": update.effective_user.username
     }
@@ -322,11 +318,15 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         admin_text += f"📏 Размер: {order_info['size']}\n"
     admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
     admin_text += f"📋 Данные клиента:\n"
-    admin_text += f"• ФИО: {order_info['fio']}\n"
+    admin_text += f"• Фамилия: {order_info['last_name']}\n"
+    admin_text += f"• Имя: {order_info['first_name']}\n"
     admin_text += f"• Телефон: {order_info['phone']}\n"
-    admin_text += f"• Индекс: {order_info['index']}\n"
+    admin_text += f"• Страна: {order_info['country']}\n"
+    admin_text += f"• Регион: {order_info['region']}\n"
     admin_text += f"• Город: {order_info['city']}\n"
-    admin_text += f"• Адрес: {order_info['address']}\n\n"
+    admin_text += f"• Индекс: {order_info['postal_code']}\n"
+    admin_text += f"• Адрес: {order_info['address']}\n"
+    admin_text += f"• Email: {order_info['email']}\n\n"
     admin_text += f"👤 @{order_info['username']}"
 
     await context.bot.send_message(
@@ -347,24 +347,3 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
-
-async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Возврат к выбору размера из формы заказа"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    product_id = query.data.replace("back_to_size_", "")
-    
-    product = products_manager.get_by_id(product_id)
-    if not product:
-        await query.answer("❌ Товар не найден!", show_alert=True)
-        return
-    
-    # Очищаем данные заказа
-    context.user_data.pop(f"ordering_{user_id}", None)
-    context.user_data.pop(f"order_size_{user_id}", None)
-    # Цвет сохраняем, он нужен
-    
-    # Показываем выбор размера
-    await show_order_size_selection(update, context, product, user_id)
