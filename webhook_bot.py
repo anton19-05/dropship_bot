@@ -8,7 +8,7 @@ from config import TOKEN
 
 # Импорты всех ваших хендлеров
 from handlers.profile import (
-    profile, edit_profile_start, edit_name, edit_phone, edit_address, 
+    profile, edit_profile_start, 
     handle_profile_input, get_profile_data, is_profile_complete
 )
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
@@ -80,9 +80,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(profile, pattern="^profile$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_start$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile$"))
-    application.add_handler(CallbackQueryHandler(edit_name, pattern="^edit_name$"))
-    application.add_handler(CallbackQueryHandler(edit_phone, pattern="^edit_phone$"))
-    application.add_handler(CallbackQueryHandler(edit_address, pattern="^edit_address$"))
     
     # Обработчики текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
