@@ -585,19 +585,10 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = query.data.replace("back_to_product_", "")
     
-    # Диагностика
-    await context.bot.send_message(
-        chat_id=1941249302,
-        text=f"1️⃣ data = {data}"
-    )
-    
-    # ✅ ИСПРАВЛЕНО: правильное извлечение product_id
-    # Нужно понять, есть ли в конце цвет (через подчёркивание)
-    # Формат может быть: "classic_shoes" или "classic_shoes_белый"
-    
+    # Правильное извлечение product_id
     parts = data.split("_")
     
-    # Если есть цвет (3 части: [classic, shoes, белый])
+    # Если есть цвет (3 и более частей: [classic, shoes, белый])
     if len(parts) >= 3:
         # ID товара — первые две части с подчёркиванием
         product_id = f"{parts[0]}_{parts[1]}"
@@ -607,17 +598,7 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product_id = data
         color = context.user_data.get(f"color_{query.from_user.id}", "белый")
     
-    await context.bot.send_message(
-        chat_id=1941249302,
-        text=f"2️⃣ product_id = {product_id}"
-    )
-    
     product = products_manager.get_by_id(product_id)
-    
-    await context.bot.send_message(
-        chat_id=1941249302,
-        text=f"3️⃣ product найден = {product is not None}"
-    )
     
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
