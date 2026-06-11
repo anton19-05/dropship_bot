@@ -113,6 +113,12 @@ class ProductManager:
     
     def get_by_category(self, category):
         return [p for p in self.products if p.category == category]
+    
+    def get_by_id(self, prod_id):
+        return self.products_by_id.get(prod_id)
+
+    def get_by_code(self, code):
+        return self.products_by_code.get(code)
 
 class MessageManager:
     def __init__(self):
