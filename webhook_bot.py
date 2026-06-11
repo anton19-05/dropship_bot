@@ -7,19 +7,22 @@ from telegram.ext import (
 from config import TOKEN
 
 # Импорты всех ваших хендлеров
-from handlers.profile import profile, edit_profile, edit_name, edit_phone, edit_address, handle_profile_input
+from handlers.profile import (
+    profile, edit_profile_start, edit_name, edit_phone, edit_address, 
+    handle_profile_input, get_profile_data, is_profile_complete
+)
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
     add_to_cart, cart_select_size, cart_confirm_quantity, view_cart,
     cart_increase, cart_decrease, cart_remove, view_cart_from_profile, view_cart_from_product
 )
-from handlers.order import order_start, order_handle, order_select_size, back_to_size
+from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, auto_order_from_profile
 from handlers.start import start, main_back
 from handlers.catalog import (
     catalog, show_category, show_product_detail, change_color, change_page,
     back_to_catalog, show_reviews, review_next, review_prev, back_to_product,
     goto_product, back_to_category, back_to_product_from_reviews, 
-    show_category_by_id, show_subcategory_products, back_to_catalog_from_products  # ← новые импорты
+    show_category_by_id, show_subcategory_products, back_to_catalog_from_products
 )
 
 def main() -> None:
@@ -37,7 +40,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
     application.add_handler(CallbackQueryHandler(back_to_size, pattern="^back_to_size_"))
     
-    # Каталог (старые обработчики)
+    # Каталог
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^product_"))
     application.add_handler(CallbackQueryHandler(change_color, pattern="^color_"))
@@ -47,7 +50,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(back_to_category, pattern="^back_to_category_"))
     application.add_handler(CallbackQueryHandler(back_to_catalog_from_products, pattern="^back_to_catalog_from_products$"))
     
-    # НОВЫЕ ОБРАБОТЧИКИ для категорий и подкатегорий
+    # Категории и подкатегории
     application.add_handler(CallbackQueryHandler(show_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))
     application.add_handler(CallbackQueryHandler(show_subcategory_products, pattern="^subcat_"))
@@ -73,12 +76,10 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(fav_to_cart, pattern="^fav_to_cart_"))
     application.add_handler(CallbackQueryHandler(fav_remove, pattern="^fav_remove_"))
     
-    # Заказать
-    application.add_handler(CallbackQueryHandler(order_start, pattern="^order_"))
-    
     # Профиль
     application.add_handler(CallbackQueryHandler(profile, pattern="^profile$"))
-    application.add_handler(CallbackQueryHandler(edit_profile, pattern="^edit_profile$"))
+    application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_start$"))
+    application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile$"))
     application.add_handler(CallbackQueryHandler(edit_name, pattern="^edit_name$"))
     application.add_handler(CallbackQueryHandler(edit_phone, pattern="^edit_phone$"))
     application.add_handler(CallbackQueryHandler(edit_address, pattern="^edit_address$"))

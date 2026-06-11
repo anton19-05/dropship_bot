@@ -144,67 +144,129 @@ async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size=None):
-    """Показывает форму для ввода данных с уже выбранными атрибутами"""
+    """Показывает форму для ввода данных или использует данные из профиля"""
     query = update.callback_query
     
-    # Сохраняем размер, если он есть
     if size:
         context.user_data[f"order_size_{user_id}"] = size
     
-    # Получаем сохранённые атрибуты
     final_size = context.user_data.get(f"order_size_{user_id}")
     final_color = context.user_data.get(f"order_color_{user_id}")
     
-    # Удаляем сообщение с выбором размера
     try:
         await query.message.delete()
     except:
         pass
     
-    # Устанавливаем флаг, что пользователь в процессе заказа
-    context.user_data[f"ordering_{user_id}"] = True
+    # Проверяем, заполнен ли профиль
+    from handlers.profile import is_profile_complete
+    profile_complete = await is_profile_complete(user_id, context)
     
-    # Данные из профиля
-    user_data = context.user_data.get(f"user_data_{user_id}", {})
+    if profile_complete:
+        # Если профиль заполнен — автоматически оформляем заказ
+        await auto_order_from_profile(update, context, product, user_id, final_size, final_color)
+    else:
+        # Если профиль не заполнен — показываем форму
+        context.user_data[f"ordering_{user_id}"] = True
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Назад к выбору размера", callback_data=f"back_to_size_{product.id}")]
+        ])
+        
+        attributes_text = ""
+        if final_color:
+            attributes_text += f"🎨 Цвет: {final_color}\n"
+        if final_size:
+            attributes_text += f"📏 Размер: {final_size}\n"
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
+            f"👟 Товар: {product.name}\n"
+            f"{attributes_text}"
+            f"💰 Цена: {product.price} руб\n\n"
+            f"⚠️ *Ваш профиль не заполнен!*\n\n"
+            f"Пожалуйста, заполните профиль в разделе 👤 *Мой профиль* или введите данные сейчас.\n\n"
+            f"Напишите одним сообщением через запятую:\n\n"
+            f"1️⃣ Фамилия\n"
+            f"2️⃣ Имя\n"
+            f"3️⃣ Телефон (+7...)\n"
+            f"4️⃣ Страна\n"
+            f"5️⃣ Регион / Область\n"
+            f"6️⃣ Город\n"
+            f"7️⃣ Индекс\n"
+            f"8️⃣ Адрес\n"
+            f"9️⃣ Email\n\n"
+            f"📌 *Пример:* Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+
+
+async def auto_order_from_profile(update, context, product, user_id, size, color):
+    """Автоматическое оформление заказа из данных профиля"""
+    query = update.callback_query
     
-    # Формируем подсказку с выбранными атрибутами
-    attributes_text = ""
-    if final_color:
-        attributes_text += f"🎨 Цвет: {final_color}\n"
-    if final_size:
-        attributes_text += f"📏 Размер: {final_size}\n"
+    from handlers.profile import get_profile_data
+    profile = await get_profile_data(user_id, context)
     
-    profile_hint = ""
-    if user_data.get('name'):
-        profile_hint += f"👤 ФИО: {user_data['name']}\n"
-    if user_data.get('phone'):
-        profile_hint += f"📞 Телефон: {user_data['phone']}\n"
-    if user_data.get('address'):
-        profile_hint += f"📍 Адрес: {user_data['address']}\n"
-
-    hint = f"\n\n📋 *Ваши сохранённые данные:*\n{profile_hint}\n💡 Вы можете изменить их в профиле." if profile_hint else ""
-
-    # ✅ ДОБАВЛЯЕМ КНОПКУ "НАЗАД"
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Назад к выбору размера", callback_data=f"back_to_size_{product.id}")]
-    ])
-
+    order_info = {
+        "product": product.name,
+        "product_code": product.code,
+        "price": product.price,
+        "size": size,
+        "color": color,
+        "last_name": profile.get('last_name'),
+        "first_name": profile.get('first_name'),
+        "phone": profile.get('phone'),
+        "country": profile.get('country'),
+        "region": profile.get('region'),
+        "city": profile.get('city'),
+        "postal_code": profile.get('postal_code'),
+        "address": profile.get('address'),
+        "email": profile.get('email'),
+        "user_id": user_id,
+        "username": update.effective_user.username
+    }
+    
+    # Формируем текст для админа
+    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
+    admin_text += f"👟 {order_info['product']}\n"
+    if order_info.get('color'):
+        admin_text += f"🎨 Цвет: {order_info['color']}\n"
+    if order_info.get('size'):
+        admin_text += f"📏 Размер: {order_info['size']}\n"
+    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
+    admin_text += f"📋 Данные клиента (из профиля):\n"
+    admin_text += f"• Фамилия: {order_info['last_name']}\n"
+    admin_text += f"• Имя: {order_info['first_name']}\n"
+    admin_text += f"• Телефон: {order_info['phone']}\n"
+    admin_text += f"• Страна: {order_info['country']}\n"
+    admin_text += f"• Регион: {order_info['region']}\n"
+    admin_text += f"• Город: {order_info['city']}\n"
+    admin_text += f"• Индекс: {order_info['postal_code']}\n"
+    admin_text += f"• Адрес: {order_info['address']}\n"
+    admin_text += f"• Email: {order_info['email']}\n\n"
+    admin_text += f"👤 @{order_info['username']}"
+    
     await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text=f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
-        f"👟 Товар: {product.name}\n"
-        f"{attributes_text}"
-        f"💰 Цена: {product.price} руб\n\n"
-        f"Напишите одним сообщением через запятую:\n\n"
-        f"1️⃣ ФИО\n"
-        f"2️⃣ Индекс\n"
-        f"3️⃣ Город\n"
-        f"4️⃣ Адрес\n"
-        f"5️⃣ Телефон\n\n"
-        f"📌 *Пример:* Иван Иванов, 123456, Москва, ул. Ленина 5, +79991234567{hint}",
-        parse_mode="Markdown",
-        reply_markup=keyboard  # ✅ ДОБАВЛЕНА КЛАВИАТУРА
+        chat_id=1941249302,
+        text=admin_text,
+        parse_mode="Markdown"
     )
+    
+    await query.edit_message_text(
+        text=f"✅ *ЗАКАЗ ПРИНЯТ!*\n\n"
+        f"📦 Менеджер свяжется с вами\n"
+        f"📬 Трек-номер придёт через 2-3 дня\n\n"
+        f"🌟 Спасибо за покупку!",
+        parse_mode="Markdown"
+    )
+    
+    # Очищаем данные заказа
+    context.user_data.pop(f"ordering_{user_id}", None)
+    context.user_data.pop(f"order_product_{user_id}", None)
+    context.user_data.pop(f"order_size_{user_id}", None)
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
