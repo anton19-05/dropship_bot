@@ -591,8 +591,21 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"1️⃣ data = {data}"
     )
     
+    # ✅ ИСПРАВЛЕНО: правильное извлечение product_id
+    # Нужно понять, есть ли в конце цвет (через подчёркивание)
+    # Формат может быть: "classic_shoes" или "classic_shoes_белый"
+    
     parts = data.split("_")
-    product_id = parts[0]
+    
+    # Если есть цвет (3 части: [classic, shoes, белый])
+    if len(parts) >= 3:
+        # ID товара — первые две части с подчёркиванием
+        product_id = f"{parts[0]}_{parts[1]}"
+        color = "_".join(parts[2:])  # цвет может быть из нескольких частей
+    else:
+        # Если только ID товара (classic_shoes)
+        product_id = data
+        color = context.user_data.get(f"color_{query.from_user.id}", "белый")
     
     await context.bot.send_message(
         chat_id=1941249302,
@@ -611,37 +624,29 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_id = query.from_user.id
-    color = context.user_data.get(f"color_{user_id}", "белый")
-    category = product.category
+    context.user_data[f"color_{user_id}"] = color
+    
+    # Получаем сохранённую страницу и категорию
     page = context.user_data.get(f"back_page_{user_id}", 0)
+    category = product.category
     
-    await context.bot.send_message(
-        chat_id=1941249302,
-        text=f"4️⃣ color={color}, category={category}, page={page}"
-    )
-    
-    # Удаляем сообщение с корзиной
+    # Удаляем сообщение
     try:
         await query.message.delete()
-        await context.bot.send_message(chat_id=1941249302, text="5️⃣ Сообщение удалено")
-    except Exception as e:
-        await context.bot.send_message(chat_id=1941249302, text=f"5️⃣ Ошибка удаления: {e}")
+    except:
+        pass
     
     # Показываем карточку товара
     from utils import show_product
-    await context.bot.send_message(chat_id=1941249302, text="6️⃣ Вызываем show_product...")
-    
     await show_product(
-        chat_id=query.message.chat_id,
-        prod_id=product_id,
-        color_id=color,
-        context=context,
-        bot=context.bot,
-        category=category,
-        page=page
+        query.message.chat_id, 
+        product_id, 
+        color, 
+        context, 
+        context.bot, 
+        category, 
+        page
     )
-    
-    await context.bot.send_message(chat_id=1941249302, text="7️⃣ show_product завершён")
 
 
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
