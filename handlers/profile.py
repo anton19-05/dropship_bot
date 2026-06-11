@@ -108,12 +108,10 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 • Телефон должен начинаться с +7
 • Email должен быть корректным
 • Не используйте нецензурную лексику
-
-Нажмите "Отмена", чтобы вернуться в профиль.
     """
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Отмена", callback_data="profile")]
+        [InlineKeyboardButton("👤 В профиль", callback_data="profile")]
     ])
 
     await context.bot.send_message(
