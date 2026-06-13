@@ -12,3 +12,7 @@ YOOMONEY_SUCCESS_URL = "https://t.me/dropshopshipbot"  # или любая сс�
 
 # Telegram бот username (для возврата)
 BOT_USERNAME = "DropShopBot"  # ваш username бота
+
+# Supabase настройки
+SUPABASE_URL = "https://jncytqmtxmvyrhmjcdi.supabase.co"
+SUPABASE_KEY = "sb_publishable_EhS81N_UpaS1C840h9qIjg_oa16P_"
