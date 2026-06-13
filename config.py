@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.getenv("8883773859:AAEBGc9i5c_ux520PZJ5gUV0tYOruXKtzoQ")
+TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 1941249302
 
 # ЮMoney настройки (только номер кошелька!)
