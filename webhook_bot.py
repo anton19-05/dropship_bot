@@ -23,6 +23,8 @@ from handlers.catalog import (
 )
 from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
+from storage import load_user_data
+
 
 def main() -> None:
     # Создаём приложение
@@ -94,6 +96,13 @@ def main() -> None:
         await query.answer("⛔ Эта кнопка неактивна", show_alert=True)
     application.add_handler(CallbackQueryHandler(noop, pattern="^noop$"))
 
+    # ✅ ВОССТАНАВЛИВАЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ ИЗ ФАЙЛА
+    all_data = load_user_data()
+    for user_id_str, user_data in all_data.items():
+        user_id = int(user_id_str)
+        application.user_data[user_id] = user_data
+    print(f"✅ Восстановлено {len(all_data)} профилей пользователей")
+
     # --- Запуск через вебхуки ---
     port = int(os.environ.get('PORT', 10000))
     webhook_url = f'https://{os.environ["RENDER_EXTERNAL_HOSTNAME"]}/webhook/{TOKEN}'
@@ -105,6 +114,7 @@ def main() -> None:
         url_path=f'/webhook/{TOKEN}',
         webhook_url=webhook_url
     )
+
 
 if __name__ == '__main__':
     main()

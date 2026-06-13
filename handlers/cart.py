@@ -2,6 +2,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
+from storage import save_user_data_sync
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,6 +152,10 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+    # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
+    from storage import save_user_data_sync
+    save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
     """Просмотр корзины с возможностью вернуться к товару"""
@@ -263,9 +268,16 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     item_key = query.data.replace("cart_incr_", "")
-    cart = context.user_data.get(f"cart_{user_id}", {})
+    cart_key = f"cart_{user_id}"
+    cart = context.user_data.get(cart_key, {})
+    
     if item_key in cart:
         cart[item_key]["quantity"] += 1
+        
+        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
+        from storage import save_user_data_sync
+        save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+    
     await view_cart(update, context)
 
 
@@ -274,12 +286,19 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     item_key = query.data.replace("cart_decr_", "")
-    cart = context.user_data.get(f"cart_{user_id}", {})
+    cart_key = f"cart_{user_id}"
+    cart = context.user_data.get(cart_key, {})
+    
     if item_key in cart:
         if cart[item_key]["quantity"] > 1:
             cart[item_key]["quantity"] -= 1
         else:
             del cart[item_key]
+        
+        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
+        from storage import save_user_data_sync
+        save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+    
     await view_cart(update, context)
 
 
@@ -288,9 +307,16 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     item_key = query.data.replace("cart_remove_", "")
-    cart = context.user_data.get(f"cart_{user_id}", {})
+    cart_key = f"cart_{user_id}"
+    cart = context.user_data.get(cart_key, {})
+    
     if item_key in cart:
         del cart[item_key]
+        
+        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
+        from storage import save_user_data_sync
+        save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+    
     await view_cart(update, context)
 
 async def view_cart_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
