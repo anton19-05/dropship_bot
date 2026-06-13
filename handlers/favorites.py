@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
+from storage import save_user_data_sync
 
 
 async def add_to_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -21,7 +22,10 @@ async def add_to_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if product_code not in context.user_data[fav_key]:
         context.user_data[fav_key].append(product_code)
 
-    # Удаляем текущее сообщение
+    # ✅ СОХРАНЯЕМ ИЗБРАННОЕ В ФАЙЛ
+    from storage import save_user_data_sync
+    save_user_data_sync(user_id, {fav_key: context.user_data[fav_key]}, context)
+
     try:
         await query.message.delete()
     except:
@@ -127,5 +131,9 @@ async def fav_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if fav_key in context.user_data and product_code in context.user_data[fav_key]:
         context.user_data[fav_key].remove(product_code)
+        
+        # ✅ СОХРАНЯЕМ ИЗБРАННОЕ В ФАЙЛ
+        from storage import save_user_data_sync
+        save_user_data_sync(user_id, {fav_key: context.user_data[fav_key]}, context)
 
     await view_favorites(update, context)

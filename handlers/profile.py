@@ -2,8 +2,7 @@ import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import msg_manager
-from handlers.helpers import get_profile_data, is_profile_complete
-
+from storage import save_user_data_sync, get_user_data
 
 # Словарь для хранения состояния редактирования
 editing_state = {}
@@ -18,11 +17,12 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
-    user_data = context.user_data.get(f"user_data_{user_id}", {})
+    # Загружаем данные из файла
+    user_data = await get_user_data(user_id, context)
+    
     cart_count = sum(item["quantity"] for item in context.user_data.get(f"cart_{user_id}", {}).values())
     fav_count = len(context.user_data.get(f"favorites_{user_id}", []))
 
-    # Проверяем, заполнен ли профиль
     is_profile_complete = all([
         user_data.get('last_name'),
         user_data.get('first_name'),
@@ -115,7 +115,6 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 • Не используйте нецензурную лексику
     """
 
-    # Добавляем дополнительный текст для кнопки "Сменить данные"
     if is_change:
         instruction += "\n\n✏️ *Напишите ниже новые данные для замены старых.*"
 
@@ -137,7 +136,6 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     
-    # Проверяем, находится ли пользователь в процессе редактирования
     if user_id not in editing_state:
         return
     
@@ -170,7 +168,7 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     address = parts[7]
     email = parts[8]
     
-    # Простая проверка на матерные слова (базовые)
+    # Проверка на матерные слова
     bad_words = ['мат', 'хер', 'хуй', 'пизда', 'бля', 'залупа', 'мудак', 'сука', 'ёба', 'ебан']
     all_text = text.lower()
     for bad_word in bad_words:
@@ -199,7 +197,7 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
     
-    # Валидация индекса (цифры)
+    # Валидация индекса
     if not postal_code.isdigit():
         await update.message.reply_text(
             "❌ *Неверный формат индекса!*\n\nИндекс должен состоять только из цифр.",
@@ -208,24 +206,23 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     # Сохраняем данные
-    user_data_key = f"user_data_{user_id}"
-    if user_data_key not in context.user_data:
-        context.user_data[user_data_key] = {}
+    user_data = {
+        "last_name": last_name,
+        "first_name": first_name,
+        "phone": phone,
+        "country": country,
+        "region": region,
+        "city": city,
+        "postal_code": postal_code,
+        "address": address,
+        "email": email
+    }
     
-    context.user_data[user_data_key]["last_name"] = last_name
-    context.user_data[user_data_key]["first_name"] = first_name
-    context.user_data[user_data_key]["phone"] = phone
-    context.user_data[user_data_key]["country"] = country
-    context.user_data[user_data_key]["region"] = region
-    context.user_data[user_data_key]["city"] = city
-    context.user_data[user_data_key]["postal_code"] = postal_code
-    context.user_data[user_data_key]["address"] = address
-    context.user_data[user_data_key]["email"] = email
+    # Сохраняем в файл
+    save_user_data_sync(user_id, user_data, context)
     
-    # Удаляем состояние редактирования
     del editing_state[user_id]
     
-    # Удаляем сообщение пользователя
     try:
         await update.message.delete()
     except:
@@ -233,7 +230,6 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     
     await msg_manager.clear(context.bot, chat_id, user_id)
     
-    # ✅ НОВОЕ: показываем сообщение об успешном сохранении с кнопкой "В профиль"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("👤 Перейти в профиль", callback_data="profile")]
     ])
