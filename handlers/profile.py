@@ -62,6 +62,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
         [InlineKeyboardButton("📝 Заполнить профиль", callback_data="edit_profile_start")],
+        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_change")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
 
@@ -84,6 +85,10 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await msg_manager.clear(context.bot, chat_id, user_id)
 
     editing_state[user_id] = {"step": "waiting_for_data"}
+
+    # Проверяем, откуда пришли (из профиля или из кнопки "Сменить данные")
+    callback_data = query.data
+    is_change = callback_data == "edit_profile_change"
 
     instruction = """
 📝 *ИНСТРУКЦИЯ ПО ЗАПОЛНЕНИЮ ПРОФИЛЯ*
@@ -110,9 +115,13 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 • Не используйте нецензурную лексику
     """
 
+    # Добавляем дополнительный текст для кнопки "Сменить данные"
+    if is_change:
+        instruction += "\n\n✏️ *Напишите ниже новые данные для замены старых.*"
+
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("👤 В профиль", callback_data="profile")],
-        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_start")]  # ← НОВАЯ КНОПКА
+        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_change")]
     ])
 
     await context.bot.send_message(

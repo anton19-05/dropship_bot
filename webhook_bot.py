@@ -78,6 +78,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(profile, pattern="^profile$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_start$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile$"))
+    application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_change$"))
     
     # Обработчики текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
