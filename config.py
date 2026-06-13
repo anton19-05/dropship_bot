@@ -1,7 +1,14 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # Загружает переменные из секретного файла
+load_dotenv()
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("8883773859:AAEBGc9i5c_ux520PZJ5gUV0tYOruXKtzoQ")
 ADMIN_ID = 1941249302
+
+# ЮMoney настройки (только номер кошелька!)
+YOOMONEY_WALLET = "4100119535616904"  # ваш номер с картинки
+YOOMONEY_SUCCESS_URL = "https://t.me/dropshopshipbot"  # или любая ссылка
+
+# Telegram бот username (для возврата)
+BOT_USERNAME = "DropShopBot"  # ваш username бота

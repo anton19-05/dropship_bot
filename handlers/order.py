@@ -1,3 +1,5 @@
+from handlers.payment import create_payment
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager
@@ -347,3 +349,22 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
+
+    # ... после отправки уведомления админу ...
+    
+    # ✅ СОЗДАЕМ ПЛАТЕЖ ДЛЯ ПОКУПАТЕЛЯ
+    order_id = f"{user_id}_{int(time.time())}"
+    
+    # Сохраняем заказ для истории (опционально)
+    if "orders" not in context.user_data:
+        context.user_data["orders"] = {}
+    context.user_data["orders"][order_id] = order_info
+    
+    # Вызываем платеж
+    await create_payment(
+        update=update,
+        context=context,
+        amount=product.price,
+        order_id=order_id,
+        description=product.name
+    )
