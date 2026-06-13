@@ -22,6 +22,7 @@ from handlers.catalog import (
     show_category_by_id, show_subcategory_products, back_to_catalog_from_products
 )
 from handlers.helpers import get_profile_data, is_profile_complete
+from handlers.payment import payment_success
 
 def main() -> None:
     # Создаём приложение
@@ -79,6 +80,9 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_start$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_change$"))
+
+    # Добавьте обработчик
+    application.add_handler(CallbackQueryHandler(payment_success, pattern="^payment_success$"))
     
     # Обработчики текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
