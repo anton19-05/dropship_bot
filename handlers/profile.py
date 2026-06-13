@@ -62,7 +62,6 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
         [InlineKeyboardButton("📝 Заполнить профиль", callback_data="edit_profile_start")],
-        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_start")],  # ← НОВАЯ КНОПКА
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
 
@@ -102,7 +101,7 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 9️⃣ Email
 
 📌 *Пример правильного заполнения:*
-Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина д. 10 кв. 25, olga@mail.ru
+Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru
 
 ⚠️ *Важно:*
 • Все 9 пунктов обязательны для заполнения
@@ -112,7 +111,8 @@ async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👤 В профиль", callback_data="profile")]
+        [InlineKeyboardButton("👤 В профиль", callback_data="profile")],
+        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_start")]  # ← НОВАЯ КНОПКА
     ])
 
     await context.bot.send_message(
