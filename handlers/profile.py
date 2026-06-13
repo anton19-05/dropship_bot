@@ -18,7 +18,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg_manager.clear(context.bot, chat_id, user_id)
 
     # Загружаем данные из файла
-    user_data = await get_user_data(user_id, context)
+    user_data = get_user_data(user_id, context)
     
     cart_count = sum(item["quantity"] for item in context.user_data.get(f"cart_{user_id}", {}).values())
     fav_count = len(context.user_data.get(f"favorites_{user_id}", []))
