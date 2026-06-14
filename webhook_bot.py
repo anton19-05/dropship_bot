@@ -23,6 +23,7 @@ from handlers.catalog import (
 )
 from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
+from handlers.db_sqlite import restore_all_user_data
 from storage import load_user_data
 
 
@@ -108,6 +109,8 @@ def main() -> None:
     webhook_url = f'https://{os.environ["RENDER_EXTERNAL_HOSTNAME"]}/webhook/{TOKEN}'
 
     print(f'🔄 Устанавливаем вебхук на {webhook_url}')
+        # Восстанавливаем данные пользователей из SQLite
+    restore_all_user_data(application)
     application.run_webhook(
         listen='0.0.0.0',
         port=port,
