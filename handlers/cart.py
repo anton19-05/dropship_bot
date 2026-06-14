@@ -2,8 +2,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
-from storage import save_user_data_sync
-from handlers.db import save_cart
+from handlers.db_sqlite import save_cart
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -153,11 +152,8 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # ✅ СОХРАНЯЕМ КОРЗИНУ В SUPABASE
-    from handlers.db import save_cart
-    print(f"🔍 Пытаемся сохранить корзину: user_id={user_id}")
+    # Сохраняем корзину в SQLite
     save_cart(user_id, context.user_data[f"cart_{user_id}"])
-    print(f"🔍 save_cart выполнен")
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):

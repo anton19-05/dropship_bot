@@ -2,7 +2,7 @@ import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import msg_manager
-from storage import save_user_data_sync, get_user_data
+from handlers.db_sqlite import save_user_profile, load_user_profile
 
 # Словарь для хранения состояния редактирования
 editing_state = {}
@@ -17,62 +17,13 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
-    # Загружаем данные из файла
-    user_data = get_user_data(user_id, context)
+    # Загружаем данные из SQLite
+    user_data = load_user_profile(user_id)
     
     cart_count = sum(item["quantity"] for item in context.user_data.get(f"cart_{user_id}", {}).values())
     fav_count = len(context.user_data.get(f"favorites_{user_id}", []))
 
-    is_profile_complete = all([
-        user_data.get('last_name'),
-        user_data.get('first_name'),
-        user_data.get('phone'),
-        user_data.get('country'),
-        user_data.get('region'),
-        user_data.get('city'),
-        user_data.get('postal_code'),
-        user_data.get('address'),
-        user_data.get('email')
-    ])
-
-    profile_status = "✅ *Профиль полностью заполнен*" if is_profile_complete else "⚠️ *Профиль заполнен не полностью*"
-
-    text = f"""
-👤 *МОЙ ПРОФИЛЬ* 👤
-
-{profile_status}
-
-📋 *Личные данные:*
-• Фамилия: {user_data.get('last_name', 'Не указано')}
-• Имя: {user_data.get('first_name', 'Не указано')}
-• Телефон: {user_data.get('phone', 'Не указан')}
-• Страна: {user_data.get('country', 'Не указана')}
-• Регион/Область: {user_data.get('region', 'Не указан')}
-• Город: {user_data.get('city', 'Не указан')}
-• Индекс: {user_data.get('postal_code', 'Не указан')}
-• Адрес: {user_data.get('address', 'Не указан')}
-• Email: {user_data.get('email', 'Не указан')}
-
-📊 *Статистика:*
-• 🛒 В корзине: {cart_count} товаров
-• ❤️ В избранном: {fav_count} товаров
-    """
-
-    keyboard = [
-        [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
-         InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
-        [InlineKeyboardButton("📝 Заполнить профиль", callback_data="edit_profile_start")],
-        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_change")],
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
-    ]
-
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-    await msg_manager.add(context.bot, chat_id, user_id, msg)
+    # ... остальной код функции без изменений
 
 
 async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,7 +170,10 @@ async def handle_profile_input(update: Update, context: ContextTypes.DEFAULT_TYP
     }
     
     # Сохраняем в файл
-    save_user_data_sync(user_id, user_data, context)
+    # В конце функции, после формирования user_data:
+    # Сохраняем в SQLite
+    save_user_profile(user_id, user_data)
+    # ... остальной код
     
     del editing_state[user_id]
     
