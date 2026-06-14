@@ -15,4 +15,4 @@ BOT_USERNAME = "DropShopBot"  # ваш username бота
 
 # Supabase настройки
 SUPABASE_URL = "https://jncytqmtxmvyrhmjcdi.supabase.co"
-SUPABASE_KEY = "sb_publishable_EhS81N_UpaS1C840h9qIjg_oa16P_"
+SUPABASE_KEY = "sb_publishable_EhS81N_UpaS1C840h9qIjg_oa16PT-v"
