@@ -6,22 +6,29 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def save_user_profile(user_id: int, profile_data: dict):
     """Сохраняет профиль пользователя в БД"""
+    print(f"💾 save_user_profile ВЫЗВАНА: user_id={user_id}, profile_data={profile_data}")
     try:
         data = {
             "user_id": user_id,
             **profile_data,
             "updated_at": "now()"
         }
+        
         existing = supabase.table("users").select("*").eq("user_id", user_id).execute()
+        print(f"🔍 Существующий профиль: {existing.data}")
         
         if existing.data:
-            supabase.table("users").update(data).eq("user_id", user_id).execute()
+            result = supabase.table("users").update(data).eq("user_id", user_id).execute()
+            print(f"🔄 Обновлён профиль: {result.data}")
         else:
             data["created_at"] = "now()"
-            supabase.table("users").insert(data).execute()
+            result = supabase.table("users").insert(data).execute()
+            print(f"➕ Создан новый профиль: {result.data}")
+        
+        print("✅ Профиль сохранён в Supabase")
         return True
     except Exception as e:
-        print(f"Ошибка сохранения профиля: {e}")
+        print(f"❌ Ошибка сохранения профиля: {e}")
         return False
 
 
@@ -39,21 +46,29 @@ def load_user_profile(user_id: int):
 
 def save_cart(user_id: int, cart_data: dict):
     """Сохраняет корзину пользователя в БД"""
+    print(f"💾 save_cart ВЫЗВАНА: user_id={user_id}, cart_data={cart_data}")
     try:
         data = {
             "user_id": user_id,
             "cart_data": cart_data,
             "updated_at": "now()"
         }
+        
+        # Проверяем, есть ли уже запись
         existing = supabase.table("carts").select("*").eq("user_id", user_id).execute()
+        print(f"🔍 Существующая запись: {existing.data}")
         
         if existing.data:
-            supabase.table("carts").update(data).eq("user_id", user_id).execute()
+            result = supabase.table("carts").update(data).eq("user_id", user_id).execute()
+            print(f"🔄 Обновлена существующая корзина: {result.data}")
         else:
-            supabase.table("carts").insert(data).execute()
+            result = supabase.table("carts").insert(data).execute()
+            print(f"➕ Создана новая корзина: {result.data}")
+        
+        print("✅ Корзина сохранена в Supabase")
         return True
     except Exception as e:
-        print(f"Ошибка сохранения корзины: {e}")
+        print(f"❌ Ошибка сохранения корзины: {e}")
         return False
 
 
@@ -71,21 +86,28 @@ def load_cart(user_id: int):
 
 def save_favorites(user_id: int, favorites_data: dict):
     """Сохраняет избранное пользователя в БД"""
+    print(f"💾 save_favorites ВЫЗВАНА: user_id={user_id}, favorites_data={favorites_data}")
     try:
         data = {
             "user_id": user_id,
             "favorites_data": favorites_data,
             "updated_at": "now()"
         }
+        
         existing = supabase.table("favorites").select("*").eq("user_id", user_id).execute()
+        print(f"🔍 Существующее избранное: {existing.data}")
         
         if existing.data:
-            supabase.table("favorites").update(data).eq("user_id", user_id).execute()
+            result = supabase.table("favorites").update(data).eq("user_id", user_id).execute()
+            print(f"🔄 Обновлено избранное: {result.data}")
         else:
-            supabase.table("favorites").insert(data).execute()
+            result = supabase.table("favorites").insert(data).execute()
+            print(f"➕ Создано новое избранное: {result.data}")
+        
+        print("✅ Избранное сохранено в Supabase")
         return True
     except Exception as e:
-        print(f"Ошибка сохранения избранного: {e}")
+        print(f"❌ Ошибка сохранения избранного: {e}")
         return False
 
 
