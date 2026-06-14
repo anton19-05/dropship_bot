@@ -152,9 +152,11 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
-    from storage import save_user_data_sync
-    save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+    # ✅ ДИАГНОСТИКА И СОХРАНЕНИЕ В SUPABASE
+    print(f"🔍 Пытаемся сохранить корзину: user_id={user_id}")
+    from handlers.db import save_cart
+    save_cart(user_id, context.user_data[cart_key])
+    print(f"🔍 save_cart выполнен")
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
