@@ -25,6 +25,7 @@ from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
 from handlers.db_sqlite import restore_all_user_data
 from storage import load_user_data
+from handlers.admin import check_db
 
 
 def main() -> None:
@@ -33,6 +34,7 @@ def main() -> None:
 
     # --- Регистрация всех хендлеров ---
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("checkdb", check_db))
     application.add_handler(CallbackQueryHandler(main_back, pattern="^main_back$"))
     application.add_handler(CallbackQueryHandler(profile, pattern="^menu_profile$"))
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))

@@ -198,3 +198,24 @@ def restore_all_user_data(application):
 
 # Инициализируем базу данных при загрузке модуля
 init_db()
+
+def get_all_carts():
+    """Возвращает все корзины из базы данных"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, cart_data, updated_at FROM carts')
+        rows = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for row in rows:
+            result.append({
+                "user_id": row["user_id"],
+                "cart_data": json.loads(row["cart_data"]),
+                "updated_at": row["updated_at"]
+            })
+        return result
+    except Exception as e:
+        print(f"Ошибка получения корзин: {e}")
+        return []
