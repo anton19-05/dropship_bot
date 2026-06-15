@@ -4,10 +4,11 @@ import json
 
 # Создаём клиент Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+print(f"✅ Supabase подключен: {SUPABASE_URL}")
 
 
 def save_cart(user_id: int, cart_data: dict):
-    """Сохраняет корзину в Supabase"""
+    print(f"🔍 save_cart ВЫЗВАНА: user_id={user_id}, cart_data={cart_data}")
     try:
         data = {
             "user_id": user_id,
