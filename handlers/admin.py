@@ -34,3 +34,23 @@ async def check_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if message:
         await update.message.reply_text(message, parse_mode="Markdown")
+
+async def test_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Тестовая команда для проверки платежа"""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⛔ Нет доступа")
+        return
+    
+    from handlers.payment import create_payment
+    import time
+    
+    order_id = f"test_{int(time.time())}"
+    
+    await create_payment(
+        update=update,
+        context=context,
+        amount=100,
+        order_id=order_id,
+        description="Тестовый товар"
+    )

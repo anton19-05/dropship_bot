@@ -25,6 +25,8 @@ from handlers.payment import payment_success
 from storage import load_user_data
 from handlers.admin import check_db
 
+from handlers.admin import test_payment
+
 
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
@@ -32,6 +34,7 @@ def main() -> None:
     # --- Регистрация всех хендлеров ---
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("checkdb", check_db))
+    application.add_handler(CommandHandler("testpayment", test_payment))
     application.add_handler(CallbackQueryHandler(main_back, pattern="^main_back$"))
     application.add_handler(CallbackQueryHandler(profile, pattern="^menu_profile$"))
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))
