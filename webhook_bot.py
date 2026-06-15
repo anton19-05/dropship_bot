@@ -23,7 +23,7 @@ from handlers.catalog import (
 )
 from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
-from handlers.db_sqlite import restore_all_user_data
+from handlers.db import restore_all_user_data
 from storage import load_user_data
 from handlers.admin import check_db
 

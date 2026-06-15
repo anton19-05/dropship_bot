@@ -2,7 +2,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
-from handlers.db_sqlite import save_cart
+from handlers.db import save_cart
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
