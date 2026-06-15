@@ -105,9 +105,12 @@ async def add_quantity_selection(update, context, product_code):
 
 
 async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("🚀 ФУНКЦИЯ cart_confirm_quantity ВЫЗВАНА")
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    print(f"🔍 user_id = {user_id}")
+    # ... остальной код ...
     data = query.data.replace("cart_qty_", "")
     parts = data.split("_")
     product_code = parts[0]
@@ -154,6 +157,11 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     # Сохраняем корзину в SQLite
     save_cart(user_id, context.user_data[f"cart_{user_id}"])
+
+    print(f"📦 cart_data перед сохранением: {context.user_data[f'cart_{user_id}']}")
+    from handlers.db import save_cart
+    save_cart(user_id, context.user_data[f"cart_{user_id}"])
+    print("✅ save_cart выполнен")
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
