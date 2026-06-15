@@ -242,8 +242,12 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         parse_mode="Markdown"
     )
     
+    # ✅ НЕ УДАЛЯЕМ СООБЩЕНИЕ! Просто редактируем его
+    # Убираем await query.message.delete()
+    
     # Создаём платеж
     from handlers.payment import create_payment
+    import time
     order_id = f"{user_id}_{int(time.time())}"
     
     await create_payment(

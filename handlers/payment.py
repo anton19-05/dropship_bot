@@ -55,7 +55,7 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
     )
     
     try:
-        if query:
+        if query and query.message:
             await query.edit_message_text(
                 text=text,
                 parse_mode="Markdown",
@@ -69,9 +69,16 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
                 reply_markup=keyboard
             )
     except Exception as e:
+        # Если не можем отредактировать — отправляем новое сообщение
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"❌ Ошибка при создании платежа: {e}"
+            text=f"⚠️ Не удалось отредактировать сообщение, отправлено новое. Ошибка: {e}"
         )
 
 
