@@ -99,20 +99,21 @@ def main() -> None:
         await query.answer("⛔ Эта кнопка неактивна", show_alert=True)
     application.add_handler(CallbackQueryHandler(noop, pattern="^noop$"))
 
-    # ✅ ВОССТАНАВЛИВАЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ ИЗ ФАЙЛА
+        # Восстанавливаем данные пользователей из базы данных
+    restore_all_user_data(application)
+    
+    # Восстанавливаем данные из JSON (для обратной совместимости)
     all_data = load_user_data()
     for user_id_str, user_data in all_data.items():
         user_id = int(user_id_str)
         application.user_data[user_id] = user_data
-    print(f"✅ Восстановлено {len(all_data)} профилей пользователей")
+    print(f"✅ Восстановлено {len(all_data)} профилей из JSON")
 
     # --- Запуск через вебхуки ---
     port = int(os.environ.get('PORT', 10000))
     webhook_url = f'https://{os.environ["RENDER_EXTERNAL_HOSTNAME"]}/webhook/{TOKEN}'
 
     print(f'🔄 Устанавливаем вебхук на {webhook_url}')
-        # Восстанавливаем данные пользователей из SQLite
-    restore_all_user_data(application)
     application.run_webhook(
         listen='0.0.0.0',
         port=port,
