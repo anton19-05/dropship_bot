@@ -2,7 +2,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
-from handlers.db import save_cart
+from storage import save_user_data_sync
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,13 +32,12 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             size_value = size_data["value"]
             available = size_data.get("available", True)
             
-            # Форматируем отображение
             if available:
                 display = str(size_value)
                 callback = f"cart_size_{product_code}_{size_value}"
             else:
                 display = f"❌ {size_value}"
-                callback = "noop"  # Неактивная кнопка
+                callback = "noop"
             
             row.append(InlineKeyboardButton(display, callback_data=callback))
             if (i + 1) % 3 == 0:
@@ -105,12 +104,9 @@ async def add_quantity_selection(update, context, product_code):
 
 
 async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("🚀 ФУНКЦИЯ cart_confirm_quantity ВЫЗВАНА")
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    print(f"🔍 user_id = {user_id}")
-    # ... остальной код ...
     data = query.data.replace("cart_qty_", "")
     parts = data.split("_")
     product_code = parts[0]
@@ -155,17 +151,11 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # Сохраняем корзину в SQLite
-    save_cart(user_id, context.user_data[f"cart_{user_id}"])
-
-    print(f"📦 cart_data перед сохранением: {context.user_data[f'cart_{user_id}']}")
-    from handlers.db import save_cart
-    save_cart(user_id, context.user_data[f"cart_{user_id}"])
-    print("✅ save_cart выполнен")
+    # ✅ СОХРАНЯЕМ КОРЗИНУ В JSON
+    save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
-    """Просмотр корзины с возможностью вернуться к товару"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -174,26 +164,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
-    # Сохраняем контекст, откуда пришли
     context.user_data[f"cart_from_product_{user_id}"] = from_product_card
 
     if not cart:
-        # Корзина пуста
-        print(f"🔍 view_cart: from_product_card={from_product_card}, user_id={user_id}")
-        
         if from_product_card:
-            # Пришли из карточки товара → кнопка "Назад к товару"
             product_id = context.user_data.get(f"last_product_id_{user_id}")
-            print(f"🔍 last_product_id_{user_id} = {product_id}")
-            
             if product_id:
                 back_button = [InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]
-                print(f"🔘 Создана кнопка с callback: back_to_product_{product_id}")
             else:
                 back_button = [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
-                print(f"🔘 product_id не найден, кнопка Назад на главную")
         else:
-            # Пришли из профиля → кнопка "В профиль"
             back_button = [InlineKeyboardButton("🔙 В профиль", callback_data="profile")]
         
         msg = await context.bot.send_message(
@@ -205,7 +185,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         await msg_manager.add(context.bot, chat_id, user_id, msg)
         return
 
-    # Корзина не пуста
     total = 0
     for item_key, item in cart.items():
         product = products_manager.get_by_code(item["product_code"])
@@ -213,7 +192,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             subtotal = item["price"] * item["quantity"]
             total += subtotal
             
-            # Формируем текст с размером
             if item.get('size'):
                 size_text = f"📏 Размер: {item['size']}"
             else:
@@ -258,7 +236,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
 
-    # Кнопка оформления заказа
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"💰 *ИТОГО: {total} руб*",
@@ -280,9 +257,6 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if item_key in cart:
         cart[item_key]["quantity"] += 1
-        
-        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
-        from storage import save_user_data_sync
         save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
     
     await view_cart(update, context)
@@ -301,9 +275,6 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cart[item_key]["quantity"] -= 1
         else:
             del cart[item_key]
-        
-        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
-        from storage import save_user_data_sync
         save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
     
     await view_cart(update, context)
@@ -319,18 +290,14 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if item_key in cart:
         del cart[item_key]
-        
-        # ✅ СОХРАНЯЕМ КОРЗИНУ В ФАЙЛ
-        from storage import save_user_data_sync
         save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
     
     await view_cart(update, context)
 
+
 async def view_cart_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Просмотр корзины из профиля"""
     await view_cart(update, context, from_product_card=False)
 
 
 async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Просмотр корзины из карточки товара"""
     await view_cart(update, context, from_product_card=True)

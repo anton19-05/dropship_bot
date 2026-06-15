@@ -23,13 +23,11 @@ from handlers.catalog import (
 )
 from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
-from handlers.db import restore_all_user_data
 from storage import load_user_data
 from handlers.admin import check_db
 
 
 def main() -> None:
-    # Создаём приложение
     application = Application.builder().token(TOKEN).build()
 
     # --- Регистрация всех хендлеров ---
@@ -85,8 +83,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_start$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile$"))
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_change$"))
-
-    # Добавьте обработчик
     application.add_handler(CallbackQueryHandler(payment_success, pattern="^payment_success$"))
     
     # Обработчики текста
@@ -99,15 +95,12 @@ def main() -> None:
         await query.answer("⛔ Эта кнопка неактивна", show_alert=True)
     application.add_handler(CallbackQueryHandler(noop, pattern="^noop$"))
 
-        # Восстанавливаем данные пользователей из базы данных
-    restore_all_user_data(application)
-    
-    # Восстанавливаем данные из JSON (для обратной совместимости)
+    # ✅ ВОССТАНАВЛИВАЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ ИЗ JSON
     all_data = load_user_data()
     for user_id_str, user_data in all_data.items():
         user_id = int(user_id_str)
         application.user_data[user_id] = user_data
-    print(f"✅ Восстановлено {len(all_data)} профилей из JSON")
+    print(f"✅ Восстановлено {len(all_data)} профилей пользователей")
 
     # --- Запуск через вебхуки ---
     port = int(os.environ.get('PORT', 10000))
