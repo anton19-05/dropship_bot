@@ -12,7 +12,3 @@ YOOMONEY_SUCCESS_URL = "https://t.me/dropshopshipbot"
 
 # Telegram бот username (для возврата)
 BOT_USERNAME = "DropShopBot"
-
-# Supabase настройки (берутся из переменных окружения)
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
