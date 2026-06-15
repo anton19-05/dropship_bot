@@ -21,7 +21,6 @@ from handlers.catalog import (
     goto_product, back_to_category, back_to_product_from_reviews, 
     show_category_by_id, show_subcategory_products, back_to_catalog_from_products
 )
-from handlers.helpers import get_profile_data, is_profile_complete
 from handlers.payment import payment_success
 from storage import load_user_data
 from handlers.admin import check_db
