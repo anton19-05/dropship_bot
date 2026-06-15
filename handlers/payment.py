@@ -7,8 +7,17 @@ from debug import info
 
 async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amount, order_id, description):
     """Создает платежную ссылку ЮMoney"""
-    query = update.callback_query
-    user_id = query.from_user.id
+    
+    # Определяем, откуда вызван платеж (callback или message)
+    if update.callback_query:
+        query = update.callback_query
+        chat_id = query.message.chat_id
+        await query.answer()
+    else:
+        query = None
+        chat_id = update.effective_chat.id
+    
+    user_id = update.effective_user.id
     
     # Формируем ссылку для оплаты
     payment_url = (
@@ -28,27 +37,37 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("💳 Оплатить картой", url=payment_url)],
         [InlineKeyboardButton("📱 Оплатить через СБП", url=payment_url + "&paymentType=SB")],
-        [InlineKeyboardButton("🔙 Назад в корзину", callback_data="view_cart")]
+        [InlineKeyboardButton("🔙 Назад", callback_data="view_cart")]
     ])
     
-    await query.edit_message_text(
-        text=f"💸 *Оплата заказа #{order_id}*\n\n"
+    text = (
+        f"💸 *Оплата заказа #{order_id}*\n\n"
         f"📦 {description}\n"
         f"💰 Сумма: {amount} руб\n\n"
-        f"Выберите способ оплаты:",
-        parse_mode="Markdown",
-        reply_markup=keyboard
+        f"Выберите способ оплаты:"
     )
+    
+    if query:
+        await query.edit_message_text(
+            text=text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
     
     info("PAYMENT", f"Создан платеж для заказа {order_id}", {"user_id": user_id, "amount": amount})
 
 
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает сообщение об успешной оплате (после возврата из ЮMoney)"""
-    # Проверяем, есть ли параметр в callback_data
     query = update.callback_query
     
-    # Получаем номер заказа из данных (если есть)
     order_id = "неизвестный"
     if query and query.data.startswith("payment_success_"):
         order_id = query.data.replace("payment_success_", "")

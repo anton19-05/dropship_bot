@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from models import products_manager
 from config import ADMIN_ID
 from debug import info, debug, error, success, warning
+from handlers.payment import create_payment
 
 
 async def get_profile_data(user_id, context):
