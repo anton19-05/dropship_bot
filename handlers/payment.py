@@ -1,9 +1,8 @@
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from config import YOOMONEY_WALLET, BOT_USERNAME
+from config import YOOMONEY_WALLET, BOT_USERNAME, ADMIN_ID
 from debug import info
-from config import ADMIN_ID
 
 
 async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amount, order_id, description):
@@ -35,12 +34,6 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
         f"&need-address=false"
     )
     
-    # ✅ ОТПРАВЛЯЕМ ССЫЛКУ АДМИНУ (для диагностики)
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🔗 Ссылка на оплату заказа #{order_id}:\n{payment_url}"
-    )
-    
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("💳 Оплатить картой", url=payment_url)],
         [InlineKeyboardButton("📱 Оплатить через СБП", url=payment_url + "&paymentType=SB")],
@@ -68,7 +61,7 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
-    except Exception as e:
+    except Exception:
         # Если не можем отредактировать — отправляем новое сообщение
         await context.bot.send_message(
             chat_id=chat_id,
@@ -76,18 +69,16 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
             parse_mode="Markdown",
             reply_markup=keyboard
         )
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"⚠️ Не удалось отредактировать сообщение, отправлено новое. Ошибка: {e}"
-        )
+    
+    info("PAYMENT", f"Создан платеж для заказа {order_id}", {"user_id": user_id, "amount": amount})
 
 
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает сообщение об успешной оплате (после возврата из ЮMoney)"""
+    """Показывает сообщение об успешной оплате"""
     query = update.callback_query
     
     order_id = "неизвестный"
-    if query and query.data.startswith("payment_success_"):
+    if query and query.data and query.data.startswith("payment_success_"):
         order_id = query.data.replace("payment_success_", "")
     
     text = (
