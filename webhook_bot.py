@@ -21,7 +21,7 @@ from handlers.catalog import (
     goto_product, back_to_category, back_to_product_from_reviews, 
     show_category_by_id, show_subcategory_products, back_to_catalog_from_products
 )
-from handlers.payment import payment_success
+from handlers.payment import payment_success, check_payment_status, confirm_payment
 from storage import load_user_data
 from handlers.admin import check_db
 
@@ -35,6 +35,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("checkdb", check_db))
     application.add_handler(CommandHandler("testpayment", test_payment))
+    application.add_handler(CommandHandler("confirm", confirm_payment))
     application.add_handler(CallbackQueryHandler(main_back, pattern="^main_back$"))
     application.add_handler(CallbackQueryHandler(profile, pattern="^menu_profile$"))
     application.add_handler(CallbackQueryHandler(catalog, pattern="^menu_catalog$"))
@@ -43,6 +44,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
     application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
     application.add_handler(CallbackQueryHandler(back_to_size, pattern="^back_to_size_"))
+    application.add_handler(CallbackQueryHandler(check_payment_status, pattern="^check_payment_"))
     
     # Каталог
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
