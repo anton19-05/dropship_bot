@@ -1,11 +1,8 @@
 import time
 import hashlib
-import hmac
-import json
-import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from config import YOOMONEY_WALLET, YOOMONEY_CLIENT_ID, YOOMONEY_CLIENT_SECRET, BOT_USERNAME, ADMIN_ID
+from config import YOOMONEY_WALLET, BOT_USERNAME, ADMIN_ID
 from debug import info, error
 
 
@@ -28,89 +25,53 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
     
     user_id = update.effective_user.id
     
-    # Формируем платеж через API
+    # Формируем ссылку для оплаты
+    payment_url = (
+        f"https://yoomoney.ru/quickpay/confirm?"
+        f"receiver={YOOMONEY_WALLET}"
+        f"&quickpay-form=shop"
+        f"&targets={description}"
+        f"&sum={amount}"
+        f"&label=order_{order_id}_{user_id}"
+        f"&successURL=https://t.me/{BOT_USERNAME}"
+        f"&need-fio=false"
+        f"&need-email=false"
+        f"&need-phone=false"
+        f"&need-address=false"
+    )
+    
+    # Сохраняем информацию о платеже
+    context.user_data[f"payment_{order_id}"] = {
+        "order_id": order_id,
+        "amount": amount,
+        "description": description,
+        "user_id": user_id,
+        "status": "pending",
+        "created_at": time.time()
+    }
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Оплатить", url=payment_url)],
+        [InlineKeyboardButton("✅ Я оплатил", callback_data=f"check_payment_{order_id}")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="view_cart")]
+    ])
+    
+    text = (
+        f"💳 *ОПЛАТА ЗАКАЗА #{order_id}*\n\n"
+        f"📦 *Товар:* {description}\n"
+        f"💰 *Сумма:* {amount} руб\n\n"
+        f"🔒 *Безопасная оплата через ЮMoney*\n"
+        f"💳 Принимаются все банковские карты\n"
+        f"📱 Поддерживается СБП\n\n"
+        f"⏱️ *После оплаты нажмите:* «✅ Я оплатил»"
+    )
+    
     try:
-        # Генерируем подпись
-        signature = generate_signature(
-            YOOMONEY_WALLET,
-            order_id,
-            str(int(amount)),
-            YOOMONEY_CLIENT_SECRET
-        )
-        
-        # Данные для создания платежа
-        payment_data = {
-            "shopId": YOOMONEY_WALLET,
-            "sum": str(int(amount)),
-            "paymentMethod": "bank_card",
-            "orderId": order_id,
-            "orderDescription": description,
-            "returnUrl": f"https://t.me/{BOT_USERNAME}",
-            "customer": {
-                "userId": str(user_id)
-            }
-        }
-        
-        # Отправляем запрос в ЮMoney API
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {YOOMONEY_CLIENT_ID}"
-        }
-        
-        # Пока используем простую форму (из-за ограничений API)
-        # Это временное решение до полной интеграции
-        payment_url = (
-            f"https://yoomoney.ru/quickpay/confirm?"
-            f"receiver={YOOMONEY_WALLET}"
-            f"&quickpay-form=shop"
-            f"&targets={description}"
-            f"&sum={amount}"
-            f"&label=order_{order_id}_{user_id}"
-            f"&successURL=https://t.me/{BOT_USERNAME}"
-            f"&need-fio=false"
-            f"&need-email=false"
-            f"&need-phone=false"
-            f"&need-address=false"
-        )
-        
-        # Сохраняем информацию о платеже
-        context.user_data[f"payment_{order_id}"] = {
-            "order_id": order_id,
-            "amount": amount,
-            "description": description,
-            "user_id": user_id,
-            "status": "pending",
-            "created_at": time.time()
-        }
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Оплатить", url=payment_url)],
-            [InlineKeyboardButton("🔙 Назад", callback_data="view_cart")]
-        ])
-        
-        text = (
-            f"💳 *ОПЛАТА ЗАКАЗА #{order_id}*\n\n"
-            f"📦 *Товар:* {description}\n"
-            f"💰 *Сумма:* {amount} руб\n\n"
-            f"🔒 *Безопасная оплата через ЮMoney*\n"
-            f"💳 Принимаются все банковские карты\n"
-            f"📱 Поддерживается СБП\n\n"
-            f"⏱️ *После оплаты нажмите кнопку:*\n"
-            f"«Я оплатил» для подтверждения"
-        )
-        
-        # Добавляем кнопку проверки оплаты
-        keyboard_check = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Оплатить", url=payment_url)],
-            [InlineKeyboardButton("✅ Я оплатил", callback_data=f"check_payment_{order_id}")],
-            [InlineKeyboardButton("🔙 Назад", callback_data="view_cart")]
-        ])
-        
         if query and query.message:
             await query.edit_message_text(
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=keyboard_check,
+                reply_markup=keyboard,
                 disable_web_page_preview=True
             )
         else:
@@ -118,7 +79,7 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=keyboard_check,
+                reply_markup=keyboard,
                 disable_web_page_preview=True
             )
         
@@ -134,14 +95,13 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
 
 
 async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Проверяет статус платежа (обработка кнопки 'Я оплатил')"""
+    """Обработчик кнопки 'Я оплатил'"""
     query = update.callback_query
     await query.answer()
     
     order_id = query.data.replace("check_payment_", "")
     user_id = query.from_user.id
     
-    # Получаем информацию о платеже
     payment_info = context.user_data.get(f"payment_{order_id}")
     
     if not payment_info:
@@ -154,23 +114,15 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
     
-    # Сообщение о проверке
-    await query.edit_message_text(
-        "⏳ *Проверка платежа...*\n\n"
-        "Пожалуйста, подождите несколько секунд.",
-        parse_mode="Markdown"
-    )
-    
-    # Здесь должна быть реальная проверка через API
-    # Пока используем ручное подтверждение (кнопка "Я оплатил")
-    
-    # Отправляем админу уведомление о необходимости проверки
+    # Отправляем уведомление админу
     admin_text = (
-        f"🔄 *Новая оплата требует проверки!*\n\n"
+        f"🔄 *Платёж требует подтверждения!*\n\n"
         f"📦 Заказ: #{order_id}\n"
         f"👤 Пользователь: @{update.effective_user.username}\n"
         f"💰 Сумма: {payment_info['amount']} руб\n"
-        f"📝 Товар: {payment_info['description']}"
+        f"📝 Товар: {payment_info['description']}\n\n"
+        f"✅ Для подтверждения отправьте команду:\n"
+        f"/confirm {order_id}"
     )
     
     await context.bot.send_message(
@@ -179,7 +131,6 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         parse_mode="Markdown"
     )
     
-    # Ожидаем подтверждения от админа
     await query.edit_message_text(
         "✅ *Запрос на подтверждение отправлен менеджеру!*\n\n"
         "Менеджер проверит оплату и подтвердит заказ.\n"
@@ -190,22 +141,16 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
             [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
         ])
     )
-    
-    # Сохраняем статус
-    payment_info["status"] = "checking"
-    context.user_data[f"payment_{order_id}"] = payment_info
 
 
 async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Подтверждение платежа админом (команда /confirm)"""
+    """Подтверждение платежа админом (/confirm order_id)"""
     user_id = update.effective_user.id
     
-    # Проверяем, что это админ
     if user_id != ADMIN_ID:
         await update.message.reply_text("⛔ У вас нет доступа.")
         return
     
-    # Получаем аргументы: /confirm order_id
     args = context.args
     if not args:
         await update.message.reply_text(
@@ -229,7 +174,6 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Платёж с таким ID не найден.")
         return
     
-    # Подтверждаем платеж
     payment_info["status"] = "confirmed"
     
     # Отправляем уведомление пользователю
@@ -243,23 +187,18 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🌟 Спасибо за покупку!",
             parse_mode="Markdown"
         )
-    except:
-        pass
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Не удалось уведомить пользователя: {e}")
     
     await update.message.reply_text(f"✅ Платёж {order_id} успешно подтверждён. Пользователь уведомлён.")
 
 
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка успешной оплаты (если пришло уведомление от ЮMoney)"""
-    # Этот метод вызывается, когда ЮMoney присылает webhook уведомление
-    # Или когда пользователь вернулся по successURL
-    
+    """Обработка успешной оплаты (возврат из ЮMoney)"""
     query = update.callback_query
-    if query:
-        await query.answer()
     
     order_id = "неизвестный"
-    if query and query.data.startswith("payment_success_"):
+    if query and query.data and query.data.startswith("payment_success_"):
         order_id = query.data.replace("payment_success_", "")
     
     text = (
