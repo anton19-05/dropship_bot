@@ -6,6 +6,8 @@ from config import ADMIN_ID
 from debug import info, debug, error, success, warning
 from handlers.payment import create_payment
 
+pending_orders = {}
+
 
 async def get_profile_data(user_id, context):
     """Получает данные профиля пользователя"""
@@ -192,7 +194,7 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
 
 
 async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size, color):
-    """Автоматическое оформление заказа из данных профиля с платежом"""
+    """Автоматическое оформление заказа из данных профиля"""
     query = update.callback_query
     
     profile = await get_profile_data(user_id, context)
@@ -216,43 +218,20 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "username": update.effective_user.username
     }
     
-    # Отправляем заказ админу
-    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
-    admin_text += f"👟 {order_info['product']}\n"
-    if order_info.get('color'):
-        admin_text += f"🎨 Цвет: {order_info['color']}\n"
-    if order_info.get('size'):
-        admin_text += f"📏 Размер: {order_info['size']}\n"
-    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
-    admin_text += f"📋 Данные клиента (из профиля):\n"
-    admin_text += f"• Фамилия: {order_info['last_name']}\n"
-    admin_text += f"• Имя: {order_info['first_name']}\n"
-    admin_text += f"• Телефон: {order_info['phone']}\n"
-    admin_text += f"• Страна: {order_info['country']}\n"
-    admin_text += f"• Регион: {order_info['region']}\n"
-    admin_text += f"• Город: {order_info['city']}\n"
-    admin_text += f"• Индекс: {order_info['postal_code']}\n"
-    admin_text += f"• Адрес: {order_info['address']}\n"
-    admin_text += f"• Email: {order_info['email']}\n\n"
-    admin_text += f"👤 @{order_info['username']}"
-    
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=admin_text,
-        parse_mode="Markdown"
-    )
-    
-    # Создаём платеж
-    from handlers.payment import create_payment
-    import time
+    # ✅ СОХРАНЯЕМ ЗАКАЗ (НО НЕ ОТПРАВЛЯЕМ АДМИНУ)
     order_id = f"{user_id}_{int(time.time())}"
+    pending_orders[order_id] = order_info
+    
+    # ✅ СОЗДАЁМ ПЛАТЁЖ
+    from handlers.payment import create_payment
     
     await create_payment(
         update=update,
         context=context,
         amount=product.price,
         order_id=order_id,
-        description=product.name
+        description=product.name,
+        order_info=order_info  # Передаём данные заказа для отправки после оплаты
     )
     
     # Очищаем данные заказа
