@@ -122,8 +122,7 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if not payment_info:
             await query.edit_message_text(
-                "❌ *Платёж не найден.*",
-                parse_mode="Markdown",
+                text="❌ Платёж не найден.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
                 ])
@@ -157,13 +156,15 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="Markdown"
             )
         
+        # ⚠️ ОТВЕТ ПОЛЬЗОВАТЕЛЮ (БЕЗ Markdown, чтобы избежать ошибки)
         await query.edit_message_text(
-            "✅ *ЗАКАЗ ПРИНЯТ!*\n\n"
-            f"📦 Заказ #{order_id} принят в обработку.\n\n"
-            "📬 Трек-номер придёт через 2-3 дня.\n"
-            "📞 Менеджер свяжется с вами.\n\n"
-            "🌟 *Спасибо за покупку!*",
-            parse_mode="Markdown",
+            text=(
+                "✅ ЗАКАЗ ПРИНЯТ!\n\n"
+                f"📦 Заказ #{order_id} принят в обработку.\n\n"
+                "📬 Трек-номер придёт через 2-3 дня.\n"
+                "📞 Менеджер свяжется с вами.\n\n"
+                "🌟 Спасибо за покупку!"
+            ),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
             ])
