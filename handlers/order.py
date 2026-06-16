@@ -192,7 +192,7 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
 
 
 async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size, color):
-    """Автоматическое оформление заказа из данных профиля с платежом"""
+    """Автоматическое оформление заказа из данных профиля — заказ сохраняется до оплаты"""
     query = update.callback_query
     
     profile = await get_profile_data(user_id, context)
@@ -216,34 +216,8 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "username": update.effective_user.username
     }
     
-    # Формируем текст для админа
-    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
-    admin_text += f"👟 {order_info['product']}\n"
-    if order_info.get('color'):
-        admin_text += f"🎨 Цвет: {order_info['color']}\n"
-    if order_info.get('size'):
-        admin_text += f"📏 Размер: {order_info['size']}\n"
-    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
-    admin_text += f"📋 Данные клиента (из профиля):\n"
-    admin_text += f"• Фамилия: {order_info['last_name']}\n"
-    admin_text += f"• Имя: {order_info['first_name']}\n"
-    admin_text += f"• Телефон: {order_info['phone']}\n"
-    admin_text += f"• Страна: {order_info['country']}\n"
-    admin_text += f"• Регион: {order_info['region']}\n"
-    admin_text += f"• Город: {order_info['city']}\n"
-    admin_text += f"• Индекс: {order_info['postal_code']}\n"
-    admin_text += f"• Адрес: {order_info['address']}\n"
-    admin_text += f"• Email: {order_info['email']}\n\n"
-    admin_text += f"👤 @{order_info['username']}"
-    
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=admin_text,
-        parse_mode="Markdown"
-    )
-    
-    # ✅ НЕ УДАЛЯЕМ СООБЩЕНИЕ! Просто редактируем его
-    # Убираем await query.message.delete()
+    # ✅ СОХРАНЯЕМ ЗАКАЗ (НЕ ОТПРАВЛЯЕМ АДМИНУ!)
+    context.user_data[f"pending_order_{user_id}"] = order_info
     
     # Создаём платеж
     from handlers.payment import create_payment
@@ -258,7 +232,7 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         description=product.name
     )
     
-    # Очищаем данные заказа
+    # Очищаем временные данные заказа
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
 
@@ -285,7 +259,7 @@ async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка введённых данных заказа (если профиль не заполнен)"""
+    """Обработка введённых данных заказа — заказ сохраняется до оплаты"""
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
         return
@@ -333,34 +307,12 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "username": update.effective_user.username
     }
 
-    # Формируем текст для админа
-    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
-    admin_text += f"👟 {order_info['product']}\n"
-    if order_info.get('color'):
-        admin_text += f"🎨 Цвет: {order_info['color']}\n"
-    if order_info.get('size'):
-        admin_text += f"📏 Размер: {order_info['size']}\n"
-    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
-    admin_text += f"📋 Данные клиента:\n"
-    admin_text += f"• Фамилия: {order_info['last_name']}\n"
-    admin_text += f"• Имя: {order_info['first_name']}\n"
-    admin_text += f"• Телефон: {order_info['phone']}\n"
-    admin_text += f"• Страна: {order_info['country']}\n"
-    admin_text += f"• Регион: {order_info['region']}\n"
-    admin_text += f"• Город: {order_info['city']}\n"
-    admin_text += f"• Индекс: {order_info['postal_code']}\n"
-    admin_text += f"• Адрес: {order_info['address']}\n"
-    admin_text += f"• Email: {order_info['email']}\n\n"
-    admin_text += f"👤 @{order_info['username']}"
-
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=admin_text,
-        parse_mode="Markdown"
-    )
+    # ✅ СОХРАНЯЕМ ЗАКАЗ (НЕ ОТПРАВЛЯЕМ АДМИНУ!)
+    context.user_data[f"pending_order_{user_id}"] = order_info
 
     # Создаём платеж
     from handlers.payment import create_payment
+    import time
     order_id = f"{user_id}_{int(time.time())}"
     
     await create_payment(
