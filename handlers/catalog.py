@@ -167,7 +167,6 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
     end = min(start + items_per_page, len(products))
     page_products = products[start:end]
 
-    # Получаем chat_id и bot
     if hasattr(update, 'callback_query'):
         chat_id = update.callback_query.message.chat_id
         bot = context.bot
@@ -175,20 +174,16 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
         chat_id = update.effective_chat.id
         bot = context.bot
 
-    # Удаляем старые сообщения
     await msg_manager.clear(bot, chat_id, user_id)
 
     message_ids = []
 
-    # Показываем товары на странице
     for product in page_products:
         text = product.get_text()
         photo = product.get_photo()
 
-        # Кнопка "Перейти" под каждым товаром
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(
-                "🔗 Перейти", callback_data=f"goto_product_{product.id}")]
+            [InlineKeyboardButton("🔗 Перейти", callback_data=f"goto_product_{product.id}")]
         ])
 
         try:
@@ -211,7 +206,6 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
                 )
                 message_ids.append(msg.message_id)
         except Exception as e:
-            print(f"Ошибка отправки: {e}")
             msg = await bot.send_message(
                 chat_id=chat_id,
                 text=text,
@@ -220,39 +214,27 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
             )
             message_ids.append(msg.message_id)
 
-    # ========== ПАГИНАЦИЯ ВСЕГДА ВНИЗУ ==========
-    # Формируем кнопки пагинации
+    # ✅ ПАГИНАЦИЯ - ПРОВЕРЕННЫЙ КОД
     nav_buttons_row = []
 
-    # Кнопка "Назад"
     if page > 0:
-        nav_buttons_row.append(InlineKeyboardButton(
-            "◀️ Назад", callback_data=f"page_{page-1}"))
+        nav_buttons_row.append(InlineKeyboardButton("◀️ Назад", callback_data=f"page_{page-1}"))
     else:
-        nav_buttons_row.append(InlineKeyboardButton(
-            "◀️ Назад", callback_data="noop"))
+        nav_buttons_row.append(InlineKeyboardButton("◀️ Назад", callback_data="noop"))
 
-    # Кнопка "Вперед"
     if page < total_pages - 1:
-        nav_buttons_row.append(InlineKeyboardButton(
-            "Вперед ▶️", callback_data=f"page_{page+1}"))
+        nav_buttons_row.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"page_{page+1}"))
     else:
-        nav_buttons_row.append(InlineKeyboardButton(
-            "Вперед ▶️", callback_data="noop"))
+        nav_buttons_row.append(InlineKeyboardButton("Вперед ▶️", callback_data="noop"))
 
-    # Информация о странице
     page_info = f"📄 *Страница {page + 1} из {total_pages}*"
-
-        # Клавиатура пагинации
-    # Получаем текущую категорию из state
     current_category = state.get("category", "shoes")
-    
+
     keyboard = [
         nav_buttons_row,
-        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_catalog_from_products")]
+        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_category_{current_category}_{page}")]
     ]
 
-    # Отправляем панель пагинации
     nav_msg = await bot.send_message(
         chat_id=chat_id,
         text=page_info,
@@ -261,7 +243,6 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
     )
     message_ids.append(nav_msg.message_id)
 
-    # Сохраняем ID всех сообщений
     if "last_products_msg" not in context.user_data:
         context.user_data["last_products_msg"] = {}
     context.user_data["last_products_msg"][user_id] = message_ids
@@ -269,12 +250,6 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
 
 
 async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Отправляем диагностику админу
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🔍 change_page вызвана! data={update.callback_query.data}"
-    )
-    
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
