@@ -5,7 +5,6 @@ from keyboards import get_categories_keyboard, get_product_keyboard, get_subcate
 from models import products_manager, msg_manager
 from models_categories import categories_manager
 from debug import info, debug, error, success, warning, print_state
-from logger import send_debug
 from config import ADMIN_ID
 
 user_states = {}
@@ -254,7 +253,7 @@ async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     page = int(query.data.replace("page_", ""))
-    await show_products_page(update, context, user_id, page)
+    await show_products_page(update, user_id, page, context)
 
 
 async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -269,12 +268,8 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # ✅ СОХРАНЯЕМ ID ТОВАРА ДЛЯ ВОЗВРАТА
     context.user_data[f"last_product_id_{user_id}"] = product_id
 
-    # ... остальной код функции
-
-    # ✅ НОВЫЙ КОД: Определяем первый цвет из attributes
     attributes = product.get_attributes()
     colors = attributes.get("colors", [])
     
@@ -283,11 +278,9 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         default_color = "белый"
     
-    # Сохраняем выбранный цвет
     context.user_data[f"color_{user_id}"] = default_color
     current_color = default_color
 
-    # Удаляем старое сообщение
     try:
         await query.message.delete()
     except:
@@ -295,6 +288,9 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     text = product.get_text(current_color)
     photo = product.get_photo(current_color)
+
+    category = product.category
+    page = 0
 
     from keyboards import get_product_keyboard
 
@@ -306,7 +302,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                     photo=f,
                     caption=text,
                     parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, current_color)
+                    reply_markup=get_product_keyboard(product, current_color, category, page)
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
         else:
@@ -314,7 +310,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, current_color)
+                reply_markup=get_product_keyboard(product, current_color, category, page)
             )
             await msg_manager.add(context.bot, chat_id, user_id, msg)
     except Exception as e:
@@ -323,7 +319,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=chat_id,
             text=text,
             parse_mode="Markdown",
-            reply_markup=get_product_keyboard(product, current_color)
+            reply_markup=get_product_keyboard(product, current_color, category, page)
         )
         await msg_manager.add(context.bot, chat_id, user_id, msg)
 
@@ -600,10 +596,7 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     product_id = query.data.replace("goto_product_", "")
     
-    # ✅ СОХРАНЯЕМ ID ТОВАРА ДЛЯ ВОЗВРАТА
     context.user_data[f"last_product_id_{user_id}"] = product_id
-
-    # ... остальной код функции
 
     debug("PRODUCT", f"Переход к товару {product_id}", {"user_id": user_id})
 
