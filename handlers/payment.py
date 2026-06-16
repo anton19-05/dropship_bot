@@ -70,14 +70,26 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
             f"⏱️ *После оплаты нажмите:* «✅ Я оплатил»"
         )
         
-        if query and query.message:
-            await query.edit_message_text(
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=keyboard,
-                disable_web_page_preview=True
-            )
-        else:
+        # ✅ Проверяем, существует ли сообщение
+        try:
+            if query and query.message and query.message.text:
+                await query.edit_message_text(
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True
+                )
+        except Exception as edit_error:
+            # Если не можем отредактировать — отправляем новое сообщение
+            error("PAYMENT", f"Не удалось отредактировать: {edit_error}")
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=text,
@@ -91,14 +103,17 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
     except Exception as e:
         error("PAYMENT", f"Ошибка создания платежа: {e}")
         # Отправляем сообщение об ошибке
-        chat_id = update.effective_chat.id if hasattr(update, 'effective_chat') else update.callback_query.message.chat_id
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"❌ *Произошла ошибка при создании платежа.*\n\n"
-                 f"Пожалуйста, попробуйте позже или свяжитесь с администратором.\n\n"
-                 f"🔧 *Код ошибки:* {str(e)[:100]}",
-            parse_mode="Markdown"
-        )
+        try:
+            chat_id = update.effective_chat.id if hasattr(update, 'effective_chat') else update.callback_query.message.chat_id
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ *Произошла ошибка при создании платежа.*\n\n"
+                     f"Пожалуйста, попробуйте позже или свяжитесь с администратором.\n\n"
+                     f"🔧 *Код ошибки:* {str(e)[:100]}",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
 
 
 async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -152,6 +167,10 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         
     except Exception as e:
         error("PAYMENT", f"Ошибка в check_payment_status: {e}")
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=f"❌ Ошибка: {str(e)[:100]}"
+        )
 
 
 async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -231,11 +250,19 @@ async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         
         if query:
-            await query.edit_message_text(
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
+            try:
+                await query.edit_message_text(
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            except:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
         else:
             await update.message.reply_text(
                 text=text,
