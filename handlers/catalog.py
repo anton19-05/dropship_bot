@@ -6,6 +6,7 @@ from models import products_manager, msg_manager
 from models_categories import categories_manager
 from debug import info, debug, error, success, warning, print_state
 from logger import send_debug
+from config import ADMIN_ID
 
 user_states = {}
 
@@ -268,6 +269,12 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
 
 
 async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Отправляем диагностику админу
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🔍 change_page вызвана! data={update.callback_query.data}"
+    )
+    
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
