@@ -32,3 +32,52 @@ async def check_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if message:
         await update.message.reply_text(message, parse_mode="Markdown")
+
+async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Подтверждение платежа админом (/confirm order_id)"""
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "❌ *Использование:*\n"
+            "/confirm order_id\n\n"
+            "Пример: /confirm 1941249302_1234567890",
+            parse_mode="Markdown"
+        )
+        return
+    
+    order_id = args[0]
+    
+    # Ищем платеж в user_data
+    payment_info = None
+    for key in context.bot_data:
+        if key.startswith("payment_") and context.bot_data[key].get("order_id") == order_id:
+            payment_info = context.bot_data[key]
+            break
+    
+    if not payment_info:
+        await update.message.reply_text("❌ Платёж с таким ID не найден.")
+        return
+    
+    # Отправляем уведомление пользователю
+    user_id = payment_info.get("user_id")
+    if user_id:
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"✅ *Ваш заказ #{order_id} подтверждён!*\n\n"
+                f"📦 Оплата прошла успешно.\n"
+                f"📬 Трек-номер будет отправлен через 2-3 дня.\n\n"
+                f"🌟 Спасибо за покупку!",
+                parse_mode="Markdown"
+            )
+            await update.message.reply_text(f"✅ Платёж {order_id} подтверждён. Пользователь уведомлён.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ Не удалось уведомить пользователя: {e}")
+    else:
+        await update.message.reply_text("❌ Не найден ID пользователя для уведомления.")
