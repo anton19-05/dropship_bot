@@ -6,7 +6,7 @@ from debug import info, error
 
 
 async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amount, order_id, description):
-    """Создает платежную ссылку ЮMoney"""
+    """Создает платеж через новую форму ЮMoney с выбором банка"""
     
     try:
         if update.callback_query:
@@ -19,17 +19,8 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
         
         user_id = update.effective_user.id
         
-        # Проверяем наличие кошелька
-        if not YOOMONEY_WALLET:
-            error("PAYMENT", "Кошелек ЮMoney не настроен!")
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="❌ *Ошибка: платежная система не настроена.*\nПожалуйста, свяжитесь с администратором.",
-                parse_mode="Markdown"
-            )
-            return
-        
-        # Формируем ссылку для оплаты
+        # ✅ НОВАЯ ФОРМА ЮMONEY (с выбором банка)
+        # Используем параметр paymentType для указания способа оплаты
         payment_url = (
             f"https://yoomoney.ru/quickpay/confirm?"
             f"receiver={YOOMONEY_WALLET}"
@@ -42,6 +33,7 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
             f"&need-email=false"
             f"&need-phone=false"
             f"&need-address=false"
+            f"&paymentType=AC"  # ← Это позволяет выбрать карту любого банка
         )
         
         # Сохраняем информацию о платеже
@@ -55,7 +47,8 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
         }
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Оплатить", url=payment_url)],
+            [InlineKeyboardButton("💳 Оплатить картой любого банка", url=payment_url)],
+            [InlineKeyboardButton("📱 Оплатить через СБП", url=payment_url.replace("paymentType=AC", "paymentType=SB"))],
             [InlineKeyboardButton("✅ Я оплатил", callback_data=f"check_payment_{order_id}")],
             [InlineKeyboardButton("🔙 Назад", callback_data="view_cart")]
         ])
@@ -65,12 +58,18 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
             f"📦 *Товар:* {description}\n"
             f"💰 *Сумма:* {amount} руб\n\n"
             f"🔒 *Безопасная оплата через ЮMoney*\n"
-            f"💳 Принимаются все банковские карты\n"
-            f"📱 Поддерживается СБП\n\n"
+            f"💳 *Принимаются карты любых банков:*\n"
+            f"• СберБанк\n"
+            f"• Т-Банк\n"
+            f"• Альфа-Банк\n"
+            f"• ВТБ\n"
+            f"• Газпромбанк\n"
+            f"• И другие\n\n"
+            f"📱 *Или оплатите через СБП*\n"
+            f"(Система быстрых платежей)\n\n"
             f"⏱️ *После оплаты нажмите:* «✅ Я оплатил»"
         )
         
-        # ✅ Проверяем, существует ли сообщение
         try:
             if query and query.message and query.message.text:
                 await query.edit_message_text(
@@ -88,7 +87,6 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
                     disable_web_page_preview=True
                 )
         except Exception as edit_error:
-            # Если не можем отредактировать — отправляем новое сообщение
             error("PAYMENT", f"Не удалось отредактировать: {edit_error}")
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -102,13 +100,12 @@ async def create_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, amo
         
     except Exception as e:
         error("PAYMENT", f"Ошибка создания платежа: {e}")
-        # Отправляем сообщение об ошибке
         try:
             chat_id = update.effective_chat.id if hasattr(update, 'effective_chat') else update.callback_query.message.chat_id
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=f"❌ *Произошла ошибка при создании платежа.*\n\n"
-                     f"Пожалуйста, попробуйте позже или свяжитесь с администратором.\n\n"
+                     f"Пожалуйста, попробуйте позже.\n\n"
                      f"🔧 *Код ошибки:* {str(e)[:100]}",
                 parse_mode="Markdown"
             )
@@ -137,7 +134,6 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         
-        # Отправляем уведомление админу
         admin_text = (
             f"🔄 *Платёж требует подтверждения!*\n\n"
             f"📦 Заказ: #{order_id}\n"
@@ -194,7 +190,6 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         order_id = args[0]
         
-        # Ищем платеж
         payment_info = None
         for key in context.user_data:
             if key.startswith("payment_") and context.user_data[key].get("order_id") == order_id:
@@ -207,7 +202,6 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         payment_info["status"] = "confirmed"
         
-        # Отправляем уведомление пользователю
         user_id = payment_info["user_id"]
         try:
             await context.bot.send_message(
