@@ -156,9 +156,9 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
                 "username": "не указан"
             }
         
-        # ✅ ОТПРАВЛЯЕМ АДМИНУ
+                # ✅ ОТПРАВЛЯЕМ АДМИНУ (БЕЗ Markdown)
         admin_text = (
-            f"🆕 *НОВЫЙ ОПЛАЧЕННЫЙ ЗАКАЗ!*\n\n"
+            f"🆕 НОВЫЙ ОПЛАЧЕННЫЙ ЗАКАЗ!\n\n"
             f"📦 Заказ: #{order_id}\n"
             f"👟 {order_info.get('product', 'не указан')}\n"
             f"🎨 Цвет: {order_info.get('color', 'не указан')}\n"
@@ -179,8 +179,8 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=admin_text,
-            parse_mode="Markdown"
+            text=admin_text
+            # parse_mode НЕ УКАЗЫВАЕМ!
         )
         print(f"✅ Уведомление админу ОТПРАВЛЕНО для заказа {order_id}")
         
