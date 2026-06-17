@@ -213,7 +213,7 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
             )
             message_ids.append(msg.message_id)
 
-    # ✅ ПАГИНАЦИЯ - ПРОВЕРЕННЫЙ КОД
+        # ========== ПАГИНАЦИЯ ==========
     nav_buttons_row = []
 
     if page > 0:
@@ -227,11 +227,10 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
         nav_buttons_row.append(InlineKeyboardButton("Вперед ▶️", callback_data="noop"))
 
     page_info = f"📄 *Страница {page + 1} из {total_pages}*"
-    current_category = state.get("category", "shoes")
 
     keyboard = [
         nav_buttons_row,
-        [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_category_{current_category}_{page}")]
+        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_catalog_from_products")]
     ]
 
     nav_msg = await bot.send_message(
@@ -240,12 +239,6 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    message_ids.append(nav_msg.message_id)
-
-    if "last_products_msg" not in context.user_data:
-        context.user_data["last_products_msg"] = {}
-    context.user_data["last_products_msg"][user_id] = message_ids
-    state["page"] = page
 
 
 async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
