@@ -205,15 +205,15 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "price": product.price,
         "size": size,
         "color": color,
-        "last_name": profile.get('last_name'),
-        "first_name": profile.get('first_name'),
-        "phone": profile.get('phone'),
-        "country": profile.get('country'),
-        "region": profile.get('region'),
-        "city": profile.get('city'),
-        "postal_code": profile.get('postal_code'),
-        "address": profile.get('address'),
-        "email": profile.get('email'),
+        "last_name": profile.get('last_name', 'не указана'),
+        "first_name": profile.get('first_name', 'не указано'),
+        "phone": profile.get('phone', 'не указан'),
+        "country": profile.get('country', 'не указана'),
+        "region": profile.get('region', 'не указан'),
+        "city": profile.get('city', 'не указан'),
+        "postal_code": profile.get('postal_code', 'не указан'),
+        "address": profile.get('address', 'не указан'),
+        "email": profile.get('email', 'не указан'),
         "user_id": user_id,
         "username": update.effective_user.username
     }
@@ -222,7 +222,6 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
     import time
     order_id = f"{user_id}_{int(time.time())}"
     
-    # ✅ СОХРАНЯЕМ В context.user_data ДЛЯ check_payment_status
     context.user_data[f"payment_{order_id}"] = {
         "order_id": order_id,
         "amount": product.price,
@@ -230,12 +229,12 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "user_id": user_id,
         "status": "pending",
         "created_at": time.time(),
-        "order_info": order_info  # ← КЛЮЧЕВОЕ: сохраняем данные заказа
+        "order_info": order_info
     }
     
-    print(f"✅ auto_order_from_profile: order_info сохранён в payment_{order_id}")
+    print(f"✅ auto_order_from_profile: order_info сохранён: {order_info}")
     
-    # ✅ СОЗДАЁМ ПЛАТЁЖ
+    # ✅ СОЗДАЁМ ПЛАТЁЖ (ПЕРЕДАЁМ order_info!)
     from handlers.payment import create_payment
     
     await create_payment(
@@ -243,11 +242,10 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         context=context,
         amount=product.price,
         order_id=order_id,
-        description=product.name
-        # order_info больше не передаём, он уже в context.user_data
+        description=product.name,
+        order_info=order_info  # ← ДОБАВЛЕНО!
     )
     
-    # Очищаем данные заказа
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
 
