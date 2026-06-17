@@ -261,10 +261,13 @@ async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка введённых данных заказа (если профиль не заполнен)"""
+    print(f"🔍 order_handle ВЫЗВАНА! user_id={update.effective_user.id}")
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
+        print(f"❌ Флаг ordering_{user_id} не найден, выходим")
         return
+    print(f"✅ Флаг найден, обрабатываем заказ")
+    # ... остальной код
 
     chat_id = update.effective_chat.id
     text = update.message.text.strip()
