@@ -129,6 +129,7 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         
+        # ✅ ОТПРАВЛЯЕМ ЗАКАЗ АДМИНУ
         order_info = payment_info.get("order_info")
         if order_info:
             admin_text = (
@@ -137,17 +138,17 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"🎨 Цвет: {order_info.get('color', 'не указан')}\n"
                 f"📏 Размер: {order_info.get('size', 'не указан')}\n"
                 f"💰 Сумма: {order_info['price']} руб\n\n"
-                f"📋 Данные клиента (из профиля):\n"
-                f"• Фамилия: {order_info['last_name']}\n"
-                f"• Имя: {order_info['first_name']}\n"
-                f"• Телефон: {order_info['phone']}\n"
-                f"• Страна: {order_info['country']}\n"
-                f"• Регион: {order_info['region']}\n"
-                f"• Город: {order_info['city']}\n"
-                f"• Индекс: {order_info['postal_code']}\n"
-                f"• Адрес: {order_info['address']}\n"
-                f"• Email: {order_info['email']}\n\n"
-                f"👤 @{order_info['username']}"
+                f"📋 Данные клиента:\n"
+                f"• Фамилия: {order_info.get('last_name', 'не указана')}\n"
+                f"• Имя: {order_info.get('first_name', 'не указано')}\n"
+                f"• Телефон: {order_info.get('phone', 'не указан')}\n"
+                f"• Страна: {order_info.get('country', 'не указана')}\n"
+                f"• Регион: {order_info.get('region', 'не указан')}\n"
+                f"• Город: {order_info.get('city', 'не указан')}\n"
+                f"• Индекс: {order_info.get('postal_code', 'не указан')}\n"
+                f"• Адрес: {order_info.get('address', 'не указан')}\n"
+                f"• Email: {order_info.get('email', 'не указан')}\n\n"
+                f"👤 @{order_info.get('username', 'не указан')}"
             )
             
             await context.bot.send_message(
@@ -155,8 +156,11 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
                 text=admin_text,
                 parse_mode="Markdown"
             )
+            print(f"✅ Уведомление админу отправлено для заказа {order_id}")
+        else:
+            print(f"❌ order_info не найден для заказа {order_id}")
         
-        # ⚠️ ОТВЕТ ПОЛЬЗОВАТЕЛЮ (БЕЗ Markdown, чтобы избежать ошибки)
+        # Ответ пользователю
         await query.edit_message_text(
             text=(
                 "✅ ЗАКАЗ ПРИНЯТ!\n\n"
