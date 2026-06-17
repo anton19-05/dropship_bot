@@ -293,7 +293,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                     photo=f,
                     caption=text,
                     parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, current_color, category, page)
+                    reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
         else:
@@ -301,7 +301,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, current_color, category, page)
+                reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
             )
             await msg_manager.add(context.bot, chat_id, user_id, msg)
     except Exception as e:
@@ -310,7 +310,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=chat_id,
             text=text,
             parse_mode="Markdown",
-            reply_markup=get_product_keyboard(product, current_color, category, page)
+            reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
         )
         await msg_manager.add(context.bot, chat_id, user_id, msg)
 
@@ -368,7 +368,7 @@ async def change_color(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     photo=f,
                     caption=text,
                     parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, color)
+                    reply_markup=get_product_keyboard(product, color, None, 0, context, user_id)
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
         else:
@@ -376,7 +376,7 @@ async def change_color(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, color)
+                reply_markup=get_product_keyboard(product, color, None, 0, context, user_id)
             )
             await msg_manager.add(context.bot, chat_id, user_id, msg)
     except Exception as e:
@@ -587,6 +587,7 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     product_id = query.data.replace("goto_product_", "")
     
+    # ✅ СОХРАНЯЕМ ID ТОВАРА ДЛЯ ВОЗВРАТА
     context.user_data[f"last_product_id_{user_id}"] = product_id
 
     debug("PRODUCT", f"Переход к товару {product_id}", {"user_id": user_id})
@@ -613,15 +614,13 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         debug(
             "PRODUCT", f"Создано состояние: страница 0, категория {product.category}")
 
-    # ✅ НОВЫЙ КОД: Определяем первый цвет из attributes
+    # ✅ ОПРЕДЕЛЯЕМ ПЕРВЫЙ ЦВЕТ ИЗ ATTRIBUTES
     attributes = product.get_attributes()
     colors = attributes.get("colors", [])
     
     if colors:
-        # Если есть цвета, выбираем первый
         default_color = colors[0]
     else:
-        # Если цветов нет, используем "белый" или значение по умолчанию
         default_color = "белый"
     
     # Сохраняем выбранный цвет
@@ -764,3 +763,32 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
         parse_mode="Markdown",
         reply_markup=get_categories_keyboard()
     )
+
+async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data.replace("attr_", "")
+    parts = data.split("_")
+    product_id = parts[0]
+    attr_key = parts[1]
+    attr_value = "_".join(parts[2:])
+    
+    user_id = query.from_user.id
+    context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
+    
+    product = products_manager.get_by_id(product_id)
+    if product:
+        current_color = context.user_data.get(f"color_{user_id}", "белый")
+        from utils import show_product
+        await show_product(
+            query.message.chat_id,
+            product_id,
+            current_color,
+            context,
+            context.bot,
+            product.category,
+            0
+        )
+    
+    await query.answer(f"✅ Выбрано: {attr_value}")

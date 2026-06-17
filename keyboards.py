@@ -43,15 +43,13 @@ def get_subcategories_keyboard(category_id):
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_product_keyboard(product, current_color=None, category=None, page=0):
-    """Клавиатура для карточки товара"""
+def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
     keyboard = []
 
     # Кнопки выбора цвета
     if "colors" in product.get_attributes():
         colors_row = []
         for color in product.get_attributes()["colors"]:
-            # ✅ Если цвет совпадает с current_color — ставим галочку
             marker = "✅ " if color == current_color else ""
             colors_row.append(InlineKeyboardButton(
                 f"{marker}{color}",
@@ -59,6 +57,26 @@ def get_product_keyboard(product, current_color=None, category=None, page=0):
             ))
         keyboard.append(colors_row)
 
+    # ✅ КНОПКИ ДЛЯ ДРУГИХ АТРИБУТОВ
+    attrs = product.get_attributes()
+    for key, values in attrs.items():
+        if key == "colors":
+            continue
+        row = []
+        for value in values:
+            # Проверяем, выбран ли этот атрибут
+            selected = False
+            if context and user_id:
+                selected = context.user_data.get(f"attr_{key}_{user_id}") == value
+            marker = "✅ " if selected else ""
+            row.append(InlineKeyboardButton(
+                f"{marker}{value}",
+                callback_data=f"attr_{product.id}_{key}_{value}"
+            ))
+        if row:
+            keyboard.append(row)
+
+    # Остальные кнопки
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),

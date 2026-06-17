@@ -13,6 +13,30 @@
       ]
     },
     {
+      "id": "sport",
+      "name": "🏀 Спорт",
+      "order": 2,
+      "subcategories": [
+        {
+          "id": "fishing",
+          "name": "🎣 Рыбалка",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "id": "electronics",
+      "name": "📱 Электроника",
+      "order": 3,
+      "subcategories": [
+        {
+          "id": "powerbanks",
+          "name": "🔋 Повербанки",
+          "order": 1
+        }
+      ]
+    },
+    {
       "id": "clothing",
       "name": "👕 Одежда",
       "order": 2,

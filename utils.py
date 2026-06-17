@@ -11,6 +11,11 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if category is None:
         category = product.category
     
+    user_id = None
+    if context and hasattr(context, 'user_data'):
+        # Получаем user_id из context
+        pass
+    
     text = product.get_text(color_id)
     photo = product.get_photo(color_id)
     
@@ -22,14 +27,14 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                     photo=f,
                     caption=text,
                     parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, color_id, category, page)
+                    reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
                 )
         else:
             msg = await bot.send_message(
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, color_id, category, page)
+                reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
             )
         
         if "last_product_msg" in context.user_data:
@@ -45,7 +50,7 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
             chat_id=chat_id,
             text=text,
             parse_mode="Markdown",
-            reply_markup=get_product_keyboard(product, color_id, category, page)
+            reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
         )
         if "last_product_msg" in context.user_data:
             try:
