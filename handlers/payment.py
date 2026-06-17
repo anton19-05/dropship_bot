@@ -118,7 +118,10 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         order_id = query.data.replace("check_payment_", "")
         user_id = query.from_user.id
         
+        print(f"🔍 check_payment_status: order_id={order_id}")
+        
         payment_info = context.user_data.get(f"payment_{order_id}")
+        print(f"🔍 payment_info = {payment_info}")
         
         if not payment_info:
             await query.edit_message_text(
@@ -129,36 +132,57 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         
-        # ✅ ОТПРАВЛЯЕМ ЗАКАЗ АДМИНУ
+        # ✅ ПРИНУДИТЕЛЬНАЯ ОТПРАВКА АДМИНУ
+        # Создаём заказ из данных, если order_info нет
         order_info = payment_info.get("order_info")
-        if order_info:
-            admin_text = (
-                f"🆕 *НОВЫЙ ОПЛАЧЕННЫЙ ЗАКАЗ!*\n\n"
-                f"👟 {order_info['product']}\n"
-                f"🎨 Цвет: {order_info.get('color', 'не указан')}\n"
-                f"📏 Размер: {order_info.get('size', 'не указан')}\n"
-                f"💰 Сумма: {order_info['price']} руб\n\n"
-                f"📋 Данные клиента:\n"
-                f"• Фамилия: {order_info.get('last_name', 'не указана')}\n"
-                f"• Имя: {order_info.get('first_name', 'не указано')}\n"
-                f"• Телефон: {order_info.get('phone', 'не указан')}\n"
-                f"• Страна: {order_info.get('country', 'не указана')}\n"
-                f"• Регион: {order_info.get('region', 'не указан')}\n"
-                f"• Город: {order_info.get('city', 'не указан')}\n"
-                f"• Индекс: {order_info.get('postal_code', 'не указан')}\n"
-                f"• Адрес: {order_info.get('address', 'не указан')}\n"
-                f"• Email: {order_info.get('email', 'не указан')}\n\n"
-                f"👤 @{order_info.get('username', 'не указан')}"
-            )
-            
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=admin_text,
-                parse_mode="Markdown"
-            )
-            print(f"✅ Уведомление админу отправлено для заказа {order_id}")
-        else:
-            print(f"❌ order_info не найден для заказа {order_id}")
+        
+        if not order_info:
+            # Если order_info нет, создаём из того, что есть
+            print(f"⚠️ order_info отсутствует, создаём из payment_info")
+            order_info = {
+                "product": payment_info.get("description", "Товар"),
+                "price": payment_info.get("amount", 0),
+                "color": "не указан",
+                "size": "не указан",
+                "last_name": "не указана",
+                "first_name": "не указано",
+                "phone": "не указан",
+                "country": "не указана",
+                "region": "не указан",
+                "city": "не указан",
+                "postal_code": "не указан",
+                "address": "не указан",
+                "email": "не указан",
+                "username": "не указан"
+            }
+        
+        # ✅ ОТПРАВЛЯЕМ АДМИНУ
+        admin_text = (
+            f"🆕 *НОВЫЙ ОПЛАЧЕННЫЙ ЗАКАЗ!*\n\n"
+            f"📦 Заказ: #{order_id}\n"
+            f"👟 {order_info.get('product', 'не указан')}\n"
+            f"🎨 Цвет: {order_info.get('color', 'не указан')}\n"
+            f"📏 Размер: {order_info.get('size', 'не указан')}\n"
+            f"💰 Сумма: {order_info.get('price', 0)} руб\n\n"
+            f"📋 Данные клиента:\n"
+            f"• Фамилия: {order_info.get('last_name', 'не указана')}\n"
+            f"• Имя: {order_info.get('first_name', 'не указано')}\n"
+            f"• Телефон: {order_info.get('phone', 'не указан')}\n"
+            f"• Страна: {order_info.get('country', 'не указана')}\n"
+            f"• Регион: {order_info.get('region', 'не указан')}\n"
+            f"• Город: {order_info.get('city', 'не указан')}\n"
+            f"• Индекс: {order_info.get('postal_code', 'не указан')}\n"
+            f"• Адрес: {order_info.get('address', 'не указан')}\n"
+            f"• Email: {order_info.get('email', 'не указан')}\n\n"
+            f"👤 @{order_info.get('username', 'не указан')}"
+        )
+        
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=admin_text,
+            parse_mode="Markdown"
+        )
+        print(f"✅ Уведомление админу ОТПРАВЛЕНО для заказа {order_id}")
         
         # Ответ пользователю
         await query.edit_message_text(
@@ -175,7 +199,7 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
     except Exception as e:
-        error("PAYMENT", f"Ошибка в check_payment_status: {e}")
+        print(f"❌ Ошибка в check_payment_status: {e}")
         await context.bot.send_message(
             chat_id=update.effective_user.id,
             text=f"❌ Ошибка: {str(e)[:100]}"
