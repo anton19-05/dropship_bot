@@ -114,6 +114,9 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     product = products_manager.get_by_code(product_code)
     size = context.user_data.get(f"temp_size_{user_id}")
+    
+    # ✅ ПОЛУЧАЕМ ЦВЕТ
+    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -126,6 +129,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data[cart_key][item_key] = {
             "product_code": product_code,
             "size": size,
+            "color": color,  # ← ТЕПЕРЬ color ОПРЕДЕЛЁН
             "quantity": quantity,
             "name": product.name,
             "price": product.price
@@ -146,12 +150,13 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text=f"✅ *Товар добавлен в корзину!*\n\n👟 {product.name}\n{f'📏 Размер: {size}' if size else ''}\n📦 Количество: {quantity} шт",
+        text=f"✅ *Товар добавлен в корзину!*\n\n👟 {product.name}\n{f'📏 Размер: {size}' if size else ''}\n{f'🎨 Цвет: {color}' if color else ''}\n📦 Количество: {quantity} шт",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # ✅ СОХРАНЯЕМ КОРЗИНУ В JSON
+    # ✅ СОХРАНЯЕМ КОРЗИНУ
+    from storage import save_user_data_sync
     save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
 
 
