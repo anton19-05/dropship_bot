@@ -4,7 +4,13 @@
       "id": "shoes",
       "name": "👟 Обувь",
       "order": 1,
-      "subcategories": []
+      "subcategories": [
+        {
+          "id": "sneakers",
+          "name": "Кроссовки",
+          "order": 1
+        }
+      ]
     },
     {
       "id": "clothing",

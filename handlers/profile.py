@@ -59,7 +59,6 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🛒 Корзина", callback_data="view_cart_from_profile"),
          InlineKeyboardButton("❤️ Избранное", callback_data="view_favorites")],
         [InlineKeyboardButton("📝 Заполнить профиль", callback_data="edit_profile_start")],
-        [InlineKeyboardButton("🔄 Сменить данные", callback_data="edit_profile_change")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
 

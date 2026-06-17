@@ -261,7 +261,7 @@ async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка введённых данных заказа — заказ сохраняется до оплаты"""
+    """Обработка введённых данных заказа (если профиль не заполнен)"""
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
         return
@@ -309,11 +309,53 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "username": update.effective_user.username
     }
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ (НЕ ОТПРАВЛЯЕМ АДМИНУ!)
-    context.user_data[f"pending_order_{user_id}"] = order_info
+    # ✅ СОХРАНЯЕМ ДАННЫЕ В ПРОФИЛЬ
+    user_data_key = f"user_data_{user_id}"
+    if user_data_key not in context.user_data:
+        context.user_data[user_data_key] = {}
+    
+    context.user_data[user_data_key]["last_name"] = parts[0]
+    context.user_data[user_data_key]["first_name"] = parts[1]
+    context.user_data[user_data_key]["phone"] = parts[2]
+    context.user_data[user_data_key]["country"] = parts[3]
+    context.user_data[user_data_key]["region"] = parts[4]
+    context.user_data[user_data_key]["city"] = parts[5]
+    context.user_data[user_data_key]["postal_code"] = parts[6]
+    context.user_data[user_data_key]["address"] = parts[7]
+    context.user_data[user_data_key]["email"] = parts[8]
+    
+    from storage import save_user_data_sync
+    save_user_data_sync(user_id, context.user_data[user_data_key], context)
 
-        # Создаём платеж
+    # Формируем текст для админа
+    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
+    admin_text += f"👟 {order_info['product']}\n"
+    if order_info.get('color'):
+        admin_text += f"🎨 Цвет: {order_info['color']}\n"
+    if order_info.get('size'):
+        admin_text += f"📏 Размер: {order_info['size']}\n"
+    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
+    admin_text += f"📋 Данные клиента:\n"
+    admin_text += f"• Фамилия: {order_info['last_name']}\n"
+    admin_text += f"• Имя: {order_info['first_name']}\n"
+    admin_text += f"• Телефон: {order_info['phone']}\n"
+    admin_text += f"• Страна: {order_info['country']}\n"
+    admin_text += f"• Регион: {order_info['region']}\n"
+    admin_text += f"• Город: {order_info['city']}\n"
+    admin_text += f"• Индекс: {order_info['postal_code']}\n"
+    admin_text += f"• Адрес: {order_info['address']}\n"
+    admin_text += f"• Email: {order_info['email']}\n\n"
+    admin_text += f"👤 @{order_info['username']}"
+
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=admin_text,
+        parse_mode="Markdown"
+    )
+
+    # Создаём платеж
     from handlers.payment import create_payment
+    import time
     order_id = f"{user_id}_{int(time.time())}"
     
     await create_payment(
