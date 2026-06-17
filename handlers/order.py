@@ -218,9 +218,22 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "username": update.effective_user.username
     }
     
-    # ✅ СОХРАНЯЕМ ЗАКАЗ (НО НЕ ОТПРАВЛЯЕМ АДМИНУ)
+    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
+    import time
     order_id = f"{user_id}_{int(time.time())}"
-    pending_orders[order_id] = order_info
+    
+    # ✅ СОХРАНЯЕМ В context.user_data ДЛЯ check_payment_status
+    context.user_data[f"payment_{order_id}"] = {
+        "order_id": order_id,
+        "amount": product.price,
+        "description": product.name,
+        "user_id": user_id,
+        "status": "pending",
+        "created_at": time.time(),
+        "order_info": order_info  # ← КЛЮЧЕВОЕ: сохраняем данные заказа
+    }
+    
+    print(f"✅ auto_order_from_profile: order_info сохранён в payment_{order_id}")
     
     # ✅ СОЗДАЁМ ПЛАТЁЖ
     from handlers.payment import create_payment
@@ -230,8 +243,8 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         context=context,
         amount=product.price,
         order_id=order_id,
-        description=product.name,
-        order_info=order_info  # Передаём данные заказа для отправки после оплаты
+        description=product.name
+        # order_info больше не передаём, он уже в context.user_data
     )
     
     # Очищаем данные заказа
@@ -285,11 +298,10 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Товар не найден!")
         return
 
-    # Получаем выбранные атрибуты
     size = context.user_data.get(f"order_size_{user_id}")
     color = context.user_data.get(f"order_color_{user_id}")
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ (НО НЕ ОТПРАВЛЯЕМ АДМИНУ)
+    # ✅ СОХРАНЯЕМ ЗАКАЗ
     order_info = {
         "product": product.name,
         "product_code": product.code,
@@ -309,7 +321,7 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "username": update.effective_user.username
     }
     
-    # ✅ СОХРАНЯЕМ ДАННЫЕ В ПРОФИЛЬ
+    # ✅ СОХРАНЯЕМ В ПРОФИЛЬ
     user_data_key = f"user_data_{user_id}"
     if user_data_key not in context.user_data:
         context.user_data[user_data_key] = {}
@@ -327,7 +339,8 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from storage import save_user_data_sync
     save_user_data_sync(user_id, context.user_data[user_data_key], context)
 
-            # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
+    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
+    import time
     order_id = f"{user_id}_{int(time.time())}"
     context.user_data[f"payment_{order_id}"] = {
         "order_id": order_id,
@@ -336,10 +349,10 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "status": "pending",
         "created_at": time.time(),
-        "order_info": order_info  # ← ДОЛЖНО БЫТЬ!
+        "order_info": order_info  # ← ЭТО ДОЛЖНО БЫТЬ!
     }
     
-    print(f"✅ order_info сохранён в payment_{order_id}: {order_info}")  # ← ДИАГНОСТИКА
+    print(f"✅ order_info сохранён в payment_{order_id}")  # ← ДИАГНОСТИКА
 
     # ✅ СОЗДАЁМ ПЛАТЁЖ
     from handlers.payment import create_payment
@@ -351,7 +364,6 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         description=product.name
     )
 
-    # Очищаем данные заказа
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
