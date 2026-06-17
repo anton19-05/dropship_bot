@@ -15,12 +15,15 @@ def get_main_menu():
 
 
 def get_categories_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("👟 Обувь", callback_data="category_shoes")],
-        [InlineKeyboardButton("👕 Одежда", callback_data="category_clothing")],
-        [InlineKeyboardButton("🕶️ Аксессуары", callback_data="category_accessories")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
-    ]
+    """Клавиатура с категориями (для кнопки Каталог)"""
+    from models_categories import categories_manager
+    keyboard = []
+    for cat in categories_manager.get_all():
+        keyboard.append([InlineKeyboardButton(
+            cat["name"],
+            callback_data=f"category_{cat['id']}"
+        )])
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
 
