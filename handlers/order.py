@@ -327,7 +327,7 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from storage import save_user_data_sync
     save_user_data_sync(user_id, context.user_data[user_data_key], context)
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
+            # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     order_id = f"{user_id}_{int(time.time())}"
     context.user_data[f"payment_{order_id}"] = {
         "order_id": order_id,
@@ -336,8 +336,10 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "status": "pending",
         "created_at": time.time(),
-        "order_info": order_info  # ← сохраняем заказ для отправки после оплаты
+        "order_info": order_info  # ← ДОЛЖНО БЫТЬ!
     }
+    
+    print(f"✅ order_info сохранён в payment_{order_id}: {order_info}")  # ← ДИАГНОСТИКА
 
     # ✅ СОЗДАЁМ ПЛАТЁЖ
     from handlers.payment import create_payment
