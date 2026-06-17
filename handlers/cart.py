@@ -156,6 +156,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
+    """Показывает корзину с группировкой по товарам"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -164,9 +165,11 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
+    # Сохраняем контекст, откуда пришли
     context.user_data[f"cart_from_product_{user_id}"] = from_product_card
 
     if not cart:
+        # Корзина пуста
         if from_product_card:
             product_id = context.user_data.get(f"last_product_id_{user_id}")
             if product_id:
@@ -185,60 +188,110 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         await msg_manager.add(context.bot, chat_id, user_id, msg)
         return
 
-    total = 0
+    # ✅ ГРУППИРУЕМ ТОВАРЫ ПО product_code
+    grouped_cart = {}
     for item_key, item in cart.items():
-        product = products_manager.get_by_code(item["product_code"])
+        product_code = item["product_code"]
+        if product_code not in grouped_cart:
+            grouped_cart[product_code] = {
+                "product_code": product_code,
+                "name": item["name"],
+                "price": item["price"],
+                "variants": [],
+                "total_quantity": 0,
+                "total_price": 0
+            }
+        # Добавляем вариант (цвет, размер, количество)
+        grouped_cart[product_code]["variants"].append({
+            "size": item.get("size"),
+            "color": item.get("color"),
+            "quantity": item["quantity"],
+            "item_key": item_key
+        })
+        grouped_cart[product_code]["total_quantity"] += item["quantity"]
+        grouped_cart[product_code]["total_price"] += item["price"] * item["quantity"]
+
+    # Показываем каждый товар с его вариантами
+    for product_code, group in grouped_cart.items():
+        product = products_manager.get_by_code(product_code)
+        
+        # Собираем текст для товара
+        text = f"👟 *{group['name']}*\n"
+        text += f"💰 {group['price']} руб/шт\n"
+        text += f"📦 Всего: {group['total_quantity']} шт\n"
+        text += f"💵 Итого: {group['total_price']} руб\n\n"
+        
+        # Список вариантов
+        text += "📋 *Варианты:*\n"
+        for variant in group["variants"]:
+            size_text = f"размер {variant['size']}" if variant.get("size") else ""
+            color_text = variant.get("color", "")
+            text += f"• {color_text} {size_text} — {variant['quantity']} шт\n"
+        
+        # Кнопки для управления товаром
+        keyboard = []
+        
+        # Кнопки управления количеством для каждого варианта
+        for variant in group["variants"]:
+            size_text = f"разм.{variant['size']}" if variant.get("size") else ""
+            color_text = variant.get("color", "")
+            label = f"{color_text} {size_text}".strip()
+            if not label:
+                label = "товар"
+            keyboard.append([
+                InlineKeyboardButton("➖", callback_data=f"cart_decr_{variant['item_key']}"),
+                InlineKeyboardButton(f"{variant['quantity']} шт", callback_data="noop"),
+                InlineKeyboardButton("➕", callback_data=f"cart_incr_{variant['item_key']}")
+            ])
+        
+        # Кнопка "Удалить товар" (удаляет все варианты)
+        keyboard.append([
+            InlineKeyboardButton("🗑️ Удалить все", callback_data=f"cart_remove_group_{product_code}")
+        ])
+        
+        # Кнопка "К товару"
         if product:
-            subtotal = item["price"] * item["quantity"]
-            total += subtotal
-            
-            if item.get('size'):
-                size_text = f"📏 Размер: {item['size']}"
-            else:
-                size_text = ""
-            
-            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт\n{size_text}\n💰 {subtotal} руб"
-            
-            keyboard = [
-                [InlineKeyboardButton("➖", callback_data=f"cart_decr_{item_key}"),
-                 InlineKeyboardButton(f"{item['quantity']} шт", callback_data="noop"),
-                 InlineKeyboardButton("➕", callback_data=f"cart_incr_{item_key}")],
-                [InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{item_key}")],
-                [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
-            ]
-            photo = product.get_photo()
-            try:
-                if photo and os.path.exists(photo):
-                    with open(photo, 'rb') as f:
-                        msg = await context.bot.send_photo(
-                            chat_id=chat_id, 
-                            photo=f, 
-                            caption=text, 
-                            parse_mode="Markdown", 
-                            reply_markup=InlineKeyboardMarkup(keyboard)
-                        )
-                        await msg_manager.add(context.bot, chat_id, user_id, msg)
-                else:
-                    msg = await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=text, 
-                        parse_mode="Markdown", 
+            keyboard.append([
+                InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")
+            ])
+        
+        # Фото товара
+        photo = product.get_photo() if product else None
+        try:
+            if photo and os.path.exists(photo):
+                with open(photo, 'rb') as f:
+                    msg = await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=f,
+                        caption=text,
+                        parse_mode="Markdown",
                         reply_markup=InlineKeyboardMarkup(keyboard)
                     )
                     await msg_manager.add(context.bot, chat_id, user_id, msg)
-            except Exception as e:
-                print(f"Ошибка отправки товара в корзине: {e}")
+            else:
                 msg = await context.bot.send_message(
-                    chat_id=chat_id, 
-                    text=text, 
-                    parse_mode="Markdown", 
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
+        except Exception as e:
+            print(f"Ошибка отправки товара в корзине: {e}")
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            await msg_manager.add(context.bot, chat_id, user_id, msg)
 
+    # Итоговая сумма
+    total_sum = sum(group["total_price"] for group in grouped_cart.values())
+    
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"💰 *ИТОГО: {total} руб*",
+        text=f"💰 *ИТОГО К ОПЛАТЕ: {total_sum} руб*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ ОФОРМИТЬ ЗАКАЗ", callback_data="checkout")],
