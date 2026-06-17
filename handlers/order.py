@@ -261,13 +261,10 @@ async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"🔍 order_handle ВЫЗВАНА! user_id={update.effective_user.id}")
+    """Обработка введённых данных заказа (если профиль не заполнен)"""
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
-        print(f"❌ Флаг ordering_{user_id} не найден, выходим")
         return
-    print(f"✅ Флаг найден, обрабатываем заказ")
-    # ... остальной код
 
     chat_id = update.effective_chat.id
     text = update.message.text.strip()
@@ -292,7 +289,7 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     size = context.user_data.get(f"order_size_{user_id}")
     color = context.user_data.get(f"order_color_{user_id}")
 
-    # Сохраняем заказ
+    # ✅ СОХРАНЯЕМ ЗАКАЗ (НО НЕ ОТПРАВЛЯЕМ АДМИНУ)
     order_info = {
         "product": product.name,
         "product_code": product.code,
@@ -311,7 +308,7 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "username": update.effective_user.username
     }
-
+    
     # ✅ СОХРАНЯЕМ ДАННЫЕ В ПРОФИЛЬ
     user_data_key = f"user_data_{user_id}"
     if user_data_key not in context.user_data:
@@ -330,37 +327,20 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from storage import save_user_data_sync
     save_user_data_sync(user_id, context.user_data[user_data_key], context)
 
-    # Формируем текст для админа
-    admin_text = f"🆕 *НОВЫЙ ЗАКАЗ!*\n\n"
-    admin_text += f"👟 {order_info['product']}\n"
-    if order_info.get('color'):
-        admin_text += f"🎨 Цвет: {order_info['color']}\n"
-    if order_info.get('size'):
-        admin_text += f"📏 Размер: {order_info['size']}\n"
-    admin_text += f"💰 Сумма: {order_info['price']} руб\n\n"
-    admin_text += f"📋 Данные клиента:\n"
-    admin_text += f"• Фамилия: {order_info['last_name']}\n"
-    admin_text += f"• Имя: {order_info['first_name']}\n"
-    admin_text += f"• Телефон: {order_info['phone']}\n"
-    admin_text += f"• Страна: {order_info['country']}\n"
-    admin_text += f"• Регион: {order_info['region']}\n"
-    admin_text += f"• Город: {order_info['city']}\n"
-    admin_text += f"• Индекс: {order_info['postal_code']}\n"
-    admin_text += f"• Адрес: {order_info['address']}\n"
-    admin_text += f"• Email: {order_info['email']}\n\n"
-    admin_text += f"👤 @{order_info['username']}"
-
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=admin_text,
-        parse_mode="Markdown"
-    )
-
-    # Создаём платеж
-    from handlers.payment import create_payment
-    import time
+    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     order_id = f"{user_id}_{int(time.time())}"
-    
+    context.user_data[f"payment_{order_id}"] = {
+        "order_id": order_id,
+        "amount": product.price,
+        "description": product.name,
+        "user_id": user_id,
+        "status": "pending",
+        "created_at": time.time(),
+        "order_info": order_info  # ← сохраняем заказ для отправки после оплаты
+    }
+
+    # ✅ СОЗДАЁМ ПЛАТЁЖ
+    from handlers.payment import create_payment
     await create_payment(
         update=update,
         context=context,
