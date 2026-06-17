@@ -2,12 +2,12 @@ import os
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters
+    MessageHandler, filters, ContextTypes  # ← добавить ContextTypes
 )
 from config import TOKEN
 
 # Импорты всех ваших хендлеров
-from handlers.profile import profile, edit_profile_start, handle_profile_input
+from handlers.profile import profile, edit_profile_start, handle_profile_input, editing_state
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
     add_to_cart, cart_select_size, cart_confirm_quantity, view_cart,
@@ -24,6 +24,29 @@ from handlers.catalog import (
 from handlers.payment import payment_success, check_payment_status, confirm_payment
 from storage import load_user_data
 from handlers.admin import check_db
+
+
+# ✅ ОБЪЕДИНЁННЫЙ ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ
+async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает все текстовые сообщения"""
+    user_id = update.effective_user.id
+    print(f"🔍 handle_all_text ВЫЗВАНА! user_id={user_id}")
+    
+    # Проверяем, в процессе ли редактирования профиля
+    if user_id in editing_state:
+        print(f"✅ Режим редактирования профиля, вызываем handle_profile_input")
+        await handle_profile_input(update, context)
+        return
+    
+    # Проверяем, в процессе ли оформления заказа
+    if context.user_data.get(f"ordering_{user_id}"):
+        print(f"✅ Режим оформления заказа, вызываем order_handle")
+        await order_handle(update, context)
+        return
+    
+    # Если ничего не активно — игнорируем
+    print(f"❌ Ничего не активно, игнорируем")
+    await update.message.reply_text("❌ Неизвестная команда. Используйте кнопки меню.")
 
 
 def main() -> None:
@@ -86,9 +109,8 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(edit_profile_start, pattern="^edit_profile_change$"))
     application.add_handler(CallbackQueryHandler(payment_success, pattern="^payment_success$"))
     
-    # Обработчики текста
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_input))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, order_handle))
+    # ✅ ТОЛЬКО ОДИН ОБРАБОТЧИК ТЕКСТА
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_text))
 
     # Неактивные кнопки
     async def noop(update: Update, context):
