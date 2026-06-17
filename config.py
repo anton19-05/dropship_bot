@@ -11,4 +11,4 @@ YOOMONEY_WALLET = "4100119535616904"
 YOOMONEY_SUCCESS_URL = "https://t.me/dropshopshipbot"
 
 # Telegram бот username (для возврата)
-BOT_USERNAME = "DropShopBot"
+BOT_USERNAME = "dropshopshipbot"
