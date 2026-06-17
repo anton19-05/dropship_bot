@@ -15,7 +15,6 @@ def get_main_menu():
 
 
 def get_categories_keyboard():
-    """Клавиатура с категориями (для кнопки Каталог)"""
     keyboard = [
         [InlineKeyboardButton("👟 Обувь", callback_data="category_shoes")],
         [InlineKeyboardButton("👕 Одежда", callback_data="category_clothing")],

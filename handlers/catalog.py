@@ -69,23 +69,23 @@ async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # НОВЫЙ ОБРАБОТЧИК: Выбор категории из главного меню
 async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора категории из главного меню"""
+    print(f"🔍 show_category_by_id ВЫЗВАНА! data={update.callback_query.data}")
+    # ... остальной код
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
-    category_id = query.data.replace("category_", "")
+    category_id = query.data.replace("category_", "")  # "shoes"
     category = categories_manager.get_by_id(category_id)
     
     if not category:
         await query.answer("❌ Категория не найдена!", show_alert=True)
         return
     
-    # Проверяем, есть ли подкатегории
+    # Проверяем подкатегории
     subcategories = categories_manager.get_subcategories(category_id)
     
     if subcategories:
-        # Показываем подкатегории
         from keyboards import get_subcategories_keyboard
         keyboard = get_subcategories_keyboard(category_id)
         await query.edit_message_text(
@@ -94,10 +94,8 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
             reply_markup=keyboard
         )
     else:
-        # Если нет подкатегорий, показываем товары сразу
-        from models import products_manager
+        # Показываем товары
         products = products_manager.get_by_category(category_id)
-        
         if products:
             user_states[user_id] = {
                 "products": products,
@@ -107,11 +105,8 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
             await show_products_page(update, user_id, 0, context)
         else:
             await query.edit_message_text(
-                text=f"📦 *{category['name']}*\n\nТоваров пока нет.\n✨ Скоро появятся!",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="main_back")
-                ]])
+                text=f"📦 *{category['name']}*\n\nТоваров пока нет.",
+                parse_mode="Markdown"
             )
 
 # НОВЫЙ ОБРАБОТЧИК: Выбор подкатегории
