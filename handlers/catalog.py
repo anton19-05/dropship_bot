@@ -661,8 +661,10 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def back_to_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔍 back_to_category ВЫЗВАНА! data={update.callback_query.data}")
     query = update.callback_query
     await query.answer()
+    # ... остальной код
 
     user_id = query.from_user.id
     data = query.data.replace("back_to_category_", "")
