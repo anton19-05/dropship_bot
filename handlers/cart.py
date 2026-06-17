@@ -114,8 +114,6 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     product = products_manager.get_by_code(product_code)
     size = context.user_data.get(f"temp_size_{user_id}")
-    
-    # ✅ ПОЛУЧАЕМ ЦВЕТ
     color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
@@ -123,17 +121,25 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data[cart_key] = {}
 
     item_key = f"{product_code}_{size}" if size else product_code
+    
+    # ✅ СОХРАНЯЕМ ВСЕ АТРИБУТЫ
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += quantity
     else:
-        context.user_data[cart_key][item_key] = {
+        item_data = {
             "product_code": product_code,
-            "size": size,
-            "color": color,  # ← ТЕПЕРЬ color ОПРЕДЕЛЁН
             "quantity": quantity,
             "name": product.name,
-            "price": product.price
+            "price": product.price,
+            "size": size,
+            "color": color,
         }
+        # Добавляем все атрибуты из attributes
+        for key, value in product.attributes.items():
+            if key not in ["colors", "sizes"]:  # пропускаем списки выбора
+                item_data[key] = value
+        
+        context.user_data[cart_key][item_key] = item_data
 
     context.user_data.pop(f"temp_size_{user_id}", None)
     context.user_data.pop(f"temp_product_{user_id}", None)
@@ -161,7 +167,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
-    """Показывает корзину с группировкой по товарам"""
+    """Показывает корзину с группировкой по товарам и динамическими атрибутами"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -170,11 +176,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
-    # Сохраняем контекст, откуда пришли
     context.user_data[f"cart_from_product_{user_id}"] = from_product_card
 
     if not cart:
-        # Корзина пуста
         if from_product_card:
             product_id = context.user_data.get(f"last_product_id_{user_id}")
             if product_id:
@@ -206,12 +210,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 "total_quantity": 0,
                 "total_price": 0
             }
-        # Добавляем вариант (цвет, размер, количество)
         grouped_cart[product_code]["variants"].append({
             "size": item.get("size"),
             "color": item.get("color"),
             "quantity": item["quantity"],
-            "item_key": item_key
+            "item_key": item_key,
+            **{k: v for k, v in item.items() if k not in ["product_code", "name", "price", "quantity", "item_key", "size", "color"]}
         })
         grouped_cart[product_code]["total_quantity"] += item["quantity"]
         grouped_cart[product_code]["total_price"] += item["price"] * item["quantity"]
@@ -220,47 +224,79 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     for product_code, group in grouped_cart.items():
         product = products_manager.get_by_code(product_code)
         
-        # Собираем текст для товара
         text = f"👟 *{group['name']}*\n"
         text += f"💰 {group['price']} руб/шт\n"
         text += f"📦 Всего: {group['total_quantity']} шт\n"
         text += f"💵 Итого: {group['total_price']} руб\n\n"
         
-        # Список вариантов
+        # ✅ ДИНАМИЧЕСКИЕ АТРИБУТЫ
         text += "📋 *Варианты:*\n"
         for variant in group["variants"]:
-            size_text = f"размер {variant['size']}" if variant.get("size") else ""
-            color_text = variant.get("color", "")
-            text += f"• {color_text} {size_text} — {variant['quantity']} шт\n"
+            attrs = []
+            
+            # Основные атрибуты с русскими названиями
+            attr_map = {
+                "color": "цвет",
+                "size": "размер",
+                "length": "длина",
+                "capacity": "емкость",
+                "weight": "вес",
+                "material": "материал",
+                "volume": "объем",
+                "power": "мощность",
+                "screen": "экран",
+                "memory": "память",
+                "type": "тип",
+                "model": "модель",
+                "brand": "бренд"
+            }
+            
+            for key, label in attr_map.items():
+                if variant.get(key):
+                    attrs.append(f"{label}: {variant[key]}")
+            
+            if not attrs:
+                exclude = ["product_code", "name", "price", "quantity", "item_key", "product_id"]
+                for key, value in variant.items():
+                    if key not in exclude and value:
+                        attrs.append(f"{key}: {value}")
+            
+            attrs_text = ", ".join(attrs) if attrs else "стандартный"
+            text += f"• {attrs_text} — {variant['quantity']} шт\n"
         
-        # Кнопки для управления товаром
+        # Кнопки управления
         keyboard = []
-        
-        # Кнопки управления количеством для каждого варианта
         for variant in group["variants"]:
-            size_text = f"разм.{variant['size']}" if variant.get("size") else ""
-            color_text = variant.get("color", "")
-            label = f"{color_text} {size_text}".strip()
-            if not label:
-                label = "товар"
+            # Формируем подпись для кнопки
+            label_parts = []
+            if variant.get("color"):
+                label_parts.append(variant["color"])
+            if variant.get("size"):
+                label_parts.append(f"р-р {variant['size']}")
+            if variant.get("length"):
+                label_parts.append(variant["length"])
+            if variant.get("capacity"):
+                label_parts.append(variant["capacity"])
+            if variant.get("model"):
+                label_parts.append(variant["model"])
+            
+            label = " ".join(label_parts) if label_parts else "товар"
+            
             keyboard.append([
                 InlineKeyboardButton("➖", callback_data=f"cart_decr_{variant['item_key']}"),
                 InlineKeyboardButton(f"{variant['quantity']} шт", callback_data="noop"),
                 InlineKeyboardButton("➕", callback_data=f"cart_incr_{variant['item_key']}")
             ])
         
-        # Кнопка "Удалить товар" (удаляет все варианты)
         keyboard.append([
             InlineKeyboardButton("🗑️ Удалить все", callback_data=f"cart_remove_group_{product_code}")
         ])
         
-        # Кнопка "К товару"
         if product:
             keyboard.append([
                 InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")
             ])
         
-        # Фото товара
         photo = product.get_photo() if product else None
         try:
             if photo and os.path.exists(photo):
@@ -369,7 +405,6 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cart_key = f"cart_{user_id}"
     cart = context.user_data.get(cart_key, {})
     
-    # Удаляем все позиции с этим product_code
     items_to_remove = [key for key in cart.keys() if cart[key]["product_code"] == product_code]
     for key in items_to_remove:
         del cart[key]
