@@ -301,7 +301,25 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     size = context.user_data.get(f"order_size_{user_id}")
     color = context.user_data.get(f"order_color_{user_id}")
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ
+    # ✅ 1. СОХРАНЯЕМ В ПРОФИЛЬ (сначала)
+    user_data_key = f"user_data_{user_id}"
+    if user_data_key not in context.user_data:
+        context.user_data[user_data_key] = {}
+    
+    context.user_data[user_data_key]["last_name"] = parts[0]
+    context.user_data[user_data_key]["first_name"] = parts[1]
+    context.user_data[user_data_key]["phone"] = parts[2]
+    context.user_data[user_data_key]["country"] = parts[3]
+    context.user_data[user_data_key]["region"] = parts[4]
+    context.user_data[user_data_key]["city"] = parts[5]
+    context.user_data[user_data_key]["postal_code"] = parts[6]
+    context.user_data[user_data_key]["address"] = parts[7]
+    context.user_data[user_data_key]["email"] = parts[8]
+    
+    from storage import save_user_data_sync
+    save_user_data_sync(user_id, context.user_data[user_data_key], context)
+
+    # ✅ 2. СОЗДАЁМ order_info С ДАННЫМИ КЛИЕНТА
     order_info = {
         "product": product.name,
         "product_code": product.code,
@@ -320,26 +338,8 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "username": update.effective_user.username
     }
-    
-    # ✅ СОХРАНЯЕМ В ПРОФИЛЬ
-    user_data_key = f"user_data_{user_id}"
-    if user_data_key not in context.user_data:
-        context.user_data[user_data_key] = {}
-    
-    context.user_data[user_data_key]["last_name"] = parts[0]
-    context.user_data[user_data_key]["first_name"] = parts[1]
-    context.user_data[user_data_key]["phone"] = parts[2]
-    context.user_data[user_data_key]["country"] = parts[3]
-    context.user_data[user_data_key]["region"] = parts[4]
-    context.user_data[user_data_key]["city"] = parts[5]
-    context.user_data[user_data_key]["postal_code"] = parts[6]
-    context.user_data[user_data_key]["address"] = parts[7]
-    context.user_data[user_data_key]["email"] = parts[8]
-    
-    from storage import save_user_data_sync
-    save_user_data_sync(user_id, context.user_data[user_data_key], context)
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
+    # ✅ 3. СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     import time
     order_id = f"{user_id}_{int(time.time())}"
     context.user_data[f"payment_{order_id}"] = {
@@ -349,12 +349,12 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "status": "pending",
         "created_at": time.time(),
-        "order_info": order_info  # ← ЭТО ДОЛЖНО БЫТЬ!
+        "order_info": order_info  # ← ТЕПЕРЬ ЕСТЬ ДАННЫЕ
     }
     
-    print(f"✅ order_info сохранён в payment_{order_id}")  # ← ДИАГНОСТИКА
+    print(f"✅ order_info сохранён: {order_info}")
 
-    # ✅ СОЗДАЁМ ПЛАТЁЖ
+    # ✅ 4. СОЗДАЁМ ПЛАТЁЖ
     from handlers.payment import create_payment
     await create_payment(
         update=update,
