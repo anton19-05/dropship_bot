@@ -81,31 +81,41 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Категория не найдена!", show_alert=True)
         return
     
-    # ✅ ПРЯМОЙ ПОИСК ТОВАРОВ (временно для проверки)
-    from models import products_manager
-    products = products_manager.get_by_category(category_id)
+    # Сохраняем выбранную категорию
+    context.user_data[f"current_category_{user_id}"] = category_id
     
-    # Диагностика (отправим вам в Telegram)
-    await context.bot.send_message(
-        chat_id=1941249302,
-        text=f"🔍 Категория: {category_id}\nНайдено товаров: {len(products)}\nТовары: {[p.name for p in products]}"
-    )
+    # Проверяем, есть ли подкатегории
+    subcategories = categories_manager.get_subcategories(category_id)
     
-    if products:
-        user_states[user_id] = {
-            "products": products,
-            "page": 0,
-            "category": category_id
-        }
-        await show_products_page(update, user_id, 0, context)
-    else:
+    if subcategories:
+        # Показываем подкатегории
+        from keyboards import get_subcategories_keyboard
+        keyboard = get_subcategories_keyboard(category_id)
         await query.edit_message_text(
-            text=f"📦 *{category['name']}*\n\nТоваров пока нет.\n✨ Скоро появятся!",
+            text=f"📂 *{category['name']}*\n\n👇 Выберите подкатегорию:",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="main_back")
-            ]])
+            reply_markup=keyboard
         )
+    else:
+        # Если нет подкатегорий, показываем товары сразу
+        from models import products_manager
+        products = products_manager.get_by_category(category_id)
+        
+        if products:
+            user_states[user_id] = {
+                "products": products,
+                "page": 0,
+                "category": category_id
+            }
+            await show_products_page(update, user_id, 0, context)
+        else:
+            await query.edit_message_text(
+                text=f"📦 *{category['name']}*\n\nТоваров пока нет.\n✨ Скоро появятся!",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад", callback_data="main_back")
+                ]])
+            )
 
 
 # НОВЫЙ ОБРАБОТЧИК: Выбор подкатегории

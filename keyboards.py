@@ -27,6 +27,7 @@ def get_categories_keyboard():
 
 def get_subcategories_keyboard(category_id):
     """Клавиатура с подкатегориями"""
+    from models_categories import categories_manager
     subcategories = categories_manager.get_subcategories(category_id)
     
     if not subcategories:
