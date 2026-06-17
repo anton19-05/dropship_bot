@@ -12,15 +12,18 @@ class CategoryManager:
         self._load(full_path)
 
     def _load(self, path):
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
+        # Принудительно указываем правильный путь
+        full_path = "/app/data/categories.json"
+        print(f"🔍 Загрузка категорий из: {full_path}")
+        if os.path.exists(full_path):
+            with open(full_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 self.categories = data.get("categories", [])
                 for cat in self.categories:
                     self.categories_by_id[cat["id"]] = cat
             print(f"✅ Загружено {len(self.categories)} категорий")
         else:
-            print(f"❌ Файл категорий не найден: {path}")
+            print(f"❌ Файл категорий не найден: {full_path}")
 
     def get_all(self):
         return sorted(self.categories, key=lambda x: x.get("order", 999))
