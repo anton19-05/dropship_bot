@@ -1,6 +1,5 @@
 import json
 import os
-from models import products_manager
 
 
 class CategoryManager:
@@ -22,3 +21,24 @@ class CategoryManager:
             print(f"✅ Загружено {len(self.categories)} категорий")
         else:
             print(f"❌ Файл категорий не найден: {path}")
+
+    def get_all(self):
+        return sorted(self.categories, key=lambda x: x.get("order", 999))
+
+    def get_by_id(self, cat_id):
+        return self.categories_by_id.get(cat_id)
+
+    def get_subcategories(self, cat_id):
+        cat = self.get_by_id(cat_id)
+        if cat:
+            return sorted(cat.get("subcategories", []), key=lambda x: x.get("order", 999))
+        return []
+
+    def get_products_by_subcategory(self, subcategory_id):
+        from models import products_manager
+        result = [p for p in products_manager.products if p.category == subcategory_id]
+        return result
+
+
+# ✅ ЭТА СТРОКА ДОЛЖНА БЫТЬ!
+categories_manager = CategoryManager()
