@@ -81,9 +81,6 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Категория не найдена!", show_alert=True)
         return
     
-    # Сохраняем выбранную категорию
-    context.user_data[f"current_category_{user_id}"] = category_id
-    
     # Проверяем, есть ли подкатегории
     subcategories = categories_manager.get_subcategories(category_id)
     
@@ -117,7 +114,6 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
                 ]])
             )
 
-
 # НОВЫЙ ОБРАБОТЧИК: Выбор подкатегории
 async def show_subcategory_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора подкатегории"""
@@ -127,33 +123,19 @@ async def show_subcategory_products(update: Update, context: ContextTypes.DEFAUL
     user_id = query.from_user.id
     subcategory_id = query.data.replace("subcat_", "")
     
-    # Получаем родительскую категорию (для кнопки "Назад")
-    parent_category_id = None
-    for cat in categories_manager.get_all():
-        for subcat in cat.get("subcategories", []):
-            if subcat["id"] == subcategory_id:
-                parent_category_id = cat["id"]
-                break
-        if parent_category_id:
-            break
-    
-    context.user_data[f"current_category_{user_id}"] = parent_category_id
-    context.user_data[f"current_subcategory_{user_id}"] = subcategory_id
-    
     # Получаем товары подкатегории
-    products = categories_manager.get_products_by_subcategory(subcategory_id)
+    products = products_manager.get_by_category(subcategory_id)
     
     if not products:
         await query.edit_message_text(
             text="📦 *Товаров пока нет*\n\n✨ Скоро появятся!",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data=f"category_{parent_category_id}")
+                InlineKeyboardButton("🔙 Назад", callback_data="main_back")
             ]])
         )
         return
     
-    # Сохраняем в user_states и показываем товары
     user_states[user_id] = {
         "products": products,
         "page": 0,
