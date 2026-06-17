@@ -157,7 +157,28 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
             text=admin_text
         )
         
-        # Ответ пользователю
+        # ✅ ОТВЕТ ПОЛЬЗОВАТЕЛЮ С КНОПКОЙ "НАЗАД К ТОВАРУ"
+        # Получаем product_id из order_info
+        product_id = None
+        if order_info and order_info.get('product_code'):
+            from models import products_manager
+            for p in products_manager.products:
+                if p.code == order_info.get('product_code'):
+                    product_id = p.id
+                    break
+        
+        # Формируем клавиатуру
+        keyboard_buttons = []
+        
+        # Кнопка "Назад к товару" (если знаем product_id)
+        if product_id:
+            keyboard_buttons.append([InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")])
+        
+        # Кнопка "Главное меню"
+        keyboard_buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard_buttons)
+        
         await query.edit_message_text(
             text=(
                 "✅ ЗАКАЗ ПРИНЯТ!\n\n"
@@ -166,13 +187,15 @@ async def check_payment_status(update: Update, context: ContextTypes.DEFAULT_TYP
                 "📞 Менеджер свяжется с вами.\n\n"
                 "🌟 Спасибо за покупку!"
             ),
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
-            ])
+            reply_markup=reply_markup
         )
         
     except Exception as e:
         print(f"❌ Ошибка в check_payment_status: {e}")
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=f"❌ Ошибка: {str(e)[:100]}"
+        )
 
 
 async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
