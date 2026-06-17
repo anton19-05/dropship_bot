@@ -354,3 +354,27 @@ async def view_cart_from_profile(update: Update, context: ContextTypes.DEFAULT_T
 
 async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await view_cart(update, context, from_product_card=True)
+
+async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удаляет все варианты одного товара из корзины"""
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    product_code = query.data.replace("cart_remove_group_", "")
+    cart_key = f"cart_{user_id}"
+    cart = context.user_data.get(cart_key, {})
+    
+    # Удаляем все позиции с этим product_code
+    items_to_remove = [key for key in cart.keys() if cart[key]["product_code"] == product_code]
+    for key in items_to_remove:
+        del cart[key]
+    
+    if cart:
+        context.user_data[cart_key] = cart
+    else:
+        context.user_data.pop(cart_key, None)
+    
+    from storage import save_user_data_sync
+    save_user_data_sync(user_id, {cart_key: context.user_data.get(cart_key, {})}, context)
+    
+    await view_cart(update, context)
