@@ -123,8 +123,19 @@ async def show_subcategory_products(update: Update, context: ContextTypes.DEFAUL
     user_id = query.from_user.id
     subcategory_id = query.data.replace("subcat_", "")
     
+    # ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"🔍 subcategory_id = {subcategory_id}\nВсего товаров: {len(products_manager.products)}\nКатегории товаров: {[p.category for p in products_manager.products]}"
+    )
+    
     # Получаем товары подкатегории
     products = products_manager.get_by_category(subcategory_id)
+    
+    await context.bot.send_message(
+        chat_id=1941249302,
+        text=f"🔍 Найдено товаров для '{subcategory_id}': {len(products)}"
+    )
     
     if not products:
         await query.edit_message_text(
