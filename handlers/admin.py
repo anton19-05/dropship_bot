@@ -53,11 +53,11 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     order_id = args[0]
     
-    # Ищем платеж в user_data
+    # ✅ ИЩЕМ ПЛАТЕЖ В user_data (не в bot_data!)
     payment_info = None
-    for key in context.bot_data:
-        if key.startswith("payment_") and context.bot_data[key].get("order_id") == order_id:
-            payment_info = context.bot_data[key]
+    for key in context.user_data:
+        if key.startswith("payment_") and context.user_data[key].get("order_id") == order_id:
+            payment_info = context.user_data[key]
             break
     
     if not payment_info:
