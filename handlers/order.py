@@ -361,7 +361,8 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context=context,
         amount=product.price,
         order_id=order_id,
-        description=product.name
+        description=product.name,
+        order_info=order_info  # ← ЭТО ГЛАВНОЕ!
     )
 
     context.user_data.pop(f"ordering_{user_id}", None)
