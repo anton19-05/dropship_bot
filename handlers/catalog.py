@@ -761,7 +761,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.bot,
             product.category,
             0,
-            user_id  # ← ПЕРЕДАЁМ user_id
+            user_id
         )
     
     await query.answer(f"✅ Выбрано: {attr_value}")

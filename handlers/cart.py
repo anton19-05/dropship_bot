@@ -16,11 +16,9 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # ✅ СОХРАНЯЕМ ВЫБРАННЫЕ АТРИБУТЫ
-    # Получаем текущий цвет
+    # Сохраняем выбранные атрибуты
     color = context.user_data.get(f"color_{user_id}", "белый")
     
-    # Получаем все остальные атрибуты
     attrs = product.get_attributes()
     selected_attrs = {}
     for key in attrs.keys():
@@ -32,6 +30,8 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[f"temp_product_{user_id}"] = product_code
     context.user_data[f"temp_color_{user_id}"] = color
     context.user_data[f"temp_attrs_{user_id}"] = selected_attrs
+
+    # ... остальной код (выбор размера)
 
     try:
         await query.message.delete()

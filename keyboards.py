@@ -60,14 +60,13 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             ))
         keyboard.append(colors_row)
 
-    # ✅ КНОПКИ ДЛЯ ДРУГИХ АТРИБУТОВ
+    # Кнопки для других атрибутов
     attrs = product.get_attributes()
     for key, values in attrs.items():
         if key == "colors":
             continue
         row = []
         for value in values:
-            # Проверяем, выбран ли этот атрибут
             selected = False
             if context and user_id:
                 stored_value = context.user_data.get(f"attr_{key}_{user_id}")
