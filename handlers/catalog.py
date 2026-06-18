@@ -753,6 +753,8 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
     )
 
 async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔍 select_attribute ВЫЗВАНА! data={update.callback_query.data}")
+    # ... остальной код
     """Обработчик выбора атрибута (длина, материал, емкость и т.д.)"""
     query = update.callback_query
     await query.answer()
