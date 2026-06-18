@@ -731,7 +731,7 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
     )
 
 async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора атрибута"""
+    """Обработчик выбора атрибута (длина, материал, емкость и т.д.)"""
     query = update.callback_query
     await query.answer()
     
@@ -748,26 +748,45 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     print(f"✅ Сохранён атрибут: {attr_key}={attr_value}")
     
-    # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ
-    try:
-        await query.message.delete()
-    except:
-        pass
-    
-    # Показываем обновлённую карточку
+    # ✅ НЕ УДАЛЯЕМ, А РЕДАКТИРУЕМ СООБЩЕНИЕ
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
-        from utils import show_product
-        await show_product(
-            query.message.chat_id,
-            product_id,
-            current_color,
-            context,
-            context.bot,
-            product.category,
-            0,
-            user_id
-        )
+        
+        # Получаем текст и фото
+        text = product.get_text(current_color)
+        photo = product.get_photo(current_color)
+        
+        from keyboards import get_product_keyboard
+        
+        try:
+            if os.path.exists(photo):
+                # Для фото нужно удалить и отправить новое
+                await query.message.delete()
+                with open(photo, 'rb') as f:
+                    msg = await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=f,
+                        caption=text,
+                        parse_mode="Markdown",
+                        reply_markup=get_product_keyboard(product, current_color, product.category, 0, context, user_id)
+                    )
+                    await msg_manager.add(context.bot, query.message.chat_id, user_id, msg)
+            else:
+                # Для текста используем edit
+                await query.edit_message_text(
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=get_product_keyboard(product, current_color, product.category, 0, context, user_id)
+                )
+        except Exception as e:
+            print(f"Ошибка обновления карточки: {e}")
+            # Если редактировать не получилось, отправляем новое
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_markup=get_product_keyboard(product, current_color, product.category, 0, context, user_id)
+            )
     
     await query.answer(f"✅ Выбрано: {attr_value}")
