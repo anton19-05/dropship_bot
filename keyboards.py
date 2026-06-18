@@ -60,8 +60,9 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             ))
         keyboard.append(colors_row)
 
-    # Кнопки для других атрибутов
+        # Кнопки для других атрибутов
     attrs = product.get_attributes()
+    print(f"🔍 get_product_keyboard: attrs={attrs}, user_id={user_id}")
     for key, values in attrs.items():
         if key == "colors":
             continue
@@ -71,6 +72,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             if context and user_id:
                 stored_value = context.user_data.get(f"attr_{key}_{user_id}")
                 selected = (stored_value == value)
+                print(f"🔍 attr_{key}_{user_id}={stored_value}, value={value}, selected={selected}")
             marker = "✅ " if selected else ""
             row.append(InlineKeyboardButton(
                 f"{marker}{value}",

@@ -731,7 +731,7 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
     )
 
 async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора атрибута (длина, материал, емкость и т.д.)"""
+    """Обработчик выбора атрибута"""
     query = update.callback_query
     await query.answer()
     
@@ -746,9 +746,15 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Сохраняем выбранный атрибут
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
-    print(f"✅ Сохранён атрибут: {attr_key}={attr_value} для user_id={user_id}")
+    print(f"✅ Сохранён атрибут: {attr_key}={attr_value}")
     
-    # Обновляем карточку товара
+    # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ
+    try:
+        await query.message.delete()
+    except:
+        pass
+    
+    # Показываем обновлённую карточку
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
