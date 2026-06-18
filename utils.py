@@ -3,18 +3,13 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from models import products_manager
 from keyboards import get_product_keyboard
 
-async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0):
+async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0, user_id=None):
     product = products_manager.get_by_id(prod_id)
     if not product:
         return
     
     if category is None:
         category = product.category
-    
-    user_id = None
-    if context and hasattr(context, 'user_data'):
-        # Получаем user_id из контекста (если есть)
-        pass
     
     text = product.get_text(color_id)
     photo = product.get_photo(color_id)
@@ -27,14 +22,14 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                     photo=f,
                     caption=text,
                     parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
+                    reply_markup=get_product_keyboard(product, color_id, category, page, context, user_id)
                 )
         else:
             msg = await bot.send_message(
                 chat_id=chat_id,
                 text=text,
                 parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
+                reply_markup=get_product_keyboard(product, color_id, category, page, context, user_id)
             )
         
         if "last_product_msg" in context.user_data:
@@ -50,7 +45,7 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
             chat_id=chat_id,
             text=text,
             parse_mode="Markdown",
-            reply_markup=get_product_keyboard(product, color_id, category, page, context, None)
+            reply_markup=get_product_keyboard(product, color_id, category, page, context, user_id)
         )
         if "last_product_msg" in context.user_data:
             try:

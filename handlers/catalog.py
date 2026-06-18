@@ -260,47 +260,24 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data[f"color_{user_id}"] = default_color
     current_color = default_color
 
+    # Удаляем старое сообщение
     try:
         await query.message.delete()
     except:
         pass
 
-    text = product.get_text(current_color)
-    photo = product.get_photo(current_color)
-
-    category = product.category
-    page = 0
-
-    from keyboards import get_product_keyboard
-
-    try:
-        if os.path.exists(photo):
-            with open(photo, 'rb') as f:
-                msg = await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=f,
-                    caption=text,
-                    parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
-                )
-                await msg_manager.add(context.bot, chat_id, user_id, msg)
-        else:
-            msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
-            )
-            await msg_manager.add(context.bot, chat_id, user_id, msg)
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            parse_mode="Markdown",
-            reply_markup=get_product_keyboard(product, current_color, category, page, context, user_id)
-        )
-        await msg_manager.add(context.bot, chat_id, user_id, msg)
+    # ✅ ВЫЗЫВАЕМ show_product С ПЕРЕДАЧЕЙ user_id
+    from utils import show_product
+    await show_product(
+        chat_id=chat_id,
+        prod_id=product_id,
+        color_id=current_color,
+        context=context,
+        bot=context.bot,
+        category=product.category,
+        page=0,
+        user_id=user_id  # ← ПЕРЕДАЁМ user_id ДЛЯ АТРИБУТОВ
+    )
 
 
 async def change_color(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -626,7 +603,8 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context, 
         context.bot, 
         product.category, 
-        context.user_data.get(f"back_page_{user_id}", 0)
+        context.user_data.get(f"back_page_{user_id}", 0),
+        user_id  # ← ДОБАВИТЬ
     )
 
     try:
@@ -753,8 +731,6 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
     )
 
 async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"🔍 select_attribute ВЫЗВАНА! data={update.callback_query.data}")
-    # ... остальной код
     """Обработчик выбора атрибута (длина, материал, емкость и т.д.)"""
     query = update.callback_query
     await query.answer()
@@ -770,6 +746,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Сохраняем выбранный атрибут
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
+    print(f"✅ Сохранён атрибут: {attr_key}={attr_value} для user_id={user_id}")
     
     # Обновляем карточку товара
     product = products_manager.get_by_id(product_id)
@@ -783,7 +760,8 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context,
             context.bot,
             product.category,
-            0
+            0,
+            user_id  # ← ПЕРЕДАЁМ user_id
         )
     
     await query.answer(f"✅ Выбрано: {attr_value}")
