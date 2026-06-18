@@ -16,7 +16,22 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
+    # ✅ СОХРАНЯЕМ ВЫБРАННЫЕ АТРИБУТЫ
+    # Получаем текущий цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
+    
+    # Получаем все остальные атрибуты
+    attrs = product.get_attributes()
+    selected_attrs = {}
+    for key in attrs.keys():
+        if key != "colors":
+            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            if attr_value:
+                selected_attrs[key] = attr_value
+
     context.user_data[f"temp_product_{user_id}"] = product_code
+    context.user_data[f"temp_color_{user_id}"] = color
+    context.user_data[f"temp_attrs_{user_id}"] = selected_attrs
 
     try:
         await query.message.delete()
@@ -114,7 +129,8 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     product = products_manager.get_by_code(product_code)
     size = context.user_data.get(f"temp_size_{user_id}")
-    color = context.user_data.get(f"color_{user_id}", "белый")
+    color = context.user_data.get(f"temp_color_{user_id}", "белый")
+    selected_attrs = context.user_data.get(f"temp_attrs_{user_id}", {})
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -122,7 +138,6 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     item_key = f"{product_code}_{size}" if size else product_code
     
-    # ✅ СОХРАНЯЕМ ВСЕ АТРИБУТЫ
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += quantity
     else:
@@ -134,15 +149,15 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
             "size": size,
             "color": color,
         }
-        # Добавляем все атрибуты из attributes
-        for key, value in product.attributes.items():
-            if key not in ["colors", "sizes"]:  # пропускаем списки выбора
-                item_data[key] = value
+        # Добавляем все выбранные атрибуты
+        for key, value in selected_attrs.items():
+            item_data[key] = value
         
         context.user_data[cart_key][item_key] = item_data
 
     context.user_data.pop(f"temp_size_{user_id}", None)
-    context.user_data.pop(f"temp_product_{user_id}", None)
+    context.user_data.pop(f"temp_color_{user_id}", None)
+    context.user_data.pop(f"temp_attrs_{user_id}", None)
 
     try:
         await query.message.delete()
@@ -161,7 +176,6 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # ✅ СОХРАНЯЕМ КОРЗИНУ
     from storage import save_user_data_sync
     save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
 
