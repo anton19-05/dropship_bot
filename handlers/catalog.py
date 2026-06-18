@@ -760,10 +760,8 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.replace("attr_", "")
     parts = data.split("_")
     
-    # product_id, key, value
     product_id = parts[0]
     attr_key = parts[1]
-    # value может состоять из нескольких частей (например, "20000 мАч")
     attr_value = "_".join(parts[2:])
     
     user_id = query.from_user.id

@@ -67,7 +67,6 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             continue
         row = []
         for value in values:
-            # Проверяем, выбран ли этот атрибут
             selected = False
             if context and user_id:
                 selected = context.user_data.get(f"attr_{key}_{user_id}") == value
