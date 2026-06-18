@@ -13,7 +13,7 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     
     user_id = None
     if context and hasattr(context, 'user_data'):
-        # Получаем user_id из context
+        # Получаем user_id из контекста (если есть)
         pass
     
     text = product.get_text(color_id)
