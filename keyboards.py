@@ -60,23 +60,21 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             ))
         keyboard.append(colors_row)
 
-        # Кнопки для других атрибутов
+    # ✅ ГЛАВНЫЙ АТРИБУТ (только один!)
     attrs = product.get_attributes()
-    print(f"🔍 get_product_keyboard: attrs={attrs}, user_id={user_id}")
-    for key, values in attrs.items():
-        if key == "colors":
-            continue
+    main_attr = attrs.get("main_attribute")
+    
+    if main_attr and main_attr in attrs:
+        main_values = attrs[main_attr]
         row = []
-        for value in values:
-            selected = False
-            if context and user_id:
-                stored_value = context.user_data.get(f"attr_{key}_{user_id}")
-                selected = (stored_value == value)
-                print(f"🔍 attr_{key}_{user_id}={stored_value}, value={value}, selected={selected}")
-            marker = "✅ " if selected else ""
+        current_value = context.user_data.get(f"attr_{main_attr}_{user_id}") if context and user_id else None
+        
+        # Показываем только значения, а не ключи
+        for value_key in main_values.keys():
+            marker = "✅ " if current_value == value_key else ""
             row.append(InlineKeyboardButton(
-                f"{marker}{value}",
-                callback_data=f"attr_{product.id}_{key}_{value}"
+                f"{marker}{value_key}",
+                callback_data=f"attr_{product.id}_{main_attr}_{value_key}"
             ))
         if row:
             keyboard.append(row)

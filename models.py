@@ -20,8 +20,21 @@ class Product:
         self.has_sizes = data.get("has_sizes", False)
         self.attributes = data.get("attributes", {})
 
-    def get_text(self, color=None):
+    def get_text(self, color=None, main_value=None):
+        """Возвращает описание товара с учётом выбранного атрибута"""
         old_price_str = f"~~{self.old_price} руб~~ " if self.old_price else ""
+        
+        # Базовое описание
+        description = self.description
+        
+        # Если есть главный атрибут и выбрано значение
+        if main_value and "main_attribute" in self.attributes:
+            main_attr = self.attributes["main_attribute"]
+            if main_attr in self.attributes and main_value in self.attributes[main_attr]:
+                # Подставляем описание для выбранного варианта
+                if "description" in self.attributes[main_attr][main_value]:
+                    description = self.attributes[main_attr][main_value]["description"]
+        
         return f"""
 👟 *{self.name}* 👟
 
@@ -31,15 +44,18 @@ class Product:
 💰 Цена: {old_price_str}→ *{self.price} руб*
 
 📋 *Характеристики:*
-{self.description}
+{description}
 
 🚚 *Доставка:* 15-25 дней
 ✅ *Гарантия:* 14 дней
 """
 
-    def get_photo(self, color=None):
+    def get_photo(self, color=None, main_value=None):
+        """Возвращает фото для выбранного значения"""
         if color and color in self.photos:
             return self.photos[color]
+        if main_value and main_value in self.photos:
+            return self.photos[main_value]
         return self.photo
 
     def get_attributes(self):
@@ -94,7 +110,7 @@ class ProductManager:
         self.products_by_id = {}
         self.products_by_code = {}
         
-        # ✅ ИСПРАВЛЕННЫЙ ПУТЬ
+        # ✅ ПРАВИЛЬНЫЙ ПУТЬ ДЛЯ RENDER
         full_path = "/app/data/products.json"
         
         print(f"🔍 Загрузка товаров из: {full_path}")
@@ -119,6 +135,7 @@ class ProductManager:
 
     def get_by_code(self, code):
         return self.products_by_code.get(code)
+
 
 class MessageManager:
     def __init__(self):

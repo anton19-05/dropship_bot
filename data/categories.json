@@ -39,13 +39,13 @@
     {
       "id": "clothing",
       "name": "👕 Одежда",
-      "order": 2,
+      "order": 4,
       "subcategories": []
     },
     {
       "id": "accessories",
       "name": "🕶️ Аксессуары",
-      "order": 3,
+      "order": 5,
       "subcategories": []
     }
   ]
