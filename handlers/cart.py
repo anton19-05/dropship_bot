@@ -6,10 +6,8 @@ from storage import save_user_data_sync
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"🔍 add_to_cart ВЫЗВАНА! data={update.callback_query.data}")
     query = update.callback_query
     await query.answer()
-    # ... остальной код
     user_id = query.from_user.id
     product_code = query.data.replace("cart_add_", "")
     product = products_manager.get_by_code(product_code)
@@ -18,13 +16,13 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # Сохраняем выбранные атрибуты
+    # ✅ СОХРАНЯЕМ ВСЕ ВЫБРАННЫЕ АТРИБУТЫ
     color = context.user_data.get(f"color_{user_id}", "белый")
     
     attrs = product.get_attributes()
     selected_attrs = {}
     for key in attrs.keys():
-        if key != "colors":
+        if key not in ["colors", "sizes"]:
             attr_value = context.user_data.get(f"attr_{key}_{user_id}")
             if attr_value:
                 selected_attrs[key] = attr_value
@@ -33,7 +31,7 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[f"temp_color_{user_id}"] = color
     context.user_data[f"temp_attrs_{user_id}"] = selected_attrs
 
-    # ... остальной код (выбор размера)
+    # ... остальной код
 
     try:
         await query.message.delete()

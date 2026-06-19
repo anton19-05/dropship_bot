@@ -748,7 +748,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     print(f"✅ Сохранён атрибут: {attr_key}={attr_value}")
     
-    # Обновляем карточку
+    # Обновляем карточку товара
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
@@ -761,8 +761,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.bot,
             product.category,
             0,
-            user_id,
-            attr_value  # ← Передаём выбранное значение
+            user_id
         )
     
     await query.answer(f"✅ Выбрано: {attr_value}")

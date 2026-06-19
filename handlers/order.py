@@ -49,6 +49,16 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_color = context.user_data.get(f"color_{user_id}", "белый")
     context.user_data[f"order_color_{user_id}"] = current_color
     
+    # ✅ СОХРАНЯЕМ ВСЕ АТРИБУТЫ (кроме colors и sizes)
+    attrs = product.get_attributes()
+    selected_attrs = {}
+    for key in attrs.keys():
+        if key not in ["colors", "sizes"]:
+            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            if attr_value:
+                selected_attrs[key] = attr_value
+    context.user_data[f"order_attrs_{user_id}"] = selected_attrs
+    
     # Проверяем, есть ли у товара размеры
     if product.has_sizes:
         await show_order_size_selection(update, context, product, user_id)
@@ -145,7 +155,8 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
     
     final_size = context.user_data.get(f"order_size_{user_id}")
     final_color = context.user_data.get(f"order_color_{user_id}")
-    
+    final_attrs = context.user_data.get(f"order_attrs_{user_id}", {})
+
     try:
         await query.message.delete()
     except:
@@ -168,6 +179,8 @@ async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, pr
             attributes_text += f"🎨 Цвет: {final_color}\n"
         if final_size:
             attributes_text += f"📏 Размер: {final_size}\n"
+        for key, value in final_attrs.items():
+            attributes_text += f"📌 {key}: {value}\n"
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
@@ -198,6 +211,7 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     
     profile = await get_profile_data(user_id, context)
+    final_attrs = context.user_data.get(f"order_attrs_{user_id}", {})
     
     order_info = {
         "product": product.name,
@@ -218,6 +232,10 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         "username": update.effective_user.username
     }
     
+    # ✅ Добавляем все атрибуты из заказа
+    for key, value in final_attrs.items():
+        order_info[key] = value
+    
     # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     import time
     order_id = f"{user_id}_{int(time.time())}"
@@ -234,7 +252,7 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
     
     print(f"✅ auto_order_from_profile: order_info сохранён: {order_info}")
     
-    # ✅ СОЗДАЁМ ПЛАТЁЖ (ПЕРЕДАЁМ order_info!)
+    # ✅ СОЗДАЁМ ПЛАТЁЖ
     from handlers.payment import create_payment
     
     await create_payment(
@@ -243,11 +261,12 @@ async def auto_order_from_profile(update: Update, context: ContextTypes.DEFAULT_
         amount=product.price,
         order_id=order_id,
         description=product.name,
-        order_info=order_info  # ← ДОБАВЛЕНО!
+        order_info=order_info
     )
     
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
+    context.user_data.pop(f"order_attrs_{user_id}", None)
 
 
 async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
