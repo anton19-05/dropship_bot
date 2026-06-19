@@ -60,24 +60,44 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             ))
         keyboard.append(colors_row)
 
-    # ✅ ГЛАВНЫЙ АТРИБУТ (только один!)
+    # ✅ ГЛАВНЫЙ АТРИБУТ (кнопки вариантов)
     attrs = product.get_attributes()
-    main_attr = attrs.get("main_attribute")
-    
-    if main_attr and main_attr in attrs:
-        main_values = attrs[main_attr]
-        row = []
-        current_value = context.user_data.get(f"attr_{main_attr}_{user_id}") if context and user_id else None
-        
-        # Показываем только значения, а не ключи
-        for value_key in main_values.keys():
-            marker = "✅ " if current_value == value_key else ""
-            row.append(InlineKeyboardButton(
-                f"{marker}{value_key}",
-                callback_data=f"attr_{product.id}_{main_attr}_{value_key}"
-            ))
-        if row:
-            keyboard.append(row)
+    for key, value in attrs.items():
+        if key in ["colors", "sizes"]:
+            continue
+        if isinstance(value, dict) and value.get("type") == "main":
+            variants = value.get("variants", {})
+            if variants:
+                row = []
+                current_value = context.user_data.get(f"attr_{key}_{user_id}") if context and user_id else None
+                for variant_key in variants.keys():
+                    marker = "✅ " if current_value == variant_key else ""
+                    row.append(InlineKeyboardButton(
+                        f"{marker}{variant_key}",
+                        callback_data=f"attr_{product.id}_{key}_{variant_key}"
+                    ))
+                if row:
+                    keyboard.append(row)
+            else:
+                # Если нет variants, показываем сам атрибут как кнопку
+                keyboard.append([InlineKeyboardButton(
+                    f"📌 {key}",
+                    callback_data=f"attr_{product.id}_{key}_default"
+                )])
+
+    # ✅ ДРУГИЕ АТРИБУТЫ (списки)
+    for key, value in attrs.items():
+        if key in ["colors", "sizes"]:
+            continue
+        if isinstance(value, list):
+            row = []
+            for item in value:
+                row.append(InlineKeyboardButton(
+                    f"{item}",
+                    callback_data=f"attr_{product.id}_{key}_{item}"
+                ))
+            if row:
+                keyboard.append(row)
 
     # Остальные кнопки
     keyboard.extend([

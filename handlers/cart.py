@@ -6,6 +6,8 @@ from storage import save_user_data_sync
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔍 add_to_cart ВЫЗВАНА! data={update.callback_query.data}")
+    # ... остальной код
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
