@@ -60,7 +60,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
             ))
         keyboard.append(colors_row)
 
-    # ✅ ГЛАВНЫЙ АТРИБУТ (кнопки вариантов)
+    # ✅ ТОЛЬКО ГЛАВНЫЙ АТРИБУТ (type: main)
     attrs = product.get_attributes()
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
@@ -78,26 +78,6 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                     ))
                 if row:
                     keyboard.append(row)
-            else:
-                # Если нет variants, показываем сам атрибут как кнопку
-                keyboard.append([InlineKeyboardButton(
-                    f"📌 {key}",
-                    callback_data=f"attr_{product.id}_{key}_default"
-                )])
-
-    # ✅ ДРУГИЕ АТРИБУТЫ (списки)
-    for key, value in attrs.items():
-        if key in ["colors", "sizes"]:
-            continue
-        if isinstance(value, list):
-            row = []
-            for item in value:
-                row.append(InlineKeyboardButton(
-                    f"{item}",
-                    callback_data=f"attr_{product.id}_{key}_{item}"
-                ))
-            if row:
-                keyboard.append(row)
 
     # Остальные кнопки
     keyboard.extend([
