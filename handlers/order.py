@@ -28,58 +28,31 @@ async def is_profile_complete(user_id, context):
 async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    
     user_id = query.from_user.id
     product_id = query.data.replace("order_", "")
-
-    # ✅ ДИАГНОСТИКА
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"📦 order_start: product_id={product_id}, user_id={user_id}"
-    )
-
     product = products_manager.get_by_id(product_id)
+    
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
-
+    
+    # Получаем выбранный главный атрибут
     attrs = product.get_attributes()
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"📦 order_start: attributes={attrs}"
+    main_attr_value = None
+    for key, value in attrs.items():
+        if isinstance(value, dict) and value.get("type") == "main":
+            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            break
+    
+    await query.edit_message_text(
+        f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
+        f"👟 Товар: {product.name}\n"
+        f"{f'📌 {main_attr_value}' if main_attr_value else ''}\n"
+        f"💰 Цена: {product.price} руб\n\n"
+        f"Напишите ФИО, телефон и адрес через запятую",
+        parse_mode="Markdown"
     )
-    # ... остальной код
-
-    info("ORDER", f"Начало оформления заказа", {
-         "user_id": user_id, "product_id": product_id})
-
-    product = products_manager.get_by_id(product_id)
-    if not product:
-        error("ORDER", f"Товар {product_id} не найден")
-        await query.answer("❌ Товар не найден!", show_alert=True)
-        return
-
-    # Сохраняем ID товара
-    context.user_data[f"order_product_{user_id}"] = product_id
-    
-    # Сохраняем текущий цвет (из карточки товара)
-    current_color = context.user_data.get(f"color_{user_id}", "белый")
-    context.user_data[f"order_color_{user_id}"] = current_color
-    
-    # ✅ СОХРАНЯЕМ ВСЕ АТРИБУТЫ (кроме colors и sizes)
-    attrs = product.get_attributes()
-    selected_attrs = {}
-    for key in attrs.keys():
-        if key not in ["colors", "sizes"]:
-            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
-            if attr_value:
-                selected_attrs[key] = attr_value
-    context.user_data[f"order_attrs_{user_id}"] = selected_attrs
-    
-    # Проверяем, есть ли у товара размеры
-    if product.has_sizes:
-        await show_order_size_selection(update, context, product, user_id)
-    else:
-        await show_order_form(update, context, product, user_id, size=None)
 
 
 async def show_order_size_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id):

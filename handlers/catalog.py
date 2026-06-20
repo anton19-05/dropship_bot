@@ -719,35 +719,19 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = query.data.replace("attr_", "")
     parts = data.split("_")
-    
     product_id = parts[0]
     attr_key = parts[1]
     attr_value = "_".join(parts[2:])
-    
     user_id = query.from_user.id
-    
-    # ✅ ДИАГНОСТИКА
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🎯 select_attribute: {attr_key}={attr_value}, user_id={user_id}"
-    )
     
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     
     product = products_manager.get_by_id(product_id)
     if product:
-        current_color = context.user_data.get(f"color_{user_id}", "белый")
-        from utils import show_product
         await show_product(
             query.message.chat_id,
             product_id,
-            current_color,
+            "белый",
             context,
-            context.bot,
-            product.category,
-            0,
-            user_id,
-            attr_value
+            context.bot
         )
-    
-    await query.answer(f"✅ Выбрано: {attr_value}")
