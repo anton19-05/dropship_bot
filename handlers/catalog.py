@@ -6,6 +6,7 @@ from models import products_manager, msg_manager
 from models_categories import categories_manager
 from debug import info, debug, error, success, warning, print_state
 from config import ADMIN_ID
+from utils import show_product
 
 user_states = {}
 
