@@ -627,18 +627,23 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attr_value = "_".join(parts[2:])
     user_id = query.from_user.id
     
+    print(f"🎯 select_attribute: {attr_key}={attr_value}, user_id={user_id}")
+    
+    # Сохраняем выбранный атрибут
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     
+    # Обновляем карточку
     product = products_manager.get_by_id(product_id)
     if product:
+        current_color = context.user_data.get(f"color_{user_id}", "белый")
         await show_product(
             query.message.chat_id,
             product_id,
-            context.user_data.get(f"color_{user_id}", "белый"),
+            current_color,
             context,
             context.bot,
             product.category,
             0,
             user_id,
-            attr_value  # ← ПЕРЕДАЁМ main_value!
+            attr_value  # ← передаём выбранное значение
         )

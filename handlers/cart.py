@@ -17,6 +17,9 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
+    # Получаем цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
+    
     # Получаем главный атрибут
     attrs = product.get_attributes()
     main_attr_value = None
@@ -24,9 +27,6 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if isinstance(value, dict) and value.get("type") == "main":
             main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
             break
-    
-    # Получаем цвет
-    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -46,7 +46,9 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
     await query.edit_message_text(
-        f"✅ *{product.name} добавлен в корзину!*",
+        f"✅ *{product.name} добавлен в корзину!*\n\n"
+        f"🎨 Цвет: {color}\n"
+        f"{f'📌 {main_attr_value}' if main_attr_value else ''}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🛒 Перейти в корзину", callback_data="view_cart")]
