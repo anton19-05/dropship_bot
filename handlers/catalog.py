@@ -533,19 +533,19 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
+    
     user_id = query.from_user.id
     product_id = query.data.replace("goto_product_", "")
     
-    context.user_data[f"last_product_id_{user_id}"] = product_id
-
+    print(f"🔍 goto_product вызвана! product_id={product_id}")  # ← ДЛЯ ДИАГНОСТИКИ
+    
     product = products_manager.get_by_id(product_id)
-
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # Сохраняем категорию и страницу для возврата
+    context.user_data[f"last_product_id_{user_id}"] = product_id
+
     if user_id in user_states:
         current_page = user_states[user_id].get("page", 0)
         current_category = user_states[user_id].get("category", product.category)
@@ -555,16 +555,26 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[f"back_page_{user_id}"] = 0
         context.user_data[f"back_category_{user_id}"] = product.category
 
-    # Определяем первый цвет
-    attributes = product.get_attributes()
-    colors = attributes.get("colors", [])
-    default_color = colors[0] if colors else "белый"
+    # Определяем главный атрибут
+    attrs = product.get_attributes()
+    colors = attrs.get("colors", {})
+    
+    # Если colors — это словарь с type:main
+    if isinstance(colors, dict) and colors.get("type") == "main":
+        variants = colors.get("variants", {})
+        if variants:
+            default_color = list(variants.keys())[0]
+        else:
+            default_color = "белый"
+    elif isinstance(colors, list):
+        default_color = colors[0] if colors else "белый"
+    else:
+        default_color = "белый"
     
     context.user_data[f"color_{user_id}"] = default_color
 
     await msg_manager.clear(context.bot, query.message.chat_id, user_id)
 
-    # ✅ ВЫЗЫВАЕМ show_product
     from utils import show_product
     await show_product(
         query.message.chat_id,
@@ -579,8 +589,8 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await query.message.delete()
-    except:
-        pass
+    except Exception as e:
+        print(f"❌ Ошибка удаления: {e}")
 
 
 async def back_to_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
