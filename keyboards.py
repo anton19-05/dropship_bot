@@ -1,14 +1,10 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import ADMIN_ID
-import asyncio
 
 def get_main_menu():
     keyboard = [
         [InlineKeyboardButton("📦 Каталог товаров", callback_data="menu_catalog")],
-        [InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")],
         [InlineKeyboardButton("👤 Мой профиль", callback_data="menu_profile")],
-        [InlineKeyboardButton("❓ Как заказать", callback_data="menu_help")],
-        [InlineKeyboardButton("📞 Контакты", callback_data="menu_contacts")]
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -61,6 +57,31 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 callback_data=f"attr_{product.id}_{main_key}_{variant}"
             ))
         keyboard.append(row)
+    
+    # Показываем цвета (если они есть и НЕ главный атрибут)
+    if "colors" in attrs and main_key != "colors":
+        colors = attrs["colors"]
+        if isinstance(colors, list):
+            row = []
+            for color in colors:
+                marker = "✅ " if color == current_color else ""
+                row.append(InlineKeyboardButton(
+                    f"{marker}{color}",
+                    callback_data=f"color_{product.id}_{color}"
+                ))
+            keyboard.append(row)
+        elif isinstance(colors, dict) and colors.get("type") != "main":
+            # Если colors это словарь но не main (например, с описанием)
+            variants = colors.get("variants", {})
+            if variants:
+                row = []
+                for color in variants.keys():
+                    marker = "✅ " if color == current_color else ""
+                    row.append(InlineKeyboardButton(
+                        f"{marker}{color}",
+                        callback_data=f"color_{product.id}_{color}"
+                    ))
+                keyboard.append(row)
     
     # Остальные кнопки
     keyboard.extend([

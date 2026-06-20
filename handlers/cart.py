@@ -17,13 +17,16 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # Получаем выбранный главный атрибут
+    # Получаем главный атрибут
     attrs = product.get_attributes()
     main_attr_value = None
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
             main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
             break
+    
+    # Получаем цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -38,6 +41,7 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "quantity": 1,
             "name": product.name,
             "price": product.price,
+            "color": color,
             "main_attr": main_attr_value
         }
 
@@ -154,7 +158,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
-async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -168,6 +172,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = 0
     for item in cart.values():
         text += f"• {item['name']} — {item['quantity']} шт"
+        if item.get('color'):
+            text += f" (цвет: {item['color']})"
         if item.get('main_attr'):
             text += f" ({item['main_attr']})"
         text += f" — {item['price'] * item['quantity']} руб\n"
