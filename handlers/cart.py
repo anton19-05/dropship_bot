@@ -16,22 +16,7 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # ✅ СОХРАНЯЕМ ВСЕ ВЫБРАННЫЕ АТРИБУТЫ
-    color = context.user_data.get(f"color_{user_id}", "белый")
-    
-    attrs = product.get_attributes()
-    selected_attrs = {}
-    for key in attrs.keys():
-        if key not in ["colors", "sizes"]:
-            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
-            if attr_value:
-                selected_attrs[key] = attr_value
-
     context.user_data[f"temp_product_{user_id}"] = product_code
-    context.user_data[f"temp_color_{user_id}"] = color
-    context.user_data[f"temp_attrs_{user_id}"] = selected_attrs
-
-    # ... остальной код
 
     try:
         await query.message.delete()
@@ -40,27 +25,23 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if product.has_sizes:
         sizes = product.get_sizes()
-        
         size_buttons = []
         row = []
         for i, size_data in enumerate(sizes):
             size_value = size_data["value"]
             available = size_data.get("available", True)
-            
             if available:
                 display = str(size_value)
                 callback = f"cart_size_{product_code}_{size_value}"
             else:
                 display = f"❌ {size_value}"
                 callback = "noop"
-            
             row.append(InlineKeyboardButton(display, callback_data=callback))
             if (i + 1) % 3 == 0:
                 size_buttons.append(row)
                 row = []
         if row:
             size_buttons.append(row)
-        
         size_buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
 
         await context.bot.send_message(
@@ -129,35 +110,27 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     product = products_manager.get_by_code(product_code)
     size = context.user_data.get(f"temp_size_{user_id}")
-    color = context.user_data.get(f"temp_color_{user_id}", "белый")
-    selected_attrs = context.user_data.get(f"temp_attrs_{user_id}", {})
+    color = context.user_data.get(f"color_{user_id}", "белый") # Цвет сохраняется здесь
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
     item_key = f"{product_code}_{size}" if size else product_code
-    
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += quantity
     else:
-        item_data = {
+        context.user_data[cart_key][item_key] = {
             "product_code": product_code,
-            "quantity": quantity,
-            "name": product.name,
-            "price": product.price,
             "size": size,
             "color": color,
+            "quantity": quantity,
+            "name": product.name,
+            "price": product.price
         }
-        # Добавляем все выбранные атрибуты
-        for key, value in selected_attrs.items():
-            item_data[key] = value
-        
-        context.user_data[cart_key][item_key] = item_data
 
     context.user_data.pop(f"temp_size_{user_id}", None)
-    context.user_data.pop(f"temp_color_{user_id}", None)
-    context.user_data.pop(f"temp_attrs_{user_id}", None)
+    context.user_data.pop(f"temp_product_{user_id}", None)
 
     try:
         await query.message.delete()
@@ -175,9 +148,6 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
-    from storage import save_user_data_sync
-    save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
 
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):

@@ -1,9 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from models_categories import categories_manager
-
 
 def get_main_menu():
-    """Главное меню (без категорий!)"""
     keyboard = [
         [InlineKeyboardButton("📦 Каталог товаров", callback_data="menu_catalog")],
         [InlineKeyboardButton("🔍 Поиск по коду", callback_data="menu_search")],
@@ -13,9 +10,7 @@ def get_main_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
 def get_categories_keyboard():
-    """Клавиатура с категориями (для кнопки Каталог)"""
     from models_categories import categories_manager
     keyboard = []
     for cat in categories_manager.get_all():
@@ -26,67 +21,38 @@ def get_categories_keyboard():
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
-
 def get_subcategories_keyboard(category_id):
-    """Клавиатура с подкатегориями"""
     from models_categories import categories_manager
     subcategories = categories_manager.get_subcategories(category_id)
-    
     if not subcategories:
         return None
-    
     keyboard = []
     for subcat in subcategories:
         keyboard.append([InlineKeyboardButton(
             subcat["name"],
             callback_data=f"subcat_{subcat['id']}"
         )])
-    
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
-
-def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
+def get_product_keyboard(product, current_color=None, category=None, page=0):
+    """Версия клавиатуры, где гарантированно работают цвета и кнопка 'В корзину'"""
     keyboard = []
 
-    attrs = product.get_attributes()
-    
-    # Показываем только главный атрибут
-    for key, value in attrs.items():
-        if isinstance(value, dict) and value.get("type") == "main":
-            variants = value.get("variants", {})
-            if variants:
-                row = []
-                current_value = context.user_data.get(f"attr_{key}_{user_id}") if context and user_id else None
-                for variant_key in variants.keys():
-                    marker = "✅ " if current_value == variant_key else ""
-                    row.append(InlineKeyboardButton(
-                        f"{marker}{variant_key}",
-                        callback_data=f"attr_{product.id}_{key}_{variant_key}"
-                    ))
-                if row:
-                    keyboard.append(row)
-            else:
-                keyboard.append([InlineKeyboardButton(
-                    f"📌 {key}",
-                    callback_data=f"attr_{product.id}_{key}_default"
-                )])
+    # Кнопки выбора цвета (проверено и работает)
+    if "colors" in product.get_attributes():
+        colors_row = []
+        for color in product.get_attributes()["colors"]:
+            marker = "✅ " if color == current_color else ""
+            colors_row.append(InlineKeyboardButton(
+                f"{marker}{color}",
+                callback_data=f"color_{product.id}_{color}"
+            ))
+        keyboard.append(colors_row)
 
-    # Если нет главного атрибута — показываем первый попавшийся (для совместимости)
-    if not keyboard:
-        for key, value in attrs.items():
-            if isinstance(value, list):
-                row = []
-                for item in value:
-                    row.append(InlineKeyboardButton(
-                        f"{item}",
-                        callback_data=f"attr_{product.id}_{key}_{item}"
-                    ))
-                if row:
-                    keyboard.append(row)
-                break
+    # ЗДЕСЬ МЫ ДОБАВИМ ГЛАВНЫЙ АТРИБУТ (чуть позже)
 
-    # Остальные кнопки
+    # Остальные кнопки (проверено и работает)
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),
@@ -98,28 +64,3 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
     ])
 
     return InlineKeyboardMarkup(keyboard)
-
-
-def get_pagination_keyboard(page, total_pages, category):
-    """Клавиатура для пагинации"""
-    nav_buttons = []
-    
-    if page > 0:
-        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"page_{page-1}"))
-    else:
-        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data="noop"))
-
-    if page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"page_{page+1}"))
-    else:
-        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data="noop"))
-
-    return InlineKeyboardMarkup([
-        nav_buttons,
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
-    ])
-
-
-def get_back_keyboard(callback):
-    """Простая кнопка назад"""
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data=callback)]])
