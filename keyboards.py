@@ -38,23 +38,15 @@ def get_subcategories_keyboard(category_id):
 def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
     keyboard = []
 
-    # Кнопки выбора цвета
-    if "colors" in product.get_attributes():
-        colors_row = []
-        for color in product.get_attributes()["colors"]:
-            marker = "✅ " if color == current_color else ""
-            colors_row.append(InlineKeyboardButton(
-                f"{marker}{color}",
-                callback_data=f"color_{product.id}_{color}"
-            ))
-        keyboard.append(colors_row)
-
-    # ✅ ГЛАВНЫЙ АТРИБУТ
+    # ✅ ПОКАЗЫВАЕМ ТОЛЬКО ГЛАВНЫЙ АТРИБУТ (type: main)
     attrs = product.get_attributes()
+    has_main = False
+    
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
             continue
         if isinstance(value, dict) and value.get("type") == "main":
+            has_main = True
             variants = value.get("variants", {})
             if variants:
                 row = []
@@ -67,6 +59,14 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                     ))
                 if row:
                     keyboard.append(row)
+            else:
+                keyboard.append([InlineKeyboardButton(
+                    f"📌 {key}",
+                    callback_data=f"attr_{product.id}_{key}_default"
+                )])
+
+    # ✅ ЕСЛИ НЕТ ГЛАВНОГО АТРИБУТА — НЕ ПОКАЗЫВАЕМ НИЧЕГО (даже цвета)
+    # Цвета и другие атрибуты будут при заказе
 
     # Остальные кнопки
     keyboard.extend([
