@@ -110,7 +110,7 @@ class ProductManager:
         self.products_by_code = {}
         
         # ✅ ПРАВИЛЬНЫЙ ПУТЬ ДЛЯ RENDER
-        full_path = "/app/data/products.json"
+        full_path = os.path.join(os.path.dirname(__file__), "data/products.json")
         
         print(f"🔍 Загрузка товаров из: {full_path}")
         

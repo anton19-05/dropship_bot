@@ -13,7 +13,7 @@ class CategoryManager:
 
     def _load(self, path):
         # Принудительно указываем правильный путь
-        full_path = "/app/data/categories.json"
+        full_path = os.path.join(os.path.dirname(__file__), "data/categories.json")
         print(f"🔍 Загрузка категорий из: {full_path}")
         if os.path.exists(full_path):
             with open(full_path, 'r', encoding='utf-8') as f:
