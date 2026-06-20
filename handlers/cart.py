@@ -20,13 +20,19 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем цвет
     color = context.user_data.get(f"color_{user_id}", "белый")
     
-    # Получаем главный атрибут
+    # Получаем ВСЕ выбранные атрибуты (кроме colors)
     attrs = product.get_attributes()
-    main_attr_value = None
+    selected_attrs = {}
     for key, value in attrs.items():
+        if key == "colors":
+            continue
         if isinstance(value, dict) and value.get("type") == "main":
-            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
-            break
+            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            if attr_value:
+                selected_attrs[key] = attr_value
+        elif isinstance(value, list):
+            # Для обычных атрибутов (списков) пока не сохраняем, они будут при заказе
+            pass
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -36,19 +42,26 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += 1
     else:
-        context.user_data[cart_key][item_key] = {
+        item_data = {
             "product_code": product_code,
             "quantity": 1,
             "name": product.name,
             "price": product.price,
             "color": color,
-            "main_attr": main_attr_value
         }
+        # Добавляем все выбранные атрибуты
+        for key, value in selected_attrs.items():
+            item_data[key] = value
+        
+        context.user_data[cart_key][item_key] = item_data
+
+    # Формируем текст с выбранными атрибутами
+    attrs_text = f"\n🎨 Цвет: {color}"
+    for key, value in selected_attrs.items():
+        attrs_text += f"\n📌 {key}: {value}"
 
     await query.edit_message_text(
-        f"✅ *{product.name} добавлен в корзину!*\n\n"
-        f"🎨 Цвет: {color}\n"
-        f"{f'📌 {main_attr_value}' if main_attr_value else ''}",
+        f"✅ *{product.name} добавлен в корзину!*{attrs_text}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🛒 Перейти в корзину", callback_data="view_cart")]

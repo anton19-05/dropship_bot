@@ -645,5 +645,5 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             product.category,
             0,
             user_id,
-            attr_value  # ← передаём выбранное значение
+            attr_value
         )

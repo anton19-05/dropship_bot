@@ -38,20 +38,14 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
     keyboard = []
     attrs = product.get_attributes()
     
-    # ⭐ КНОПКИ ВЫБОРА ЦВЕТА (всегда показываем, если они есть)
+    # ⭐ 1. ПОКАЗЫВАЕМ ЦВЕТА (если они есть и они НЕ главный атрибут)
     if "colors" in attrs:
         colors = attrs["colors"]
         colors_row = []
         
-        # Если colors — это словарь с type:main
+        # Если colors — это словарь с type:main (но мы его пропускаем, т.к. это главный атрибут)
         if isinstance(colors, dict) and colors.get("type") == "main":
-            variants = colors.get("variants", {})
-            for color in variants.keys():
-                marker = "✅ " if color == current_color else ""
-                colors_row.append(InlineKeyboardButton(
-                    f"{marker}{color}",
-                    callback_data=f"color_{product.id}_{color}"
-                ))
+            pass  # пропускаем, т.к. это главный атрибут
         # Если colors — это простой список
         elif isinstance(colors, list):
             for color in colors:
@@ -64,7 +58,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
         if colors_row:
             keyboard.append(colors_row)
     
-    # ⭐ ГЛАВНЫЙ АТРИБУТ (если есть type:main)
+    # ⭐ 2. ПОКАЗЫВАЕМ ГЛАВНЫЙ АТРИБУТ (ЛЮБОЙ, с type:main)
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
             variants = value.get("variants", {})
@@ -80,7 +74,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 if row:
                     keyboard.append(row)
     
-    # ⭐ ОСТАЛЬНЫЕ КНОПКИ
+    # ⭐ 3. ОСТАЛЬНЫЕ КНОПКИ
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [
