@@ -127,17 +127,25 @@ def main() -> None:
         application.user_data[user_id] = user_data
     print(f"✅ Восстановлено {len(all_data)} профилей пользователей")
 
-    # --- Запуск через вебхуки ---
+        # --- Запуск через вебхуки ---
     port = int(os.environ.get('PORT', 10000))
-    webhook_url = f'https://{os.environ["RENDER_EXTERNAL_HOSTNAME"]}/webhook/{TOKEN}'
-
-    print(f'🔄 Устанавливаем вебхук на {webhook_url}')
-    application.run_webhook(
-        listen='0.0.0.0',
-        port=port,
-        url_path=f'/webhook/{TOKEN}',
-        webhook_url=webhook_url
-    )
+    
+    # Проверяем, запущено ли на Render
+    render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if render_hostname:
+        # На Render — используем вебхук
+        webhook_url = f'https://{render_hostname}/webhook/{TOKEN}'
+        print(f'🔄 Устанавливаем вебхук на {webhook_url}')
+        application.run_webhook(
+            listen='0.0.0.0',
+            port=port,
+            url_path=f'/webhook/{TOKEN}',
+            webhook_url=webhook_url
+        )
+    else:
+        # Локально — используем polling
+        print("🔄 Локальный запуск, используем polling...")
+        application.run_polling()
 
 
 if __name__ == '__main__':
