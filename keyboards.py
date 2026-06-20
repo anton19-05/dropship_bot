@@ -65,8 +65,20 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                     callback_data=f"attr_{product.id}_{key}_default"
                 )])
 
-    # ✅ ЕСЛИ НЕТ ГЛАВНОГО АТРИБУТА — НЕ ПОКАЗЫВАЕМ НИЧЕГО (даже цвета)
-    # Цвета и другие атрибуты будут при заказе
+    # Если нет главного атрибута — показываем цвета (для обратной совместимости)
+    if not has_main and "colors" in attrs:
+        colors = attrs["colors"]
+        if isinstance(colors, dict) and colors.get("type") == "main":
+            pass  # уже обработали
+        elif isinstance(colors, list):
+            colors_row = []
+            for color in colors:
+                marker = "✅ " if color == current_color else ""
+                colors_row.append(InlineKeyboardButton(
+                    f"{marker}{color}",
+                    callback_data=f"color_{product.id}_{color}"
+                ))
+            keyboard.append(colors_row)
 
     # Остальные кнопки
     keyboard.extend([
