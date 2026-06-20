@@ -17,6 +17,20 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
+    # Диагностика
+    print(f"🛒 add_to_cart: product_code={product_code}, user_id={user_id}")
+    
+    # Получаем главный атрибут
+    attrs = product.get_attributes()
+    main_attr_value = None
+    for key, value in attrs.items():
+        if isinstance(value, dict) and value.get("type") == "main":
+            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            print(f"🛒 main_attr_{key}_{user_id} = {main_attr_value}")
+            break
+    
+    # Остальной код...
+
     # Получаем цвет
     color = context.user_data.get(f"color_{user_id}", "белый")
     

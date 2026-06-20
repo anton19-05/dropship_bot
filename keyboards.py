@@ -38,6 +38,21 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
     keyboard = []
     attrs = product.get_attributes()
     
+    print(f"⌨️ get_product_keyboard: product={product.name}, attrs={attrs}, user_id={user_id}")
+    
+    # Находим главный атрибут
+    main_key = None
+    main_variants = None
+    for key, value in attrs.items():
+        if isinstance(value, dict) and value.get("type") == "main":
+            main_key = key
+            main_variants = value.get("variants", {})
+            break
+    
+    print(f"⌨️ main_key={main_key}, main_variants={list(main_variants.keys()) if main_variants else None}")
+    
+    # Остальной код...
+    
     # ⭐ 1. ПОКАЗЫВАЕМ ЦВЕТА (если они есть и они НЕ главный атрибут)
     if "colors" in attrs:
         colors = attrs["colors"]
