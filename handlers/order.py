@@ -26,12 +26,28 @@ async def is_profile_complete(user_id, context):
 
 
 async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Начало оформления заказа — сначала выбор размера (если есть)"""
     query = update.callback_query
     await query.answer()
-
     user_id = query.from_user.id
     product_id = query.data.replace("order_", "")
+
+    # ✅ ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"📦 order_start: product_id={product_id}, user_id={user_id}"
+    )
+
+    product = products_manager.get_by_id(product_id)
+    if not product:
+        await query.answer("❌ Товар не найден!", show_alert=True)
+        return
+
+    attrs = product.get_attributes()
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"📦 order_start: attributes={attrs}"
+    )
+    # ... остальной код
 
     info("ORDER", f"Начало оформления заказа", {
          "user_id": user_id, "product_id": product_id})

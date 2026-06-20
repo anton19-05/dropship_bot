@@ -1,4 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from config import ADMIN_ID
 
 def get_main_menu():
     keyboard = [
@@ -36,6 +37,17 @@ def get_subcategories_keyboard(category_id):
     return InlineKeyboardMarkup(keyboard)
 
 def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
+    # ✅ ДИАГНОСТИКА (отправка админу)
+    attrs = product.get_attributes()
+    if context and user_id:
+        import asyncio
+        asyncio.create_task(
+            context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"⌨️ get_product_keyboard: {product.name}\nattrs={attrs}\nuser_id={user_id}\nmain_attrs={[k for k, v in attrs.items() if isinstance(v, dict) and v.get('type') == 'main']}"
+            )
+        )
+    # ... остальной код
     keyboard = []
 
     # ✅ ПОКАЗЫВАЕМ ТОЛЬКО ГЛАВНЫЙ АТРИБУТ (type: main)

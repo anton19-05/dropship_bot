@@ -225,6 +225,12 @@ async def show_products_page(update, user_id, page, context=None, edit=False):
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    
+    # ✅ ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"📄 show_products_page: страница {page+1} из {total_pages}, товаров: {len(products)}"
+    )
 
 
 async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -720,8 +726,13 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     
+    # ✅ ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🎯 select_attribute: {attr_key}={attr_value}, user_id={user_id}"
+    )
+    
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
-    print(f"✅ Сохранён атрибут: {attr_key}={attr_value}")
     
     product = products_manager.get_by_id(product_id)
     if product:
@@ -736,7 +747,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             product.category,
             0,
             user_id,
-            attr_value  # ← ПЕРЕДАЁМ main_value
+            attr_value
         )
     
     await query.answer(f"✅ Выбрано: {attr_value}")

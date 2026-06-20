@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
 from storage import save_user_data_sync
+from config import ADMIN_ID
 
 
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -11,6 +12,12 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     product_code = query.data.replace("cart_add_", "")
     product = products_manager.get_by_code(product_code)
+
+    # ✅ ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🔍 add_to_cart вызвана!\nuser_id={user_id}\nproduct_code={product_code}\nproduct={product.name if product else 'None'}"
+    )
 
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
@@ -71,6 +78,12 @@ async def add_quantity_selection(update, context, product_code):
     user_id = query.from_user.id
     product = products_manager.get_by_code(product_code)
 
+    # ✅ ДИАГНОСТИКА
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🔍 add_quantity_selection вызвана!\nuser_id={user_id}\nproduct_code={product_code}"
+    )
+
     if not product:
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
@@ -92,11 +105,28 @@ async def add_quantity_selection(update, context, product_code):
     size = context.user_data.get(f"temp_size_{user_id}")
     size_text = f"размер {size}" if size else ""
 
-    await query.edit_message_text(
-        f"📏 *Выберите количество для {product.name}* {size_text}",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(quantity_buttons)
-    )
+    try:
+        await query.edit_message_text(
+            f"📏 *Выберите количество для {product.name}* {size_text}",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(quantity_buttons)
+        )
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"✅ add_quantity_selection успешно отредактировала сообщение"
+        )
+    except Exception as e:
+        # ✅ Если редактировать не удалось — отправляем новое
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"❌ Ошибка редактирования: {e}\nОтправляем новое сообщение"
+        )
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"📏 *Выберите количество для {product.name}* {size_text}",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(quantity_buttons)
+        )
 
 
 async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
