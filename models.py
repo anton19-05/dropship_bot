@@ -21,34 +21,33 @@ class Product:
         self.attributes = data.get("attributes", {})
 
     def get_text(self, color=None, main_value=None):
-        """Возвращает описание товара с учётом выбранного атрибута"""
         old_price_str = f"~~{self.old_price} руб~~ " if self.old_price else ""
-        
-        # Базовое описание
+    
         description = self.description
-        
-        # Если есть главный атрибут и выбрано значение
-        if main_value and "main_attribute" in self.attributes:
-            main_attr = self.attributes["main_attribute"]
-            if main_attr in self.attributes and main_value in self.attributes[main_attr]:
-                # Подставляем описание для выбранного варианта
-                if "description" in self.attributes[main_attr][main_value]:
-                    description = self.attributes[main_attr][main_value]["description"]
-        
+    
+        # Если есть главный атрибут (type: main)
+        if main_value:
+            for key, value in self.attributes.items():
+                if isinstance(value, dict) and value.get("type") == "main":
+                    variants = value.get("variants", {})
+                    if main_value in variants and "description" in variants[main_value]:
+                        description = variants[main_value]["description"]
+                    break
+    
         return f"""
-👟 *{self.name}* 👟
+    👟 *{self.name}* 👟
 
-⭐ {self.rating} ★★★★★ | 📦 {self.orders} заказов
-🔖 *Код товара:* `{self.code}`
+    ⭐ {self.rating} ★★★★★ | 📦 {self.orders} заказов
+    🔖 *Код товара:* `{self.code}`
 
-💰 Цена: {old_price_str}→ *{self.price} руб*
+    💰 Цена: {old_price_str}→ *{self.price} руб*
 
-📋 *Характеристики:*
-{description}
+    📋 *Характеристики:*
+    {description}
 
-🚚 *Доставка:* 15-25 дней
-✅ *Гарантия:* 14 дней
-"""
+    🚚 *Доставка:* 15-25 дней
+    ✅ *Гарантия:* 14 дней
+    """
 
     def get_photo(self, color=None, main_value=None):
         """Возвращает фото для выбранного значения"""

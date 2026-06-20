@@ -318,34 +318,19 @@ async def change_color(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    # Отправляем новое сообщение с обновлённым цветом
-    chat_id = query.message.chat_id
-    text = product.get_text(color)
-    photo = product.get_photo(color)
-
-    from keyboards import get_product_keyboard
-
-    try:
-        if os.path.exists(photo):
-            with open(photo, 'rb') as f:
-                msg = await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=f,
-                    caption=text,
-                    parse_mode="Markdown",
-                    reply_markup=get_product_keyboard(product, color, None, 0, context, user_id)
-                )
-                await msg_manager.add(context.bot, chat_id, user_id, msg)
-        else:
-            msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=get_product_keyboard(product, color, None, 0, context, user_id)
-            )
-            await msg_manager.add(context.bot, chat_id, user_id, msg)
-    except Exception as e:
-        print(f"Ошибка отправки: {e}")
+    # ✅ ВЫЗЫВАЕМ show_product ВМЕСТО ПРЯМОЙ ОТПРАВКИ
+    from utils import show_product
+    await show_product(
+        chat_id=query.message.chat_id,
+        prod_id=product_id,
+        color_id=color,
+        context=context,
+        bot=context.bot,
+        category=product.category,
+        page=0,
+        user_id=user_id,
+        main_value=None  # цвет не является главным атрибутом
+    )
 
 
 async def back_to_catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -713,7 +698,6 @@ async def back_to_catalog_from_products(update: Update, context: ContextTypes.DE
     )
 
 async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора главного атрибута"""
     query = update.callback_query
     await query.answer()
     
@@ -726,11 +710,9 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     
-    # Сохраняем выбранный атрибут
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     print(f"✅ Сохранён атрибут: {attr_key}={attr_value}")
     
-    # Обновляем карточку товара
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
@@ -743,7 +725,8 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.bot,
             product.category,
             0,
-            user_id
+            user_id,
+            attr_value  # ← ПЕРЕДАЁМ main_value
         )
     
     await query.answer(f"✅ Выбрано: {attr_value}")

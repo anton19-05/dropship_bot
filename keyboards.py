@@ -35,11 +35,10 @@ def get_subcategories_keyboard(category_id):
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="main_back")])
     return InlineKeyboardMarkup(keyboard)
 
-def get_product_keyboard(product, current_color=None, category=None, page=0):
-    """Версия клавиатуры, где гарантированно работают цвета и кнопка 'В корзину'"""
+def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
     keyboard = []
 
-    # Кнопки выбора цвета (проверено и работает)
+    # Кнопки выбора цвета
     if "colors" in product.get_attributes():
         colors_row = []
         for color in product.get_attributes()["colors"]:
@@ -50,9 +49,26 @@ def get_product_keyboard(product, current_color=None, category=None, page=0):
             ))
         keyboard.append(colors_row)
 
-    # ЗДЕСЬ МЫ ДОБАВИМ ГЛАВНЫЙ АТРИБУТ (чуть позже)
+    # ✅ ГЛАВНЫЙ АТРИБУТ
+    attrs = product.get_attributes()
+    for key, value in attrs.items():
+        if key in ["colors", "sizes"]:
+            continue
+        if isinstance(value, dict) and value.get("type") == "main":
+            variants = value.get("variants", {})
+            if variants:
+                row = []
+                current_value = context.user_data.get(f"attr_{key}_{user_id}") if context and user_id else None
+                for variant_key in variants.keys():
+                    marker = "✅ " if current_value == variant_key else ""
+                    row.append(InlineKeyboardButton(
+                        f"{marker}{variant_key}",
+                        callback_data=f"attr_{product.id}_{key}_{variant_key}"
+                    ))
+                if row:
+                    keyboard.append(row)
 
-    # Остальные кнопки (проверено и работает)
+    # Остальные кнопки
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),

@@ -3,7 +3,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from models import products_manager
 from keyboards import get_product_keyboard
 
-async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0, user_id=None):
+async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0, user_id=None, main_value=None):
     product = products_manager.get_by_id(prod_id)
     if not product:
         return
@@ -11,8 +11,16 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if category is None:
         category = product.category
     
-    text = product.get_text(color_id)
-    photo = product.get_photo(color_id)
+    # Если main_value не передан, пытаемся получить из context
+    if not main_value and user_id:
+        attrs = product.get_attributes()
+        for key, value in attrs.items():
+            if isinstance(value, dict) and value.get("type") == "main":
+                main_value = context.user_data.get(f"attr_{key}_{user_id}")
+                break
+    
+    text = product.get_text(color_id, main_value)
+    photo = product.get_photo(color_id, main_value)
     
     try:
         if os.path.exists(photo):
