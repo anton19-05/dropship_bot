@@ -1,5 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from config import ADMIN_ID
+import asyncio
 
 def get_main_menu():
     keyboard = [
@@ -37,52 +38,69 @@ def get_subcategories_keyboard(category_id):
     return InlineKeyboardMarkup(keyboard)
 
 def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
-    # ✅ ДИАГНОСТИКА (отправка админу)
-    attrs = product.get_attributes()
-    if context and user_id:
-        import asyncio
-        asyncio.create_task(
-            context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=f"⌨️ get_product_keyboard: {product.name}\nattrs={attrs}\nuser_id={user_id}\nmain_attrs={[k for k, v in attrs.items() if isinstance(v, dict) and v.get('type') == 'main']}"
-            )
-        )
-    # ... остальной код
     keyboard = []
 
-    # ✅ ПОКАЗЫВАЕМ ТОЛЬКО ГЛАВНЫЙ АТРИБУТ (type: main)
+    # ✅ ДИАГНОСТИКА
     attrs = product.get_attributes()
-    has_main = False
-    
+    if context and user_id:
+        try:
+            # Создаем задачу для отправки сообщения, не блокируя основной поток
+            async def send_diagnostic():
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"⌨️ get_product_keyboard:\n"
+                         f"product={product.name}\n"
+                         f"attrs={attrs}\n"
+                         f"user_id={user_id}\n"
+                         f"current_color={current_color}"
+                )
+            asyncio.create_task(send_diagnostic())
+        except:
+            pass
+
+    # 1. Находим главный атрибут
+    main_attr_key = None
+    main_attr_value = None
     for key, value in attrs.items():
-        if key in ["colors", "sizes"]:
-            continue
         if isinstance(value, dict) and value.get("type") == "main":
-            has_main = True
+            main_attr_key = key
             variants = value.get("variants", {})
             if variants:
-                row = []
-                current_value = context.user_data.get(f"attr_{key}_{user_id}") if context and user_id else None
-                for variant_key in variants.keys():
-                    marker = "✅ " if current_value == variant_key else ""
-                    row.append(InlineKeyboardButton(
-                        f"{marker}{variant_key}",
-                        callback_data=f"attr_{product.id}_{key}_{variant_key}"
-                    ))
-                if row:
-                    keyboard.append(row)
-            else:
-                keyboard.append([InlineKeyboardButton(
-                    f"📌 {key}",
-                    callback_data=f"attr_{product.id}_{key}_default"
-                )])
-
-    # Если нет главного атрибута — показываем цвета (для обратной совместимости)
-    if not has_main and "colors" in attrs:
+                main_attr_value = variants
+            break
+    
+    # 2. Если есть главный атрибут с вариантами — показываем кнопки
+    if main_attr_value:
+        row = []
+        selected = None
+        if context and user_id and main_attr_key:
+            selected = context.user_data.get(f"attr_{main_attr_key}_{user_id}")
+        
+        # ✅ ДИАГНОСТИКА: что сохранилось в user_data
+        if context and user_id and main_attr_key:
+            try:
+                async def send_attr_diagnostic():
+                    await context.bot.send_message(
+                        chat_id=ADMIN_ID,
+                        text=f"🎯 attr_{main_attr_key}_{user_id} = {selected}"
+                    )
+                asyncio.create_task(send_attr_diagnostic())
+            except:
+                pass
+        
+        for variant_key in main_attr_value.keys():
+            marker = "✅ " if selected == variant_key else ""
+            row.append(InlineKeyboardButton(
+                f"{marker}{variant_key}",
+                callback_data=f"attr_{product.id}_{main_attr_key}_{variant_key}"
+            ))
+        if row:
+            keyboard.append(row)
+    
+    # 3. Если нет главного атрибута — показываем цвета (для кроссовок)
+    if not main_attr_key and "colors" in attrs:
         colors = attrs["colors"]
-        if isinstance(colors, dict) and colors.get("type") == "main":
-            pass  # уже обработали
-        elif isinstance(colors, list):
+        if isinstance(colors, list):
             colors_row = []
             for color in colors:
                 marker = "✅ " if color == current_color else ""
@@ -92,7 +110,7 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 ))
             keyboard.append(colors_row)
 
-    # Остальные кнопки
+    # 4. Остальные кнопки
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [InlineKeyboardButton("🛒 В корзину", callback_data=f"cart_add_{product.code}"),
