@@ -1,3 +1,9 @@
+import os
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from models import products_manager
+from keyboards import get_product_keyboard
+from config import ADMIN_ID
+
 async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0, user_id=None, main_value=None):
     product = products_manager.get_by_id(prod_id)
     
