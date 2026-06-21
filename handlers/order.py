@@ -37,23 +37,22 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # ✅ СОХРАНЯЕМ ID ТОВАРА
     context.user_data[f"order_product_{user_id}"] = product_id
     
-    # ✅ ПОКАЗЫВАЕМ ВЫБОР АТРИБУТОВ
     attrs = product.get_attributes()
     keyboard = []
     
-    # 1. Если есть размеры — показываем выбор размера
+    # 1. Размеры (с галочками)
     if product.has_sizes:
         sizes = product.get_sizes()
         size_row = []
+        selected_size = context.user_data.get(f"order_size_{user_id}")
         for size in sizes:
             size_value = size["value"] if isinstance(size, dict) else size
-            # ✅ КОРОТКИЙ callback_data
+            marker = "✅ " if str(selected_size) == str(size_value) else ""
             size_row.append(InlineKeyboardButton(
-                str(size_value),
-                callback_data=f"osz_{product_id}_{size_value}"  # osz = order_size
+                f"{marker}{size_value}",
+                callback_data=f"osz_{product_id}_{size_value}"
             ))
             if len(size_row) == 3:
                 keyboard.append(size_row)
@@ -61,8 +60,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if size_row:
             keyboard.append(size_row)
     
-    # 2. Показываем остальные атрибуты (кроме colors и sizes)
-    # В цикле для атрибутов:
+    # 2. Остальные атрибуты (с галочками)
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
             continue
@@ -71,7 +69,6 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             short_key = key[:3]
             for item in value:
                 item_str = str(item)
-                # ✅ ПРОВЕРЯЕМ, ВЫБРАН ЛИ ЭТОТ АТРИБУТ
                 selected = context.user_data.get(f"order_attr_{key}_{user_id}") == item_str
                 marker = "✅ " if selected else ""
                 row.append(InlineKeyboardButton(
@@ -83,17 +80,15 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for i in range(0, len(row), 3):
                     keyboard.append(row[i:i+3])
     
-    # 3. Кнопка "Далее" (если есть атрибуты для выбора)
+    # 3. Кнопка "Далее"
     if keyboard:
-        keyboard.append([InlineKeyboardButton("✅ Далее", callback_data=f"ord_{product_id}")])  # ord = order_confirm
+        keyboard.append([InlineKeyboardButton("✅ Далее", callback_data=f"ord_{product_id}")])
     else:
-        # Если нет атрибутов — сразу переходим к форме
         await show_order_form(update, context, product, user_id)
         return
     
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product_id}")])
     
-    # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ
     try:
         await query.message.delete()
     except:
