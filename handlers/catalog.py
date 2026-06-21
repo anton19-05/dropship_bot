@@ -622,30 +622,37 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = query.data.replace("attr_", "")
     parts = data.split("_")
-    product_id = parts[0]
-    attr_key = parts[1]
-    attr_value = "_".join(parts[2:])
+    
+    # ⚠️ ВАЖНО: product_id может содержать подчёркивания (например, classic_shoes)
+    # Поэтому собираем product_id из всех частей, кроме последних двух (attr_key и attr_value)
+    if len(parts) >= 3:
+        attr_key = parts[-2]  # предпоследняя часть
+        attr_value = "_".join(parts[-1:])  # последняя часть
+        product_id = "_".join(parts[:-2])  # всё, что до attr_key
+    else:
+        product_id = parts[0]
+        attr_key = parts[1]
+        attr_value = "_".join(parts[2:])
+    
     user_id = query.from_user.id
     
-    # ✅ ДИАГНОСТИКА
-    print(f"🎯 select_attribute: attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🎯 select_attribute:\nattr_key={attr_key}\nattr_value={attr_value}\nuser_id={user_id}"
-    )
+    print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
     
+    # Сохраняем выбранный атрибут
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     
+    # Обновляем карточку
     product = products_manager.get_by_id(product_id)
     if product:
+        current_color = context.user_data.get(f"color_{user_id}", "белый")
         await show_product(
             query.message.chat_id,
             product_id,
-            context.user_data.get(f"color_{user_id}", "белый"),
+            current_color,
             context,
             context.bot,
             product.category,
             0,
             user_id,
-            attr_value
+            attr_value  # ← ПЕРЕДАЁМ main_value!
         )

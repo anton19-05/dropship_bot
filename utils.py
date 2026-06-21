@@ -1,34 +1,30 @@
-import os
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from models import products_manager
-from keyboards import get_product_keyboard
-from config import ADMIN_ID
-
 async def show_product(chat_id, prod_id, color_id, context, bot, category=None, page=0, user_id=None, main_value=None):
     product = products_manager.get_by_id(prod_id)
-    
-    # ✅ ДИАГНОСТИКА
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🖼️ show_product: {product.name if product else 'None'}\ncolor_id={color_id}\nmain_value={main_value}\nattributes={product.attributes if product else 'None'}"
-    )
     
     if not product:
         return
     
-    if category is None:
-        category = product.category
-    
-    # Если main_value не передан, пытаемся получить из context
+    # ✅ Если main_value не передан, пробуем получить из context
     if not main_value and user_id:
         attrs = product.get_attributes()
         for key, value in attrs.items():
             if isinstance(value, dict) and value.get("type") == "main":
                 main_value = context.user_data.get(f"attr_{key}_{user_id}")
+                print(f"🔍 show_product: main_value восстановлен из context: {main_value}")
                 break
+    
+    if category is None:
+        category = product.category
     
     text = product.get_text(color_id, main_value)
     photo = product.get_photo(color_id, main_value)
+    
+    # Диагностика
+    print(f"🖼️ show_product: {product.name}, main_value={main_value}")
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"🖼️ show_product: {product.name}\nmain_value={main_value}"
+    )
     
     try:
         if os.path.exists(photo):
