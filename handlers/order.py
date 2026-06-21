@@ -58,7 +58,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if key == "colors":
             continue
         if isinstance(value, list):
-            attrs_text += f"📌 {key}: {', '.join(value)}\n"
+            attrs_text += f"📌 {key}: {', '.join(str(v) for v in value)}\n"
     
     # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ
     try:
