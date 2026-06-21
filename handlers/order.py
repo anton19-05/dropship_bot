@@ -39,6 +39,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ
     attrs = product.get_attributes()
+    print(f"📦 order_start: все атрибуты = {attrs}")
     attrs_text = ""
     
     # 1. Цвет
