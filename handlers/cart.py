@@ -17,15 +17,29 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
-    # Получаем цвет и главный атрибут
-    color = context.user_data.get(f"color_{user_id}", "белый")
-    
+    # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ
     attrs = product.get_attributes()
-    main_attr_value = None
+    selected_attrs = {}
+    
+    # 1. Главный атрибут (type: main)
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
-            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            main_value = context.user_data.get(f"attr_{key}_{user_id}")
+            if main_value:
+                selected_attrs[key] = main_value
             break
+    
+    # 2. Обычные атрибуты (списки) — сохраняем как есть
+    for key, value in attrs.items():
+        if key == "colors":
+            continue
+        if isinstance(value, list):
+            # Для простых списков пока ничего не сохраняем
+            # Они будут выбраны при заказе
+            pass
+    
+    # 3. Цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -35,16 +49,24 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += 1
     else:
-        context.user_data[cart_key][item_key] = {
+        item_data = {
             "product_code": product_code,
             "quantity": 1,
             "name": product.name,
             "price": product.price,
             "color": color,
-            "main_attr": main_attr_value
         }
+        # Добавляем все выбранные атрибуты
+        for key, value in selected_attrs.items():
+            item_data[key] = value
+        
+        context.user_data[cart_key][item_key] = item_data
 
-    # ✅ НЕ РЕДАКТИРУЕМ, А УДАЛЯЕМ И ОТПРАВЛЯЕМ НОВОЕ
+    # Формируем текст
+    attrs_text = f"\n🎨 Цвет: {color}"
+    for key, value in selected_attrs.items():
+        attrs_text += f"\n📌 {key}: {value}"
+
     try:
         await query.message.delete()
     except:
@@ -52,9 +74,7 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text=f"✅ *{product.name} добавлен в корзину!*\n\n"
-             f"🎨 Цвет: {color}\n"
-             f"{f'📌 {main_attr_value}' if main_attr_value else ''}",
+        text=f"✅ *{product.name} добавлен в корзину!*{attrs_text}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🛒 Перейти в корзину", callback_data="view_cart")]
