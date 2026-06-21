@@ -623,23 +623,28 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.replace("attr_", "")
     parts = data.split("_")
     
-    # ⚠️ ВАЖНО: product_id может содержать подчёркивания (например, classic_shoes)
-    # Поэтому собираем product_id из всех частей, кроме последних двух (attr_key и attr_value)
+    print(f"🔍 select_attribute: parts={parts}")
+    
+    # ВАЖНО: правильно парсим product_id, attr_key, attr_value
     if len(parts) >= 3:
-        attr_key = parts[-2]  # предпоследняя часть
-        attr_value = "_".join(parts[-1:])  # последняя часть
-        product_id = "_".join(parts[:-2])  # всё, что до attr_key
+        # product_id может содержать подчёркивания (classic_shoes)
+        # attr_key — предпоследняя часть
+        # attr_value — последняя часть
+        attr_key = parts[-2]
+        attr_value = parts[-1]
+        product_id = "_".join(parts[:-2])
     else:
         product_id = parts[0]
         attr_key = parts[1]
-        attr_value = "_".join(parts[2:])
+        attr_value = "_".join(parts[2:]) if len(parts) > 2 else ""
     
     user_id = query.from_user.id
     
     print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
     
-    # Сохраняем выбранный атрибут
+    # Сохраняем
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
+    print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
     # Обновляем карточку
     product = products_manager.get_by_id(product_id)
@@ -654,5 +659,5 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             product.category,
             0,
             user_id,
-            attr_value  # ← ПЕРЕДАЁМ main_value!
+            attr_value
         )
