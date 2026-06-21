@@ -37,45 +37,53 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ ДЛЯ ЗАКАЗА
+    # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ
     attrs = product.get_attributes()
-    selected_attrs = {}
+    attrs_text = ""
     
-    # 1. Главный атрибут
+    # 1. Цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
+    attrs_text += f"🎨 Цвет: {color}\n"
+    
+    # 2. Главный атрибут
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
             main_value = context.user_data.get(f"attr_{key}_{user_id}")
             if main_value:
-                selected_attrs[key] = main_value
+                attrs_text += f"📌 {key}: {main_value}\n"
             break
     
-    # 2. Обычные атрибуты (списки) — показываем все варианты
+    # 3. Остальные атрибуты (списки)
     for key, value in attrs.items():
         if key == "colors":
             continue
         if isinstance(value, list):
-            # Показываем варианты для выбора
-            selected_attrs[key] = value
-    
-    # 3. Цвет
-    color = context.user_data.get(f"color_{user_id}", "белый")
-    
-    # Формируем текст с атрибутами
-    attrs_text = f"🎨 Цвет: {color}\n"
-    for key, value in selected_attrs.items():
-        if isinstance(value, list):
             attrs_text += f"📌 {key}: {', '.join(value)}\n"
-        else:
-            attrs_text += f"📌 {key}: {value}\n"
     
-    await query.edit_message_text(
-        f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
-        f"👟 Товар: {product.name}\n"
-        f"{attrs_text}"
-        f"💰 Цена: {product.price} руб\n\n"
-        f"Напишите ФИО, телефон и адрес через запятую",
-        parse_mode="Markdown"
+    # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ
+    try:
+        await query.message.delete()
+    except:
+        pass
+    
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=(
+            f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
+            f"👟 Товар: {product.name}\n"
+            f"{attrs_text}"
+            f"💰 Цена: {product.price} руб\n\n"
+            f"Напишите ФИО, телефон и адрес через запятую"
+        ),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")]
+        ])
     )
+    
+    # Устанавливаем флаг, что пользователь в процессе заказа
+    context.user_data[f"ordering_{user_id}"] = True
+    context.user_data[f"order_product_{user_id}"] = product_id
 
 
 async def show_order_size_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id):

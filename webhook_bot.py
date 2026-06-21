@@ -27,17 +27,24 @@ from handlers.admin import check_db
 
 
 async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает все текстовые сообщения"""
     user_id = update.effective_user.id
     print(f"🔍 handle_all_text ВЫЗВАНА! user_id={user_id}")
     
+    # Проверяем, в процессе ли редактирования профиля
     if user_id in editing_state:
+        print(f"✅ Режим редактирования профиля, вызываем handle_profile_input")
         await handle_profile_input(update, context)
         return
     
+    # Проверяем, в процессе ли оформления заказа
     if context.user_data.get(f"ordering_{user_id}"):
+        print(f"✅ Режим оформления заказа, вызываем order_handle")
         await order_handle(update, context)
         return
     
+    # Если ничего не активно — игнорируем
+    print(f"❌ Ничего не активно, игнорируем")
     await update.message.reply_text("❌ Неизвестная команда. Используйте кнопки меню.")
 
 
