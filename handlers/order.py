@@ -62,25 +62,24 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append(size_row)
     
     # 2. Показываем остальные атрибуты (кроме colors и sizes)
+    # В цикле для атрибутов:
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
             continue
         if isinstance(value, list):
             row = []
-            # ✅ КОРОТКИЙ callback_data
-            short_key = key[:3]  # берём первые 3 буквы (дли→дли, мат→мат)
+            short_key = key[:3]
             for item in value:
-                # Преобразуем item в строку и обрезаем
                 item_str = str(item)
-                # ✅ Ограничиваем длину callback_data
+                # ✅ ПРОВЕРЯЕМ, ВЫБРАН ЛИ ЭТОТ АТРИБУТ
+                selected = context.user_data.get(f"order_attr_{key}_{user_id}") == item_str
+                marker = "✅ " if selected else ""
                 row.append(InlineKeyboardButton(
-                    item_str,
-                    callback_data=f"oat_{product_id}_{short_key}_{item_str}"  # oat = order_attr
+                    f"{marker}{item_str}",
+                    callback_data=f"oat_{product_id}_{short_key}_{item_str}"
                 ))
             if row:
-                # Добавляем заголовок
                 keyboard.append([InlineKeyboardButton(f"📌 {key}:", callback_data="noop")])
-                # Разбиваем на ряды по 3
                 for i in range(0, len(row), 3):
                     keyboard.append(row[i:i+3])
     
@@ -401,6 +400,7 @@ async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Вместо order_select_attr
 async def order_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик выбора атрибута при заказе"""
     query = update.callback_query
     await query.answer()
     
@@ -408,18 +408,22 @@ async def order_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.replace("oat_", "")  # oat = order_attr
     parts = data.split("_")
     
+    # parts: [product_id, attr_key, attr_value]
     product_id = parts[0]
     attr_key = parts[1]
     attr_value = "_".join(parts[2:])
     
+    # ✅ СОХРАНЯЕМ ВЫБРАННЫЙ АТРИБУТ
     context.user_data[f"order_attr_{attr_key}_{user_id}"] = attr_value
+    print(f"✅ Выбран атрибут: {attr_key} = {attr_value}")
     
-    # Обновляем окно заказа
+    # ✅ ОБНОВЛЯЕМ ОКНО ЗАКАЗА (показываем галочки)
     await order_start(update, context)
 
 
 # Вместо order_confirm
 async def order_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Переход к форме заказа после выбора атрибутов"""
     query = update.callback_query
     await query.answer()
     
