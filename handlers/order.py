@@ -37,18 +37,41 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # Получаем выбранный главный атрибут
+    # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ ДЛЯ ЗАКАЗА
     attrs = product.get_attributes()
-    main_attr_value = None
+    selected_attrs = {}
+    
+    # 1. Главный атрибут
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
-            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            main_value = context.user_data.get(f"attr_{key}_{user_id}")
+            if main_value:
+                selected_attrs[key] = main_value
             break
+    
+    # 2. Обычные атрибуты (списки) — показываем все варианты
+    for key, value in attrs.items():
+        if key == "colors":
+            continue
+        if isinstance(value, list):
+            # Показываем варианты для выбора
+            selected_attrs[key] = value
+    
+    # 3. Цвет
+    color = context.user_data.get(f"color_{user_id}", "белый")
+    
+    # Формируем текст с атрибутами
+    attrs_text = f"🎨 Цвет: {color}\n"
+    for key, value in selected_attrs.items():
+        if isinstance(value, list):
+            attrs_text += f"📌 {key}: {', '.join(value)}\n"
+        else:
+            attrs_text += f"📌 {key}: {value}\n"
     
     await query.edit_message_text(
         f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
         f"👟 Товар: {product.name}\n"
-        f"{f'📌 {main_attr_value}' if main_attr_value else ''}\n"
+        f"{attrs_text}"
         f"💰 Цена: {product.price} руб\n\n"
         f"Напишите ФИО, телефон и адрес через запятую",
         parse_mode="Markdown"
@@ -289,10 +312,9 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     parts = [p.strip() for p in text.split(",")]
 
-    if len(parts) < 9:
+    if len(parts) < 3:
         await update.message.reply_text(
-            "❌ *Недостаточно данных!*\n\nПожалуйста, введите ВСЕ 9 пунктов через запятую.\n\n"
-            "📌 *Пример:* Смирнова, Ольга, +79077777777, Россия, Московская область, Красногорск, 143400, ул. Ленина, д. 10, кв. 25, olga@mail.ru",
+            "❌ *Недостаточно данных!*\n\nНапишите ФИО, телефон и адрес через запятую",
             parse_mode="Markdown"
         )
         return
@@ -304,49 +326,32 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Товар не найден!")
         return
 
-    size = context.user_data.get(f"order_size_{user_id}")
-    color = context.user_data.get(f"order_color_{user_id}")
-
-    # ✅ 1. СОХРАНЯЕМ В ПРОФИЛЬ (сначала)
-    user_data_key = f"user_data_{user_id}"
-    if user_data_key not in context.user_data:
-        context.user_data[user_data_key] = {}
+    # Получаем выбранные атрибуты
+    color = context.user_data.get(f"color_{user_id}", "белый")
     
-    context.user_data[user_data_key]["last_name"] = parts[0]
-    context.user_data[user_data_key]["first_name"] = parts[1]
-    context.user_data[user_data_key]["phone"] = parts[2]
-    context.user_data[user_data_key]["country"] = parts[3]
-    context.user_data[user_data_key]["region"] = parts[4]
-    context.user_data[user_data_key]["city"] = parts[5]
-    context.user_data[user_data_key]["postal_code"] = parts[6]
-    context.user_data[user_data_key]["address"] = parts[7]
-    context.user_data[user_data_key]["email"] = parts[8]
-    
-    from storage import save_user_data_sync
-    save_user_data_sync(user_id, context.user_data[user_data_key], context)
+    # Получаем главный атрибут
+    attrs = product.get_attributes()
+    main_attr_value = None
+    for key, value in attrs.items():
+        if isinstance(value, dict) and value.get("type") == "main":
+            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+            break
 
-    # ✅ 2. СОЗДАЁМ order_info С ДАННЫМИ КЛИЕНТА
+    # Сохраняем заказ
     order_info = {
         "product": product.name,
         "product_code": product.code,
         "price": product.price,
-        "size": size,
         "color": color,
-        "last_name": parts[0],
-        "first_name": parts[1],
-        "phone": parts[2],
-        "country": parts[3],
-        "region": parts[4],
-        "city": parts[5],
-        "postal_code": parts[6],
-        "address": parts[7],
-        "email": parts[8],
+        "main_attr": main_attr_value,
+        "fio": parts[0],
+        "phone": parts[1],
+        "address": parts[2],
         "user_id": user_id,
         "username": update.effective_user.username
     }
 
-    # ✅ 3. СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
-    import time
+    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     order_id = f"{user_id}_{int(time.time())}"
     context.user_data[f"payment_{order_id}"] = {
         "order_id": order_id,
@@ -355,22 +360,22 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "status": "pending",
         "created_at": time.time(),
-        "order_info": order_info  # ← ТЕПЕРЬ ЕСТЬ ДАННЫЕ
+        "order_info": order_info
     }
     
     print(f"✅ order_info сохранён: {order_info}")
 
-    # ✅ 4. СОЗДАЁМ ПЛАТЁЖ
-    from handlers.payment import create_payment
+    # ✅ СОЗДАЁМ ПЛАТЁЖ
     await create_payment(
         update=update,
         context=context,
         amount=product.price,
         order_id=order_id,
         description=product.name,
-        order_info=order_info  # ← ЭТО ГЛАВНОЕ!
+        order_info=order_info
     )
 
+    # Очищаем данные заказа
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
