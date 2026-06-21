@@ -50,9 +50,10 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         size_row = []
         for size in sizes:
             size_value = size["value"] if isinstance(size, dict) else size
+            # ✅ КОРОТКИЙ callback_data
             size_row.append(InlineKeyboardButton(
                 str(size_value),
-                callback_data=f"order_size_{product_id}_{size_value}"
+                callback_data=f"osz_{product_id}_{size_value}"  # osz = order_size
             ))
             if len(size_row) == 3:
                 keyboard.append(size_row)
@@ -66,12 +67,18 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         if isinstance(value, list):
             row = []
+            # ✅ КОРОТКИЙ callback_data
+            short_key = key[:3]  # берём первые 3 буквы (дли→дли, мат→мат)
             for item in value:
+                # Преобразуем item в строку и обрезаем
+                item_str = str(item)
+                # ✅ Ограничиваем длину callback_data
                 row.append(InlineKeyboardButton(
-                    str(item),
-                    callback_data=f"order_attr_{product_id}_{key}_{item}"
+                    item_str,
+                    callback_data=f"oat_{product_id}_{short_key}_{item_str}"  # oat = order_attr
                 ))
             if row:
+                # Добавляем заголовок
                 keyboard.append([InlineKeyboardButton(f"📌 {key}:", callback_data="noop")])
                 # Разбиваем на ряды по 3
                 for i in range(0, len(row), 3):
@@ -79,7 +86,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 3. Кнопка "Далее" (если есть атрибуты для выбора)
     if keyboard:
-        keyboard.append([InlineKeyboardButton("✅ Далее", callback_data=f"order_confirm_{product_id}")])
+        keyboard.append([InlineKeyboardButton("✅ Далее", callback_data=f"ord_{product_id}")])  # ord = order_confirm
     else:
         # Если нет атрибутов — сразу переходим к форме
         await show_order_form(update, context, product, user_id)
@@ -87,7 +94,14 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product_id}")])
     
-    await query.edit_message_text(
+    # ✅ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ
+    try:
+        await query.message.delete()
+    except:
+        pass
+    
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
         text=f"📝 *ОФОРМЛЕНИЕ ЗАКАЗА*\n\n"
              f"👟 {product.name}\n"
              f"💰 {product.price} руб\n\n"
@@ -144,38 +158,6 @@ async def show_order_size_selection(update: Update, context: ContextTypes.DEFAUL
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(size_buttons)
     )
-
-
-async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора размера для заказа"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    data = query.data.replace("order_size_", "")
-    
-    last_underscore = data.rfind("_")
-    
-    if last_underscore == -1:
-        await query.answer("❌ Ошибка выбора размера!", show_alert=True)
-        return
-    
-    product_id = data[:last_underscore]
-    size = data[last_underscore + 1:]
-    
-    product = products_manager.get_by_id(product_id)
-    if not product:
-        await query.answer("❌ Товар не найден!", show_alert=True)
-        return
-    
-    if not product.is_size_available(size):
-        await query.answer("❌ Этот размер отсутствует в наличии!", show_alert=True)
-        return
-    
-    context.user_data[f"order_size_{user_id}"] = size
-    
-    await show_order_form(update, context, product, user_id, size)
-
 
 async def show_order_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product, user_id, size=None):
     """Показывает форму для ввода данных или использует данные из профиля"""
@@ -399,21 +381,51 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
 
-async def order_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора атрибута при заказе"""
+# Вместо order_select_size
+async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
-    data = query.data.replace("order_attr_", "")
+    data = query.data.replace("osz_", "")  # osz = order_size
+    parts = data.split("_")
+    
+    product_id = parts[0]
+    size = parts[1]
+    
+    context.user_data[f"order_size_{user_id}"] = size
+    
+    # Обновляем окно заказа
+    await order_start(update, context)
+
+
+# Вместо order_select_attr
+async def order_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    data = query.data.replace("oat_", "")  # oat = order_attr
     parts = data.split("_")
     
     product_id = parts[0]
     attr_key = parts[1]
     attr_value = "_".join(parts[2:])
     
-    # Сохраняем выбранный атрибут
     context.user_data[f"order_attr_{attr_key}_{user_id}"] = attr_value
     
     # Обновляем окно заказа
     await order_start(update, context)
+
+
+# Вместо order_confirm
+async def order_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    product_id = query.data.replace("ord_", "")
+    product = products_manager.get_by_id(product_id)
+    
+    if product:
+        await show_order_form(update, context, product, user_id)
