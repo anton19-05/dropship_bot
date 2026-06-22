@@ -11,7 +11,7 @@ from handlers.profile import profile, edit_profile_start, handle_profile_input, 
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
     add_to_cart, cart_select_size, cart_confirm_quantity, view_cart,
-    cart_increase, cart_decrease, cart_remove, view_cart_from_profile, view_cart_from_product, cart_remove_group
+    cart_increase, cart_decrease, cart_remove, view_cart_from_profile, view_cart_from_product, cart_remove_group, cart_select_attr, cart_confirm_add
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
 from handlers.start import start, main_back
@@ -81,6 +81,8 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
+    application.add_handler(CallbackQueryHandler(cart_select_attr, pattern="^cart_attr_"))
+    application.add_handler(CallbackQueryHandler(cart_confirm_add, pattern="^cart_confirm_"))
     
     # --- КАТАЛОГ ---
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
