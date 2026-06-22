@@ -42,7 +42,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attrs = product.get_attributes()
     keyboard = []
     
-    # 1. Размеры (с галочками)
+    # 1. РАЗМЕРЫ (если есть, с галочками)
     if product.has_sizes:
         sizes = product.get_sizes()
         size_row = []
@@ -60,7 +60,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if size_row:
             keyboard.append(size_row)
     
-    # 2. Остальные атрибуты (с галочками)
+    # 2. ОСТАЛЬНЫЕ АТРИБУТЫ (с галочками)
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
             continue
@@ -80,7 +80,7 @@ async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for i in range(0, len(row), 3):
                     keyboard.append(row[i:i+3])
     
-    # 3. Кнопка "Далее"
+    # 3. КНОПКА "ДАЛЕЕ"
     if keyboard:
         keyboard.append([InlineKeyboardButton("✅ Далее", callback_data=f"ord_{product_id}")])
     else:
@@ -298,7 +298,6 @@ async def back_to_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка введённых данных заказа (если профиль не заполнен)"""
     user_id = update.effective_user.id
     if not context.user_data.get(f"ordering_{user_id}"):
         return
@@ -323,22 +322,24 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Получаем выбранные атрибуты
     color = context.user_data.get(f"color_{user_id}", "белый")
+    size = context.user_data.get(f"order_size_{user_id}")
     
-    # Получаем главный атрибут
+    # Получаем все выбранные атрибуты
     attrs = product.get_attributes()
-    main_attr_value = None
-    for key, value in attrs.items():
-        if isinstance(value, dict) and value.get("type") == "main":
-            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
-            break
+    selected_attrs = {}
+    for key in attrs.keys():
+        if key not in ["colors", "sizes"]:
+            attr_value = context.user_data.get(f"order_attr_{key}_{user_id}")
+            if attr_value:
+                selected_attrs[key] = attr_value
 
-    # Сохраняем заказ
     order_info = {
         "product": product.name,
         "product_code": product.code,
         "price": product.price,
         "color": color,
-        "main_attr": main_attr_value,
+        "size": size,
+        **selected_attrs,
         "fio": parts[0],
         "phone": parts[1],
         "address": parts[2],
@@ -346,7 +347,6 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "username": update.effective_user.username
     }
 
-    # ✅ СОХРАНЯЕМ ЗАКАЗ ДЛЯ ОТПРАВКИ ПОСЛЕ ОПЛАТЫ
     order_id = f"{user_id}_{int(time.time())}"
     context.user_data[f"payment_{order_id}"] = {
         "order_id": order_id,
@@ -358,9 +358,6 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "order_info": order_info
     }
     
-    print(f"✅ order_info сохранён: {order_info}")
-
-    # ✅ СОЗДАЁМ ПЛАТЁЖ
     await create_payment(
         update=update,
         context=context,
@@ -370,18 +367,16 @@ async def order_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         order_info=order_info
     )
 
-    # Очищаем данные заказа
     context.user_data.pop(f"ordering_{user_id}", None)
     context.user_data.pop(f"order_product_{user_id}", None)
     context.user_data.pop(f"order_size_{user_id}", None)
 
-# Вместо order_select_size
 async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
-    data = query.data.replace("osz_", "")  # osz = order_size
+    data = query.data.replace("osz_", "")
     parts = data.split("_")
     
     product_id = parts[0]
@@ -389,36 +384,27 @@ async def order_select_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data[f"order_size_{user_id}"] = size
     
-    # Обновляем окно заказа
     await order_start(update, context)
 
 
-# Вместо order_select_attr
 async def order_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик выбора атрибута при заказе"""
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
-    data = query.data.replace("oat_", "")  # oat = order_attr
+    data = query.data.replace("oat_", "")
     parts = data.split("_")
     
-    # parts: [product_id, attr_key, attr_value]
     product_id = parts[0]
     attr_key = parts[1]
     attr_value = "_".join(parts[2:])
     
-    # ✅ СОХРАНЯЕМ ВЫБРАННЫЙ АТРИБУТ
     context.user_data[f"order_attr_{attr_key}_{user_id}"] = attr_value
-    print(f"✅ Выбран атрибут: {attr_key} = {attr_value}")
     
-    # ✅ ОБНОВЛЯЕМ ОКНО ЗАКАЗА (показываем галочки)
     await order_start(update, context)
 
 
-# Вместо order_confirm
 async def order_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Переход к форме заказа после выбора атрибутов"""
     query = update.callback_query
     await query.answer()
     

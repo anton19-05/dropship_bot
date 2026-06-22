@@ -38,42 +38,23 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
     keyboard = []
     attrs = product.get_attributes()
     
-    print(f"⌨️ get_product_keyboard: product={product.name}, attrs={attrs}, user_id={user_id}")
-    
-    # Находим главный атрибут
-    main_key = None
-    main_variants = None
-    for key, value in attrs.items():
-        if isinstance(value, dict) and value.get("type") == "main":
-            main_key = key
-            main_variants = value.get("variants", {})
-            break
-    
-    print(f"⌨️ main_key={main_key}, main_variants={list(main_variants.keys()) if main_variants else None}")
-    
-    # Остальной код...
-    
-    # ⭐ 1. ПОКАЗЫВАЕМ ЦВЕТА (если они есть и они НЕ главный атрибут)
+    # ⭐ 1. ЦВЕТА (если есть и они НЕ главный атрибут)
     if "colors" in attrs:
         colors = attrs["colors"]
-        colors_row = []
-        
-        # Если colors — это словарь с type:main (но мы его пропускаем, т.к. это главный атрибут)
         if isinstance(colors, dict) and colors.get("type") == "main":
-            pass  # пропускаем, т.к. это главный атрибут
-        # Если colors — это простой список
+            pass  # пропускаем, это главный атрибут
         elif isinstance(colors, list):
+            colors_row = []
             for color in colors:
                 marker = "✅ " if color == current_color else ""
                 colors_row.append(InlineKeyboardButton(
                     f"{marker}{color}",
                     callback_data=f"color_{product.id}_{color}"
                 ))
-        
-        if colors_row:
-            keyboard.append(colors_row)
+            if colors_row:
+                keyboard.append(colors_row)
     
-    # ⭐ 2. ПОКАЗЫВАЕМ ГЛАВНЫЙ АТРИБУТ (ЛЮБОЙ, с type:main)
+    # ⭐ 2. ГЛАВНЫЙ АТРИБУТ (type: main)
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
             variants = value.get("variants", {})
@@ -89,7 +70,23 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 if row:
                     keyboard.append(row)
     
-    # ⭐ 3. ОСТАЛЬНЫЕ КНОПКИ
+    # ⭐ 3. РАЗМЕРЫ (если есть)
+    if product.has_sizes:
+        sizes = product.get_sizes()
+        size_row = []
+        for size in sizes:
+            size_value = size["value"] if isinstance(size, dict) else size
+            size_row.append(InlineKeyboardButton(
+                str(size_value),
+                callback_data=f"cart_size_{product.code}_{size_value}"
+            ))
+            if len(size_row) == 3:
+                keyboard.append(size_row)
+                size_row = []
+        if size_row:
+            keyboard.append(size_row)
+    
+    # ⭐ 4. ОСТАЛЬНЫЕ КНОПКИ
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
         [

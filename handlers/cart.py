@@ -18,54 +18,41 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ✅ СОБИРАЕМ ВСЕ АТРИБУТЫ
-    attrs = product.get_attributes()
-    selected_attrs = {}
+    color = context.user_data.get(f"color_{user_id}", "белый")
+    size = context.user_data.get(f"temp_size_{user_id}")
     
-    # 1. Главный атрибут (type: main)
+    # Главный атрибут
+    attrs = product.get_attributes()
+    main_attr_value = None
     for key, value in attrs.items():
         if isinstance(value, dict) and value.get("type") == "main":
-            main_value = context.user_data.get(f"attr_{key}_{user_id}")
-            if main_value:
-                selected_attrs[key] = main_value
+            main_attr_value = context.user_data.get(f"attr_{key}_{user_id}")
             break
-    
-    # 2. Обычные атрибуты (списки) — сохраняем как есть
-    for key, value in attrs.items():
-        if key == "colors":
-            continue
-        if isinstance(value, list):
-            # Для простых списков пока ничего не сохраняем
-            # Они будут выбраны при заказе
-            pass
-    
-    # 3. Цвет
-    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
-    item_key = product_code
+    item_key = f"{product_code}_{size}" if size else product_code
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += 1
     else:
-        item_data = {
+        context.user_data[cart_key][item_key] = {
             "product_code": product_code,
             "quantity": 1,
             "name": product.name,
             "price": product.price,
             "color": color,
+            "size": size,
+            "main_attr": main_attr_value
         }
-        # Добавляем все выбранные атрибуты
-        for key, value in selected_attrs.items():
-            item_data[key] = value
-        
-        context.user_data[cart_key][item_key] = item_data
 
-    # Формируем текст
+    # ✅ ФОРМИРУЕМ ТЕКСТ С АТРИБУТАМИ
     attrs_text = f"\n🎨 Цвет: {color}"
-    for key, value in selected_attrs.items():
-        attrs_text += f"\n📌 {key}: {value}"
+    if size:
+        attrs_text += f"\n📏 Размер: {size}"
+    if main_attr_value:
+        attrs_text += f"\n📌 {main_attr_value}"
 
     try:
         await query.message.delete()
@@ -120,8 +107,6 @@ async def add_quantity_selection(update, context, product_code):
     size = context.user_data.get(f"temp_size_{user_id}")
     size_text = f"размер {size}" if size else ""
 
-    # ✅ ВСЕГДА ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ (НЕ РЕДАКТИРУЕМ!)
-    # Удаляем сообщение с выбором размера
     try:
         await query.message.delete()
     except:
@@ -135,6 +120,7 @@ async def add_quantity_selection(update, context, product_code):
     )
 
 
+
 async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -146,7 +132,7 @@ async def cart_confirm_quantity(update: Update, context: ContextTypes.DEFAULT_TY
 
     product = products_manager.get_by_code(product_code)
     size = context.user_data.get(f"temp_size_{user_id}")
-    color = context.user_data.get(f"color_{user_id}", "белый") # Цвет сохраняется здесь
+    color = context.user_data.get(f"color_{user_id}", "белый")
 
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
@@ -190,30 +176,90 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     cart = context.user_data.get(f"cart_{user_id}", {})
-    
+
+    await msg_manager.clear(context.bot, chat_id, user_id)
+
     if not cart:
-        await query.edit_message_text("🛒 *Корзина пуста*", parse_mode="Markdown")
+        if from_product_card:
+            product_id = context.user_data.get(f"last_product_id_{user_id}")
+            if product_id:
+                back_button = [InlineKeyboardButton("🔙 Назад к товару", callback_data=f"back_to_product_{product_id}")]
+            else:
+                back_button = [InlineKeyboardButton("🔙 Назад", callback_data="main_back")]
+        else:
+            back_button = [InlineKeyboardButton("🔙 В профиль", callback_data="profile")]
+        
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text="🛒 *Корзина пуста*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([back_button])
+        )
+        await msg_manager.add(context.bot, chat_id, user_id, msg)
         return
-    
-    text = "🛒 *Ваша корзина:*\n\n"
+
     total = 0
-    for item in cart.values():
-        text += f"• {item['name']} — {item['quantity']} шт"
-        if item.get('color'):
-            text += f" (цвет: {item['color']})"
-        if item.get('main_attr'):
-            text += f" ({item['main_attr']})"
-        text += f" — {item['price'] * item['quantity']} руб\n"
-        total += item['price'] * item['quantity']
-    
-    text += f"\n💰 *ИТОГО: {total} руб*"
-    
-    await query.edit_message_text(
-        text,
+    for item_key, item in cart.items():
+        product = products_manager.get_by_code(item["product_code"])
+        if product:
+            subtotal = item["price"] * item["quantity"]
+            total += subtotal
+            
+            text = f"👟 *{product.name}*\n📦 {item['quantity']} шт"
+            if item.get('color'):
+                text += f"\n🎨 Цвет: {item['color']}"
+            if item.get('size'):
+                text += f"\n📏 Размер: {item['size']}"
+            if item.get('main_attr'):
+                text += f"\n📌 {item['main_attr']}"
+            text += f"\n💰 {subtotal} руб"
+            
+            keyboard = [
+                [InlineKeyboardButton("➖", callback_data=f"cart_decr_{item_key}"),
+                 InlineKeyboardButton(f"{item['quantity']} шт", callback_data="noop"),
+                 InlineKeyboardButton("➕", callback_data=f"cart_incr_{item_key}")],
+                [InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{item_key}")],
+                [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
+            ]
+            photo = product.get_photo()
+            try:
+                if photo and os.path.exists(photo):
+                    with open(photo, 'rb') as f:
+                        msg = await context.bot.send_photo(
+                            chat_id=chat_id,
+                            photo=f,
+                            caption=text,
+                            parse_mode="Markdown",
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                        await msg_manager.add(context.bot, chat_id, user_id, msg)
+                else:
+                    msg = await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+                    await msg_manager.add(context.bot, chat_id, user_id, msg)
+            except Exception as e:
+                print(f"Ошибка отправки товара в корзине: {e}")
+                msg = await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                await msg_manager.add(context.bot, chat_id, user_id, msg)
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"💰 *ИТОГО: {total} руб*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Оформить заказ", callback_data="checkout")]
+            [InlineKeyboardButton("✅ ОФОРМИТЬ ЗАКАЗ", callback_data="checkout")],
+            [InlineKeyboardButton("🏠 Главное меню", callback_data="main_back")]
         ])
     )
 
@@ -274,7 +320,6 @@ async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_T
     await view_cart(update, context, from_product_card=True)
 
 async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все варианты одного товара из корзины"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -291,7 +336,6 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.user_data.pop(cart_key, None)
     
-    from storage import save_user_data_sync
     save_user_data_sync(user_id, {cart_key: context.user_data.get(cart_key, {})}, context)
     
     await view_cart(update, context)
