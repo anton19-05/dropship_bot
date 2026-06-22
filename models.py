@@ -61,7 +61,6 @@ class Product:
     
     def get_reviews_for_color(self, color: str) -> List[str]:
         """Возвращает отзывы для цвета (из photos)"""
-        # В новой версии используем photos как источник отзывов
         if color in self.photos:
             return [self.photos[color]] if self.photos[color] else []
         return []
@@ -90,7 +89,6 @@ class ProductsManager:
         import time
         current_time = time.time()
         
-        # Если кеш устарел или пуст — обновляем
         if not self._products_cache or (current_time - self._cache_time > self._cache_ttl):
             try:
                 raw_products = storage.get_all_products()
@@ -99,7 +97,6 @@ class ProductsManager:
                 logger.info(f"📦 Загружено {len(self._products_cache)} товаров из Google Sheets")
             except Exception as e:
                 logger.error(f"❌ Ошибка загрузки товаров из Google Sheets: {e}")
-                # Возвращаем кеш, если он есть
                 if not self._products_cache:
                     return []
         
@@ -145,5 +142,37 @@ class ProductsManager:
         products = self.get_by_category(category)
         return products[:limit]
 
-# Создаем глобальный экземпляр
+
+# ============================================================
+# МЕНЕДЖЕР СООБЩЕНИЙ (был в старом models.py)
+# ============================================================
+
+class MessageManager:
+    """Класс для управления сообщениями (удаление старых)"""
+    
+    def __init__(self):
+        self.user_messages = {}  # {user_id: [message_ids]}
+    
+    async def add(self, bot, chat_id, user_id, message):
+        """Добавляет сообщение в список для пользователя"""
+        if user_id not in self.user_messages:
+            self.user_messages[user_id] = []
+        self.user_messages[user_id].append(message.message_id)
+    
+    async def clear(self, bot, chat_id, user_id):
+        """Удаляет все сообщения пользователя"""
+        if user_id in self.user_messages:
+            for msg_id in self.user_messages[user_id]:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                except:
+                    pass
+            self.user_messages[user_id] = []
+
+
+# Глобальный экземпляр менеджера сообщений
+msg_manager = MessageManager()
+
+
+# Создаем глобальный экземпляр ProductsManager
 products_manager = ProductsManager()
