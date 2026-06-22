@@ -1,162 +1,149 @@
-import json
 import os
+import json
+import logging
+from typing import List, Dict, Optional, Any
+from google_sheets_storage import storage
 
+logger = logging.getLogger(__name__)
 
 class Product:
-    def __init__(self, data):
-        self.id = data.get("id")
-        self.code = data.get("code")
-        self.name = data.get("name")
-        self.category = data.get("category")
-        self.price = data.get("price")
-        self.old_price = data.get("old_price")
-        self.photo = data.get("photo")
-        self.photos = data.get("photos", {})
-        self.description = data.get("description")
-        self.rating = data.get("rating", 4.5)
-        self.orders = data.get("orders", 0)
-        self.colors_reviews = data.get("colors_reviews", {})
-        self.colors_reviews_text = data.get("colors_reviews_text", {})
-        self.has_sizes = data.get("has_sizes", False)
-        self.attributes = data.get("attributes", {})
-
-    def get_text(self, color=None, main_value=None):
-        old_price_str = f"~~{self.old_price} руб~~ " if self.old_price else ""
+    """Класс товара (данные из Google Sheets)"""
     
-        description = self.description
+    def __init__(self, data: Dict):
+        self.id = data.get('id', '')
+        self.code = data.get('code', '')
+        self.name = data.get('name', '')
+        self.category = data.get('category', '')
+        self.price = data.get('price', 0)
+        self.old_price = data.get('old_price', 0)
+        self.description = data.get('description', '')
+        self.photo = data.get('photo', '')
+        self.photos = data.get('photos', {})
+        self.rating = data.get('rating', 0)
+        self.orders = data.get('orders', 0)
+        self.attributes = data.get('attributes', {})
+        self._colors_reviews = {}  # не используется в новой версии
     
-        # Если есть главный атрибут (type: main)
-        if main_value:
-            for key, value in self.attributes.items():
-                if isinstance(value, dict) and value.get("type") == "main":
-                    variants = value.get("variants", {})
-                    if main_value in variants and "description" in variants[main_value]:
-                        description = variants[main_value]["description"]
-                    break
+    def get_text(self) -> str:
+        """Формирует текст для карточки товара"""
+        text = f"👟 *{self.name}*\n\n"
+        text += f"💰 Цена: {self.price} руб.\n"
+        if self.old_price and self.old_price > self.price:
+            text += f"~~{self.old_price} руб.~~\n"
+        text += f"\n📝 {self.description}\n"
+        if self.rating:
+            text += f"\n⭐ Рейтинг: {self.rating}"
+        if self.orders:
+            text += f"\n📦 Заказов: {self.orders}"
+        return text
     
-        return f"""
-    👟 *{self.name}* 👟
-
-    ⭐ {self.rating} ★★★★★ | 📦 {self.orders} заказов
-    🔖 *Код товара:* `{self.code}`
-
-    💰 Цена: {old_price_str}→ *{self.price} руб*
-
-    📋 *Характеристики:*
-    {description}
-
-    🚚 *Доставка:* 15-25 дней
-    ✅ *Гарантия:* 14 дней
-    """
-
-    def get_photo(self, color=None, main_value=None):
-        """Возвращает фото для выбранного значения"""
-        if color and color in self.photos:
-            return self.photos[color]
-        if main_value and main_value in self.photos:
-            return self.photos[main_value]
-        return self.photo
-
-    def get_attributes(self):
+    def get_photo(self) -> str:
+        """Возвращает путь к фото"""
+        if self.photo and os.path.exists(self.photo):
+            return self.photo
+        return ""
+    
+    def get_attributes(self) -> Dict:
+        """Возвращает атрибуты товара"""
         return self.attributes
-
-    def get_reviews_for_color(self, color):
-        if self.colors_reviews and color in self.colors_reviews:
-            return self.colors_reviews[color]
+    
+    def get_sizes(self) -> List:
+        """Возвращает список размеров (если есть)"""
+        sizes = self.attributes.get('sizes', [])
+        if isinstance(sizes, list):
+            return sizes
+        return []
+    
+    @property
+    def has_sizes(self) -> bool:
+        """Проверяет, есть ли размеры у товара"""
+        return bool(self.get_sizes())
+    
+    def get_reviews_for_color(self, color: str) -> List[str]:
+        """Возвращает отзывы для цвета (из photos)"""
+        # В новой версии используем photos как источник отзывов
+        if color in self.photos:
+            return [self.photos[color]] if self.photos[color] else []
+        return []
+    
+    def get_colors(self) -> List[str]:
+        """Возвращает список доступных цветов"""
+        colors_attr = self.attributes.get('colors', {})
+        if isinstance(colors_attr, dict) and colors_attr.get('type') == 'main':
+            variants = colors_attr.get('variants', {})
+            return list(variants.keys())
+        elif isinstance(colors_attr, list):
+            return colors_attr
         return []
 
-    def get_reviews_text_for_color(self, color):
-        if self.colors_reviews_text and color in self.colors_reviews_text:
-            return self.colors_reviews_text[color]
-        color_name = color.capitalize()
-        return f"⭐ ОТЗЫВЫ НА {color_name} КРОССОВКИ ⭐"
 
-    def get_sizes(self):
-        """Получить список размеров с информацией о наличии"""
-        if not self.has_sizes:
-            return []
-        
-        if "sizes" in self.attributes:
-            sizes_data = self.attributes["sizes"]
-            if sizes_data and isinstance(sizes_data[0], dict):
-                return sizes_data
-            else:
-                return [{"value": s, "available": True} for s in sizes_data]
-        
-        default_sizes = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
-        return [{"value": s, "available": True} for s in default_sizes]
-
-    def is_size_available(self, size_value):
-        """Проверить, есть ли размер в наличии"""
-        sizes = self.get_sizes()
-        for size in sizes:
-            if str(size["value"]) == str(size_value):
-                return size.get("available", True)
-        return False
-
-    def format_size(self, size_value):
-        """Отформатировать размер для отображения"""
-        available = self.is_size_available(size_value)
-        if available:
-            return str(size_value)
-        else:
-            return f"❌ {size_value}"
-
-
-class ProductManager:
-    def __init__(self, json_path="data/products.json"):
-        self.products = []
-        self.products_by_id = {}
-        self.products_by_code = {}
-        
-        # ✅ ПРАВИЛЬНЫЙ ПУТЬ ДЛЯ RENDER
-        full_path = os.path.join(os.path.dirname(__file__), "data/products.json")
-        
-        print(f"🔍 Загрузка товаров из: {full_path}")
-        
-        if os.path.exists(full_path):
-            with open(full_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                for item in data.get("products", []):
-                    product = Product(item)
-                    self.products.append(product)
-                    self.products_by_id[product.id] = product
-                    self.products_by_code[product.code] = product
-            print(f"✅ Загружено {len(self.products)} товаров")
-        else:
-            print(f"❌ Файл НЕ НАЙДЕН: {full_path}")
+class ProductsManager:
+    """Менеджер товаров (читает из Google Sheets)"""
     
-    def get_by_category(self, category):
-        return [p for p in self.products if p.category == category]
-    
-    def get_by_id(self, prod_id):
-        return self.products_by_id.get(prod_id)
-
-    def get_by_code(self, code):
-        return self.products_by_code.get(code)
-
-
-class MessageManager:
     def __init__(self):
-        self.user_messages = {}
+        self._products_cache = []
+        self._cache_time = 0
+        self._cache_ttl = 60  # секунд
+    
+    def _load_products(self) -> List[Dict]:
+        """Загружает товары из Google Sheets с кешированием"""
+        import time
+        current_time = time.time()
+        
+        # Если кеш устарел или пуст — обновляем
+        if not self._products_cache or (current_time - self._cache_time > self._cache_ttl):
+            try:
+                raw_products = storage.get_all_products()
+                self._products_cache = raw_products
+                self._cache_time = current_time
+                logger.info(f"📦 Загружено {len(self._products_cache)} товаров из Google Sheets")
+            except Exception as e:
+                logger.error(f"❌ Ошибка загрузки товаров: {e}")
+                # Возвращаем кеш, если он есть
+                if not self._products_cache:
+                    return []
+        
+        return self._products_cache
+    
+    def get_all(self) -> List[Product]:
+        """Возвращает все товары как объекты Product"""
+        return [Product(p) for p in self._load_products()]
+    
+    def get_by_id(self, product_id: str) -> Optional[Product]:
+        """Получает товар по ID"""
+        for product_data in self._load_products():
+            if product_data.get('id') == product_id:
+                return Product(product_data)
+        return None
+    
+    def get_by_code(self, code: str) -> Optional[Product]:
+        """Получает товар по коду"""
+        for product_data in self._load_products():
+            if product_data.get('code') == code:
+                return Product(product_data)
+        return None
+    
+    def get_by_category(self, category: str) -> List[Product]:
+        """Получает товары по категории"""
+        products = []
+        for product_data in self._load_products():
+            if product_data.get('category') == category:
+                products.append(Product(product_data))
+        return products
+    
+    def get_all_categories(self) -> List[str]:
+        """Получает список всех категорий"""
+        categories = set()
+        for product_data in self._load_products():
+            category = product_data.get('category')
+            if category:
+                categories.add(category)
+        return list(categories)
+    
+    def get_products_by_category_with_limit(self, category: str, limit: int = 20) -> List[Product]:
+        """Получает товары категории с ограничением"""
+        products = self.get_by_category(category)
+        return products[:limit]
 
-    async def add(self, bot, chat_id, user_id, message):
-        if user_id not in self.user_messages:
-            self.user_messages[user_id] = []
-        self.user_messages[user_id].append(message.message_id)
-
-    async def clear(self, bot, chat_id, user_id, keep_last=False):
-        if user_id in self.user_messages:
-            to_delete = self.user_messages[user_id]
-            if keep_last and to_delete:
-                to_delete = to_delete[:-1]
-            for msg_id in to_delete:
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                except:
-                    pass
-            self.user_messages[user_id] = []
-
-
-products_manager = ProductManager()
-msg_manager = MessageManager()
+# Создаем глобальный экземпляр
+products_manager = ProductsManager()
