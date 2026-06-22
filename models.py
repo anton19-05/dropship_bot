@@ -98,7 +98,7 @@ class ProductsManager:
                 self._cache_time = current_time
                 logger.info(f"📦 Загружено {len(self._products_cache)} товаров из Google Sheets")
             except Exception as e:
-                logger.error(f"❌ Ошибка загрузки товаров: {e}")
+                logger.error(f"❌ Ошибка загрузки товаров из Google Sheets: {e}")
                 # Возвращаем кеш, если он есть
                 if not self._products_cache:
                     return []

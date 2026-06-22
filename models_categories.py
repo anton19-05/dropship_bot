@@ -24,7 +24,7 @@ class CategoriesManager:
                 self._cache_time = current_time
                 logger.info(f"📂 Загружено {len(self._categories_cache)} категорий из Google Sheets")
             except Exception as e:
-                logger.error(f"❌ Ошибка загрузки категорий: {e}")
+                logger.error(f"❌ Ошибка загрузки категорий из Google Sheets: {e}")
                 if not self._categories_cache:
                     return self._get_default_categories()
         
