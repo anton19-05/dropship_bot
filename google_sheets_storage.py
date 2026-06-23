@@ -2,6 +2,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import logging
+import os
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -10,26 +11,28 @@ class GoogleSheetsStorage:
     """Класс для работы с товарами через Google Sheets"""
     
     def __init__(self, creds_file: str = 'creds.json', sheet_name: str = None):
-        """
-        Инициализация подключения к Google Sheets
-        
-        Args:
-            creds_file: путь к файлу с учетными данными
-            sheet_name: название листа (если None - берет первый)
-        """
         try:
-            # Настройка доступа
             scope = [
                 'https://spreadsheets.google.com/feeds',
                 'https://www.googleapis.com/auth/drive'
             ]
             
-            creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
+            # Пробуем взять из переменной окружения (для Render)
+            creds_json_str = os.environ.get('GOOGLE_CREDS_JSON')
+            if creds_json_str:
+                logger.info("🔑 Использую учетные данные из переменной окружения")
+                creds_dict = json.loads(creds_json_str)
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            else:
+                # Пробуем из файла (для локальной разработки)
+                logger.info(f"🔑 Использую учетные данные из файла {creds_file}")
+                creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
+            
             self.client = gspread.authorize(creds)
             
-            # Ищем таблицу по названию
-            # ВАЖНО: замените "Товары для бота" на название вашей таблицы
-            self.sheet = self.client.open('Товары для бота').sheet1
+            # Название таблицы
+            sheet_name = os.environ.get('GOOGLE_SHEET_NAME', 'Товары для бота')
+            self.sheet = self.client.open(sheet_name).sheet1
             
             logger.info("✅ Подключение к Google Sheets установлено")
             
@@ -39,52 +42,74 @@ class GoogleSheetsStorage:
     
     def get_all_products(self) -> List[Dict]:
         """
-        Получает все товары из таблицы
-        
-        Returns:
-            List[Dict]: список товаров с ключами из заголовков
+        Получает все товары из таблицы (с обработкой дубликатов)
         """
         try:
-            # Получаем все записи
-            records = self.sheet.get_all_records()
+            # Получаем все значения из таблицы
+            all_values = self.sheet.get_all_values()
             
-            # Преобразуем данные
+            if not all_values or len(all_values) < 2:
+                logger.warning("⚠️ Таблица пуста или нет данных")
+                return []
+            
+            # Получаем заголовки и делаем их уникальными
+            headers = all_values[0]
+            unique_headers = []
+            seen = {}
+            
+            for header in headers:
+                if header in seen:
+                    seen[header] += 1
+                    unique_headers.append(f"{header}_{seen[header]}")
+                else:
+                    seen[header] = 1
+                    unique_headers.append(header)
+            
+            logger.info(f"📋 Заголовки: {unique_headers}")
+            
+            # Преобразуем данные в список словарей
             products = []
-            for row in records:
-                # Пропускаем пустые строки
-                if not row.get('name'):
+            for row in all_values[1:]:
+                if not row or not row[0]:  # Пропускаем пустые строки
                     continue
                 
-                # Парсим атрибуты (если есть)
-                attributes = {}
-                if row.get('attributes'):
-                    try:
-                        attributes = json.loads(row['attributes'])
-                    except:
-                        attributes = {}
+                product = {}
+                for i, header in enumerate(unique_headers):
+                    if i < len(row):
+                        value = row[i]
+                        # Преобразуем числовые значения
+                        if header in ['price', 'old_price', 'orders']:
+                            try:
+                                value = int(float(value)) if value else 0
+                            except:
+                                value = 0
+                        elif header == 'rating':
+                            try:
+                                value = float(value) if value else 0
+                            except:
+                                value = 0
+                        elif header in ['attributes', 'photos']:
+                            try:
+                                value = json.loads(value) if value else {}
+                            except:
+                                value = {}
+                        
+                        # Маппинг для совместимости
+                        if header == 'photo_url':
+                            product['photo'] = value
+                        elif header.startswith('photo'):
+                            product['photo'] = value
+                        else:
+                            product[header] = value
                 
-                # Парсим фото (если есть несколько)
-                photos = {}
-                if row.get('photos'):
-                    try:
-                        photos = json.loads(row['photos'])
-                    except:
-                        photos = {}
+                # Добавляем недостающие поля
+                if 'photo' not in product:
+                    product['photo'] = ''
+                if 'photos' not in product:
+                    product['photos'] = {}
+                if 'attributes' not in product:
+                    product['attributes'] = {}
                 
-                product = {
-                    'id': row.get('id', ''),
-                    'code': row.get('code', ''),
-                    'name': row.get('name', ''),
-                    'category': row.get('category', ''),
-                    'price': int(row.get('price', 0)) if row.get('price') else 0,
-                    'old_price': int(row.get('old_price', 0)) if row.get('old_price') else 0,
-                    'description': row.get('description', ''),
-                    'photo': row.get('photo_url', ''),
-                    'photos': photos,
-                    'rating': float(row.get('rating', 0)) if row.get('rating') else 0,
-                    'orders': int(row.get('orders', 0)) if row.get('orders') else 0,
-                    'attributes': attributes
-                }
                 products.append(product)
             
             logger.info(f"📦 Загружено {len(products)} товаров из Google Sheets")
@@ -98,26 +123,26 @@ class GoogleSheetsStorage:
         """Получает товар по ID"""
         products = self.get_all_products()
         for product in products:
-            if product['id'] == product_id:
+            if product.get('id') == product_id:
                 return product
         return None
     
     def get_products_by_category(self, category: str) -> List[Dict]:
         """Получает товары по категории"""
         products = self.get_all_products()
-        return [p for p in products if p['category'].lower() == category.lower()]
+        return [p for p in products if p.get('category', '').lower() == category.lower()]
     
     def add_product(self, product_data: Dict) -> bool:
-        """
-        Добавляет новый товар в таблицу
-        
-        Args:
-            product_data: словарь с данными товара
-        """
+        """Добавляет новый товар в таблицу"""
         try:
-            # Получаем все строки
             all_values = self.sheet.get_all_values()
-            headers = all_values[0]  # Заголовки
+            headers = all_values[0] if all_values else []
+            
+            if not headers:
+                # Создаем заголовки если их нет
+                headers = ['id', 'code', 'name', 'category', 'price', 'old_price', 
+                          'description', 'photo_url', 'photos', 'rating', 'orders', 'attributes']
+                self.sheet.append_row(headers)
             
             # Формируем новую строку
             new_row = []
@@ -126,10 +151,11 @@ class GoogleSheetsStorage:
                     new_row.append(json.dumps(product_data['attributes'], ensure_ascii=False))
                 elif header == 'photos' and 'photos' in product_data:
                     new_row.append(json.dumps(product_data['photos'], ensure_ascii=False))
+                elif header == 'photo_url':
+                    new_row.append(str(product_data.get('photo', '')))
                 else:
                     new_row.append(str(product_data.get(header, '')))
             
-            # Добавляем строку
             self.sheet.append_row(new_row)
             logger.info(f"✅ Товар '{product_data.get('name')}' добавлен")
             return True
@@ -139,24 +165,20 @@ class GoogleSheetsStorage:
             return False
     
     def update_product(self, product_id: str, updates: Dict) -> bool:
-        """
-        Обновляет товар по ID
-        
-        Args:
-            product_id: ID товара
-            updates: словарь с полями для обновления
-        """
+        """Обновляет товар по ID"""
         try:
-            # Находим строку с товаром
-            records = self.sheet.get_all_records()
+            records = self.get_all_products()
+            all_values = self.sheet.get_all_values()
+            headers = all_values[0] if all_values else []
             
-            for i, record in enumerate(records, start=2):  # +2 потому что заголовок на 1 строке
+            for i, record in enumerate(records, start=2):
                 if record.get('id') == product_id:
-                    # Обновляем нужные поля
                     for key, value in updates.items():
-                        if key == 'attributes':
-                            value = json.dumps(value, ensure_ascii=False)
-                        self.sheet.update_cell(i, self._get_column_index(key), value)
+                        if key in headers:
+                            col_index = headers.index(key) + 1
+                            if key in ['attributes', 'photos']:
+                                value = json.dumps(value, ensure_ascii=False)
+                            self.sheet.update_cell(i, col_index, str(value))
                     
                     logger.info(f"✅ Товар '{product_id}' обновлен")
                     return True
@@ -171,7 +193,7 @@ class GoogleSheetsStorage:
     def delete_product(self, product_id: str) -> bool:
         """Удаляет товар по ID"""
         try:
-            records = self.sheet.get_all_records()
+            records = self.get_all_products()
             
             for i, record in enumerate(records, start=2):
                 if record.get('id') == product_id:
@@ -185,17 +207,13 @@ class GoogleSheetsStorage:
         except Exception as e:
             logger.error(f"❌ Ошибка удаления товара: {e}")
             return False
-        
+    
     def get_categories(self) -> List[Dict]:
-        """
-        Получает все категории из листа 'categories'
-        """
+        """Получает все категории из листа 'categories'"""
         try:
-            # Пытаемся получить лист categories
             try:
                 categories_sheet = self.client.open('Товары для бота').worksheet('categories')
             except:
-                # Если нет листа categories - возвращаем пустой список
                 return []
             
             records = categories_sheet.get_all_records()
@@ -205,7 +223,6 @@ class GoogleSheetsStorage:
                 if not row.get('id'):
                     continue
                 
-                # Парсим subcategories
                 subcategories = []
                 if row.get('subcategories'):
                     try:
@@ -230,17 +247,9 @@ class GoogleSheetsStorage:
         """Получает категорию по ID"""
         categories = self.get_categories()
         for category in categories:
-            if category['id'] == category_id:
+            if category.get('id') == category_id:
                 return category
         return None
-    
-    def _get_column_index(self, column_name: str) -> int:
-        """Получает индекс колонки по названию"""
-        headers = self.sheet.row_values(1)
-        try:
-            return headers.index(column_name) + 1
-        except ValueError:
-            return 1
 
 # Создаем глобальный экземпляр
 storage = GoogleSheetsStorage()
