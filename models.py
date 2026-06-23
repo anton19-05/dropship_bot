@@ -17,8 +17,20 @@ class Product:
         self.price = data.get('price', 0)
         self.old_price = data.get('old_price', 0)
         self.description = data.get('description', '')
-        self.photo = data.get('photo', '')
+        
+        # Обработка фото: если это словарь - берем первый цвет
+        photo_raw = data.get('photo', '')
+        if isinstance(photo_raw, dict):
+            # Если photo - словарь, берем первый попавшийся путь
+            first_color = list(photo_raw.keys())[0] if photo_raw else None
+            self.photo = photo_raw.get(first_color, '') if first_color else ''
+        else:
+            self.photo = photo_raw
+        
         self.photos = data.get('photos', {})
+        if not isinstance(self.photos, dict):
+            self.photos = {}
+        
         self.rating = data.get('rating', 0)
         self.orders = data.get('orders', 0)
         self.attributes = data.get('attributes', {})
@@ -26,7 +38,6 @@ class Product:
         self.colors_reviews_text = data.get('colors_reviews_text', {})
     
     def get_text(self) -> str:
-        """Формирует текст для карточки товара"""
         text = f"👟 *{self.name}*\n\n"
         text += f"💰 Цена: {self.price} руб.\n"
         if self.old_price and self.old_price > self.price:
@@ -40,16 +51,14 @@ class Product:
     
     def get_photo(self) -> str:
         """Возвращает путь к фото"""
-        if self.photo and os.path.exists(self.photo):
+        if self.photo and isinstance(self.photo, str) and os.path.exists(self.photo):
             return self.photo
         return ""
     
     def get_attributes(self) -> Dict:
-        """Возвращает атрибуты товара"""
         return self.attributes
     
     def get_sizes(self) -> List:
-        """Возвращает список размеров (если есть)"""
         sizes = self.attributes.get('sizes', [])
         if isinstance(sizes, list):
             return sizes
@@ -57,22 +66,18 @@ class Product:
     
     @property
     def has_sizes(self) -> bool:
-        """Проверяет, есть ли размеры у товара"""
         return bool(self.get_sizes())
     
     def get_reviews_for_color(self, color: str) -> List[str]:
-        """Возвращает отзывы для цвета из colors_reviews"""
         reviews = self.colors_reviews.get(color, [])
         if isinstance(reviews, list):
             return reviews
         return []
     
     def get_reviews_text_for_color(self, color: str) -> str:
-        """Возвращает текст отзывов для цвета"""
         return self.colors_reviews_text.get(color, f"⭐ ОТЗЫВЫ НА {color.upper()} ⭐")
     
     def get_colors(self) -> List[str]:
-        """Возвращает список доступных цветов (из атрибутов)"""
         colors_attr = self.attributes.get('colors', {})
         if isinstance(colors_attr, dict) and colors_attr.get('type') == 'main':
             variants = colors_attr.get('variants', {})
@@ -82,14 +87,11 @@ class Product:
         return []
     
     def get_main_color(self) -> str:
-        """Возвращает первый доступный цвет"""
         colors = self.get_colors()
         return colors[0] if colors else "белый"
 
 
 class ProductsManager:
-    """Менеджер товаров (читает из Google Sheets)"""
-    
     def __init__(self):
         self._products_cache = []
         self._cache_time = 0
