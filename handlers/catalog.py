@@ -99,6 +99,8 @@ async def show_category_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
 # НОВЫЙ ОБРАБОТЧИК: Выбор подкатегории
+# В handlers/catalog.py, функция show_subcategory_products:
+
 async def show_subcategory_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -106,15 +108,21 @@ async def show_subcategory_products(update: Update, context: ContextTypes.DEFAUL
     user_id = query.from_user.id
     subcategory_id = query.data.replace("subcat_", "")
     
+    print(f"🔍 show_subcategory_products: subcategory_id={subcategory_id}")
+    
     # Получаем товары подкатегории
     products = products_manager.get_by_category(subcategory_id)
     
+    print(f"📦 Найдено товаров: {len(products)}")
+    for p in products:
+        print(f"  - {p.name} (category: {p.category})")
+    
     if not products:
         await query.edit_message_text(
-            text="📦 *Товаров пока нет*\n\n✨ Скоро появятся!",
+            text=f"📦 *Товаров в категории пока нет*\n\n✨ Скоро появятся!",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="main_back")
+                InlineKeyboardButton("🔙 Назад", callback_data=f"category_{subcategory_id}")
             ]])
         )
         return
