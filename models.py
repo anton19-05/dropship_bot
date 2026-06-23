@@ -22,7 +22,8 @@ class Product:
         self.rating = data.get('rating', 0)
         self.orders = data.get('orders', 0)
         self.attributes = data.get('attributes', {})
-        self._colors_reviews = {}  # не используется в новой версии
+        self.colors_reviews = data.get('colors_reviews', {})
+        self.colors_reviews_text = data.get('colors_reviews_text', {})
     
     def get_text(self) -> str:
         """Формирует текст для карточки товара"""
@@ -60,13 +61,18 @@ class Product:
         return bool(self.get_sizes())
     
     def get_reviews_for_color(self, color: str) -> List[str]:
-        """Возвращает отзывы для цвета (из photos)"""
-        if color in self.photos:
-            return [self.photos[color]] if self.photos[color] else []
+        """Возвращает отзывы для цвета из colors_reviews"""
+        reviews = self.colors_reviews.get(color, [])
+        if isinstance(reviews, list):
+            return reviews
         return []
     
+    def get_reviews_text_for_color(self, color: str) -> str:
+        """Возвращает текст отзывов для цвета"""
+        return self.colors_reviews_text.get(color, f"⭐ ОТЗЫВЫ НА {color.upper()} ⭐")
+    
     def get_colors(self) -> List[str]:
-        """Возвращает список доступных цветов"""
+        """Возвращает список доступных цветов (из атрибутов)"""
         colors_attr = self.attributes.get('colors', {})
         if isinstance(colors_attr, dict) and colors_attr.get('type') == 'main':
             variants = colors_attr.get('variants', {})
@@ -74,6 +80,11 @@ class Product:
         elif isinstance(colors_attr, list):
             return colors_attr
         return []
+    
+    def get_main_color(self) -> str:
+        """Возвращает первый доступный цвет"""
+        colors = self.get_colors()
+        return colors[0] if colors else "белый"
 
 
 class ProductsManager:
@@ -82,10 +93,9 @@ class ProductsManager:
     def __init__(self):
         self._products_cache = []
         self._cache_time = 0
-        self._cache_ttl = 60  # секунд
+        self._cache_ttl = 60
     
     def _load_products(self) -> List[Dict]:
-        """Загружает товары из Google Sheets с кешированием"""
         import time
         current_time = time.time()
         
@@ -103,25 +113,21 @@ class ProductsManager:
         return self._products_cache
     
     def get_all(self) -> List[Product]:
-        """Возвращает все товары как объекты Product"""
         return [Product(p) for p in self._load_products()]
     
     def get_by_id(self, product_id: str) -> Optional[Product]:
-        """Получает товар по ID"""
         for product_data in self._load_products():
             if product_data.get('id') == product_id:
                 return Product(product_data)
         return None
     
     def get_by_code(self, code: str) -> Optional[Product]:
-        """Получает товар по коду"""
         for product_data in self._load_products():
             if product_data.get('code') == code:
                 return Product(product_data)
         return None
     
     def get_by_category(self, category: str) -> List[Product]:
-        """Получает товары по категории"""
         products = []
         for product_data in self._load_products():
             if product_data.get('category') == category:
@@ -129,7 +135,6 @@ class ProductsManager:
         return products
     
     def get_all_categories(self) -> List[str]:
-        """Получает список всех категорий"""
         categories = set()
         for product_data in self._load_products():
             category = product_data.get('category')
@@ -138,29 +143,20 @@ class ProductsManager:
         return list(categories)
     
     def get_products_by_category_with_limit(self, category: str, limit: int = 20) -> List[Product]:
-        """Получает товары категории с ограничением"""
         products = self.get_by_category(category)
         return products[:limit]
 
 
-# ============================================================
-# МЕНЕДЖЕР СООБЩЕНИЙ (был в старом models.py)
-# ============================================================
-
 class MessageManager:
-    """Класс для управления сообщениями (удаление старых)"""
-    
     def __init__(self):
-        self.user_messages = {}  # {user_id: [message_ids]}
+        self.user_messages = {}
     
     async def add(self, bot, chat_id, user_id, message):
-        """Добавляет сообщение в список для пользователя"""
         if user_id not in self.user_messages:
             self.user_messages[user_id] = []
         self.user_messages[user_id].append(message.message_id)
     
     async def clear(self, bot, chat_id, user_id):
-        """Удаляет все сообщения пользователя"""
         if user_id in self.user_messages:
             for msg_id in self.user_messages[user_id]:
                 try:
@@ -170,9 +166,5 @@ class MessageManager:
             self.user_messages[user_id] = []
 
 
-# Глобальный экземпляр менеджера сообщений
 msg_manager = MessageManager()
-
-
-# Создаем глобальный экземпляр ProductsManager
 products_manager = ProductsManager()
