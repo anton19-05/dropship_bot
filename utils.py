@@ -10,15 +10,14 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if not product:
         return
     
-    # Получаем все главные атрибуты
-    main_attrs = product.get_main_attributes()
-    
-    # Формируем текст с выбранными значениями главных атрибутов
+    # Получаем основной текст карточки
     text = product.get_text()
     
-    # Добавляем выбранные главные атрибуты в текст (если они выбраны)
-    if main_attrs and user_id and context:
+    # Добавляем выбранные главные атрибуты под описанием (если они выбраны)
+    if user_id and context:
+        main_attrs = product.get_main_attributes()
         selected_attrs = []
+        
         for attr_key in main_attrs.keys():
             value = context.user_data.get(f"attr_{attr_key}_{user_id}")
             if value:
@@ -49,7 +48,6 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 reply_markup=get_product_keyboard(product, color_id, category, page, context, user_id)
             )
         
-        # Удаляем предыдущее сообщение (если есть)
         if "last_product_msg" in context.user_data:
             try:
                 await bot.delete_message(chat_id=chat_id, message_id=context.user_data["last_product_msg"])

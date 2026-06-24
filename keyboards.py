@@ -36,13 +36,19 @@ def get_subcategories_keyboard(category_id):
 
 def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
     """
-    Создает клавиатуру для карточки товара с поддержкой нескольких главных атрибутов.
-    Каждый главный атрибут отображается в отдельном ряду с галочками ✅.
+    Создает клавиатуру для карточки товара.
+    
+    В карточке товара отображаются ТОЛЬКО:
+    1. Главные атрибуты (type: main) — с галочками ✅
+    2. Кнопки: Отзывы, В корзину, В избранное, Корзина, Избранное, Заказать, Назад
+    
+    Обычные атрибуты (без type: main) НЕ отображаются в карточке!
+    Они будут показаны при нажатии "Заказать" или "В корзину".
     """
     keyboard = []
     
     # ============================================================
-    # 1. ГЛАВНЫЕ АТРИБУТЫ (type: main) — отображаются в карточке
+    # 1. ТОЛЬКО ГЛАВНЫЕ АТРИБУТЫ (type: main) — отображаются в карточке
     # ============================================================
     main_attrs = product.get_main_attributes()
     
@@ -79,27 +85,13 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 keyboard.append(row[i:i+3])
     
     # ============================================================
-    # 2. РАЗМЕРЫ (если есть и нет в главных атрибутах)
+    # 2. РАЗМЕРЫ — НЕ ДОБАВЛЯЕМ В КАРТОЧКУ!
+    # Они будут показаны при нажатии "Заказать" или "В корзину"
     # ============================================================
-    if product.has_sizes:
-        sizes = product.get_sizes()
-        size_row = []
-        selected_size = context.user_data.get(f"cart_size_{user_id}") if context and user_id else None
-        for size in sizes:
-            size_value = size["value"] if isinstance(size, dict) else size
-            marker = "✅ " if str(selected_size) == str(size_value) else ""
-            size_row.append(InlineKeyboardButton(
-                f"{marker}{size_value}",
-                callback_data=f"cart_size_{product.code}_{size_value}"
-            ))
-            if len(size_row) == 3:
-                keyboard.append(size_row)
-                size_row = []
-        if size_row:
-            keyboard.append(size_row)
+    # Размеры УДАЛЕНЫ из карточки!
     
     # ============================================================
-    # 3. ОСТАЛЬНЫЕ КНОПКИ
+    # 3. ОСТАЛЬНЫЕ КНОПКИ (без изменений)
     # ============================================================
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],
