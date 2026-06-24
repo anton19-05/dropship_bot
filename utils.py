@@ -10,27 +10,26 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if not product:
         return
     
-    # ✅ Если main_value не передан, пробуем получить из context
-    if not main_value and user_id:
-        attrs = product.get_attributes()
-        for key, value in attrs.items():
-            if isinstance(value, dict) and value.get("type") == "main":
-                main_value = context.user_data.get(f"attr_{key}_{user_id}")
-                print(f"🔍 show_product: main_value восстановлен из context: {main_value}")
-                break
+    # Получаем все главные атрибуты
+    main_attrs = product.get_main_attributes()
     
-    if category is None:
-        category = product.category
+    # Формируем текст с выбранными значениями главных атрибутов
+    text = product.get_text()
     
-    text = product.get_text(color_id, main_value)
-    photo = product.get_photo(color_id, main_value)
+    # Добавляем выбранные главные атрибуты в текст (если они выбраны)
+    if main_attrs and user_id and context:
+        selected_attrs = []
+        for attr_key in main_attrs.keys():
+            value = context.user_data.get(f"attr_{attr_key}_{user_id}")
+            if value:
+                display_name = attr_key.capitalize()
+                selected_attrs.append(f"📌 {display_name}: {value}")
+        
+        if selected_attrs:
+            text += "\n\n--- *ВЫБРАНО:* ---"
+            text += "\n" + "\n".join(selected_attrs)
     
-    # Диагностика
-    print(f"🖼️ show_product: {product.name}, main_value={main_value}")
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=f"🖼️ show_product: {product.name}\nmain_value={main_value}"
-    )
+    photo = product.get_photo()
     
     try:
         if os.path.exists(photo):
@@ -50,6 +49,7 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 reply_markup=get_product_keyboard(product, color_id, category, page, context, user_id)
             )
         
+        # Удаляем предыдущее сообщение (если есть)
         if "last_product_msg" in context.user_data:
             try:
                 await bot.delete_message(chat_id=chat_id, message_id=context.user_data["last_product_msg"])

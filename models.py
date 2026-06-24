@@ -18,10 +18,8 @@ class Product:
         self.old_price = data.get('old_price', 0)
         self.description = data.get('description', '')
         
-        # Обработка фото: если это словарь - берем первый цвет
         photo_raw = data.get('photo', '')
         if isinstance(photo_raw, dict):
-            # Если photo - словарь, берем первый попавшийся путь
             first_color = list(photo_raw.keys())[0] if photo_raw else None
             self.photo = photo_raw.get(first_color, '') if first_color else ''
         else:
@@ -50,13 +48,34 @@ class Product:
         return text
     
     def get_photo(self) -> str:
-        """Возвращает путь к фото"""
         if self.photo and isinstance(self.photo, str) and os.path.exists(self.photo):
             return self.photo
         return ""
     
     def get_attributes(self) -> Dict:
         return self.attributes
+    
+    # ========== НОВЫЕ МЕТОДЫ ДЛЯ ГЛАВНЫХ АТРИБУТОВ ==========
+    
+    def get_main_attributes(self) -> Dict:
+        """Возвращает все главные атрибуты (type: main)"""
+        main_attrs = {}
+        for key, value in self.attributes.items():
+            if isinstance(value, dict) and value.get('type') == 'main':
+                main_attrs[key] = value
+        return main_attrs
+    
+    def get_extra_attributes(self) -> Dict:
+        """Возвращает обычные атрибуты (не main)"""
+        extra_attrs = {}
+        for key, value in self.attributes.items():
+            if not (isinstance(value, dict) and value.get('type') == 'main'):
+                extra_attrs[key] = value
+        return extra_attrs
+    
+    def get_attribute_value(self, attr_key: str, user_id: int, context) -> Optional[str]:
+        """Получает выбранное значение атрибута для пользователя"""
+        return context.user_data.get(f"attr_{attr_key}_{user_id}")
     
     def get_sizes(self) -> List:
         sizes = self.attributes.get('sizes', [])
