@@ -11,14 +11,14 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
         return
     
     # ============================================================
-    # Автоматически выбираем первый вариант главного атрибута,
-    # если ничего не выбрано
+    # ✅ ЕСЛИ НЕТ ВЫБРАННОГО ЗНАЧЕНИЯ — ВОССТАНАВЛИВАЕМ ИЗ USER_DATA
     # ============================================================
     if user_id and context:
         main_attrs = product.get_main_attributes()
         for attr_key in main_attrs.keys():
             existing = context.user_data.get(f"attr_{attr_key}_{user_id}")
             if not existing:
+                # Если нет — выбираем первый вариант
                 attr_value = main_attrs[attr_key]
                 variants = attr_value.get('variants', {})
                 if isinstance(variants, dict):
@@ -30,10 +30,28 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 
                 if first_variant:
                     context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
-                    print(f"✅ Автовыбор: {attr_key} = {first_variant}")
+                    print(f"✅ [show_product] Автовыбор: attr_{attr_key}_{user_id} = {first_variant}")
+                    
+                    if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
+                        context.user_data[f"color_{user_id}"] = first_variant
+                        print(f"✅ [show_product] Автовыбор цвета: color_{user_id} = {first_variant}")
     
-    # Получаем текст с динамическим описанием
-    text = product.get_text(user_id, context)
+    # Получаем текст
+    text = product.get_text()
+    
+    # Добавляем выбранные атрибуты в текст
+    if user_id and context:
+        main_attrs = product.get_main_attributes()
+        selected_attrs = []
+        for attr_key in main_attrs.keys():
+            value = context.user_data.get(f"attr_{attr_key}_{user_id}")
+            if value:
+                display_name = attr_key.capitalize()
+                selected_attrs.append(f"📌 {display_name}: {value}")
+        
+        if selected_attrs:
+            text += "\n\n--- *ВЫБРАНО:* ---"
+            text += "\n" + "\n".join(selected_attrs)
     
     photo = product.get_photo()
     
