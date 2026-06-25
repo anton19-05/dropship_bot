@@ -71,7 +71,10 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_confirm, pattern="^ord_"))
     
     # --- КОРЗИНА (ВСЕ ОБРАБОТЧИКИ!) ---
-    application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^cart_add_"))
+    # ✅ ПРАВИЛЬНЫЙ ПОРЯДОК — от более конкретных к более общим
+    application.add_handler(CallbackQueryHandler(cart_confirm_add, pattern="^cart_confirm_"))    # самый конкретный
+    application.add_handler(CallbackQueryHandler(cart_select_attr, pattern="^cart_attr_"))       # средний
+    application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^cart_add_"))             # самый общий
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
     application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
     application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
@@ -80,8 +83,6 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
-    application.add_handler(CallbackQueryHandler(cart_select_attr, pattern="^cart_attr_"))
-    application.add_handler(CallbackQueryHandler(cart_confirm_add, pattern="^cart_confirm_"))
     
     # --- КАТАЛОГ ---
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))

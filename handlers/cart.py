@@ -14,7 +14,11 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     user_id = query.from_user.id
-    product_code = query.data.replace("cart_add_", "")
+    if query.data.startswith("cart_add_"):
+        product_code = query.data.replace("cart_add_", "")
+    else:
+        # Если это не cart_add_ — выходим
+        return
     
     logger.info(f"🔍 add_to_cart: user_id={user_id}, product_code={product_code}")
     
