@@ -654,7 +654,9 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.replace("attr_", "")
     parts = data.split("_")
     
-    print(f"🔍 select_attribute: parts={parts}")
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] select_attribute: data={data}")
+    print(f"🔍 [DIAGNOSTIC] select_attribute: parts={parts}")
     
     if len(parts) >= 3:
         attr_key = parts[-2]
@@ -667,22 +669,28 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     
-    print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}")
+    print(f"🎯 [DIAGNOSTIC] select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
     
     # ✅ СОХРАНЯЕМ ВЫБРАННЫЙ АТРИБУТ
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
+    print(f"✅ [DIAGNOSTIC] Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
     # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ ОТДЕЛЬНО ДЛЯ КОРЗИНЫ
-    if attr_key == "colors" or attr_key == "цвет":
+    if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
         context.user_data[f"color_{user_id}"] = attr_value
-        print(f"✅ Сохранен цвет: {attr_value}")
+        print(f"✅ [DIAGNOSTIC] Сохранен цвет: color_{user_id} = {attr_value}")
     
-    print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
+    # ✅ ПОСМОТРИМ, ЧТО ЕЩЕ ЕСТЬ В USER_DATA
+    print(f"📋 [DIAGNOSTIC] Все данные user_data для {user_id}:")
+    for key, value in context.user_data.items():
+        if str(user_id) in key:
+            print(f"  {key} = {value}")
     
     # Обновляем карточку
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
+        print(f"🔄 [DIAGNOSTIC] current_color для карточки: {current_color}")
         await show_product(
             query.message.chat_id,
             product_id,

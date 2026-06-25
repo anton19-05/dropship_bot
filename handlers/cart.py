@@ -70,6 +70,9 @@ async def show_cart_attributes(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] show_cart_attributes: user_id={user_id}, product_code={product_code}")
+    
     product = products_manager.get_by_code(product_code)
     
     if not product:
@@ -82,7 +85,9 @@ async def show_cart_attributes(update: Update, context: ContextTypes.DEFAULT_TYP
     if not color:
         color = context.user_data.get(f"color_{user_id}", "белый")
     
-    print(f"✅ show_cart_attributes: color={color}")
+    print(f"✅ [DIAGNOSTIC] show_cart_attributes: color={color}")
+    print(f"📋 [DIAGNOSTIC] attr_colors_{user_id} = {context.user_data.get(f'attr_colors_{user_id}')}")
+    print(f"📋 [DIAGNOSTIC] color_{user_id} = {context.user_data.get(f'color_{user_id}')}")
     
     # ... остальной код ...
     
@@ -171,6 +176,9 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] confirm_add_to_cart: user_id={user_id}, product_code={product_code}")
+    
     product = products_manager.get_by_code(product_code)
     
     if not product:
@@ -178,16 +186,18 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    # ✅ ПОЛУЧАЕМ ЦВЕТ ИЗ ПРАВИЛЬНОГО МЕСТА
-    # Сначала пробуем из attr_colors (главный атрибут)
+    # ✅ ПОЛУЧАЕМ ЦВЕТ
     color = context.user_data.get(f"attr_colors_{user_id}")
     if not color:
-        # Если нет — пробуем из color (старый формат)
         color = context.user_data.get(f"color_{user_id}", "белый")
     
     size = context.user_data.get(f"cart_size_{user_id}")
     
-    print(f"✅ confirm_add_to_cart: color={color}, size={size}")
+    print(f"✅ [DIAGNOSTIC] confirm_add_to_cart: color={color}, size={size}")
+    print(f"📋 [DIAGNOSTIC] attr_colors_{user_id} = {context.user_data.get(f'attr_colors_{user_id}')}")
+    print(f"📋 [DIAGNOSTIC] color_{user_id} = {context.user_data.get(f'color_{user_id}')}")
+    
+    # ... остальной код ...
     
     attrs = product.get_extra_attributes()
     selected_attrs = {}
@@ -257,15 +267,22 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ============================================================
 
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
-    """
-    Показывает корзину с группировкой по товару + цвету.
-    Для каждого цвета показывается своё фото (если есть).
-    """
+    """Показывает корзину с группировкой по товару + цвету."""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     cart = context.user_data.get(f"cart_{user_id}", {})
+    
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] view_cart: user_id={user_id}")
+    print(f"📋 [DIAGNOSTIC] cart содержимое: {cart}")
+    
+    # Проверим каждый элемент корзины
+    for item_key, item in cart.items():
+        print(f"  📦 {item_key}: color={item.get('color')}, size={item.get('size')}, product_code={item.get('product_code')}")
+    
+    # ... остальной код ...
 
     await msg_manager.clear(context.bot, chat_id, user_id)
 
