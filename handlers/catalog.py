@@ -247,7 +247,7 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data[f"last_product_id_{user_id}"] = product_id
 
     # ============================================================
-    # ✅ АВТОМАТИЧЕСКИ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ГЛАВНОГО АТРИБУТА
+    # ✅ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ГЛАВНОГО АТРИБУТА В ОБА МЕСТА
     # ============================================================
     main_attrs = product.get_main_attributes()
     for attr_key in main_attrs.keys():
@@ -263,17 +263,14 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         if first_variant:
             context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
-            print(f"✅ Автовыбор: attr_{attr_key}_{user_id} = {first_variant}")
-            
-            # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ В color_
-            if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
-                context.user_data[f"color_{user_id}"] = first_variant
-                print(f"✅ Автовыбор цвета: color_{user_id} = {first_variant}")
+            context.user_data[f"attr_colors_{user_id}"] = first_variant  # ← ДОБАВЛЕНО!
+            context.user_data[f"color_{user_id}"] = first_variant
+            print(f"✅ Автовыбор: attr_colors_{user_id} = {first_variant}")
 
     colors = product.get_colors()
     default_color = colors[0] if colors else "белый"
     context.user_data[f"color_{user_id}"] = default_color
-    print(f"✅ color_{user_id} = {default_color}")
+    context.user_data[f"attr_colors_{user_id}"] = default_color  # ← ДОБАВЛЕНО!
 
     await show_product(
         chat_id,
@@ -530,7 +527,7 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[f"back_category_{user_id}"] = product.category
 
     # ============================================================
-    # ✅ АВТОМАТИЧЕСКИ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ГЛАВНОГО АТРИБУТА
+    # ✅ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ГЛАВНОГО АТРИБУТА В ОБА МЕСТА
     # ============================================================
     main_attrs = product.get_main_attributes()
     for attr_key in main_attrs.keys():
@@ -545,19 +542,21 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
             first_variant = None
         
         if first_variant:
+            # ✅ СОХРАНЯЕМ В ОБА МЕСТА
             context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
+            context.user_data[f"attr_colors_{user_id}"] = first_variant  # ← ДОБАВЛЕНО!
+            context.user_data[f"color_{user_id}"] = first_variant
             print(f"✅ Автовыбор: attr_{attr_key}_{user_id} = {first_variant}")
-            
-            # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ В color_
-            if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
-                context.user_data[f"color_{user_id}"] = first_variant
-                print(f"✅ Автовыбор цвета: color_{user_id} = {first_variant}")
+            print(f"✅ Автовыбор: attr_colors_{user_id} = {first_variant}")
+            print(f"✅ Автовыбор: color_{user_id} = {first_variant}")
 
-    # Определяем цвет для совместимости со старым кодом
+    # Определяем цвет для совместимости
     colors = product.get_colors()
     default_color = colors[0] if colors else "белый"
     context.user_data[f"color_{user_id}"] = default_color
+    context.user_data[f"attr_colors_{user_id}"] = default_color  # ← ДОБАВЛЕНО!
     print(f"✅ color_{user_id} = {default_color}")
+    print(f"✅ attr_colors_{user_id} = {default_color}")
 
     await show_product(
         query.message.chat_id,
@@ -670,9 +669,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.replace("attr_", "")
     parts = data.split("_")
     
-    # ✅ ДИАГНОСТИКА
-    print(f"🔍 [DIAGNOSTIC] select_attribute: data={data}")
-    print(f"🔍 [DIAGNOSTIC] select_attribute: parts={parts}")
+    print(f"🔍 select_attribute: parts={parts}")
     
     if len(parts) >= 3:
         attr_key = parts[-2]
@@ -685,28 +682,22 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     
-    print(f"🎯 [DIAGNOSTIC] select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
+    print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}")
     
-    # ✅ СОХРАНЯЕМ ВЫБРАННЫЙ АТРИБУТ
+    # ✅ СОХРАНЯЕМ В ОБА МЕСТА
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
-    print(f"✅ [DIAGNOSTIC] Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
-    # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ ОТДЕЛЬНО ДЛЯ КОРЗИНЫ
     if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
+        context.user_data[f"attr_colors_{user_id}"] = attr_value  # ← ДОБАВЛЕНО!
         context.user_data[f"color_{user_id}"] = attr_value
-        print(f"✅ [DIAGNOSTIC] Сохранен цвет: color_{user_id} = {attr_value}")
+        print(f"✅ Сохранен цвет: attr_colors_{user_id} = {attr_value}")
     
-    # ✅ ПОСМОТРИМ, ЧТО ЕЩЕ ЕСТЬ В USER_DATA
-    print(f"📋 [DIAGNOSTIC] Все данные user_data для {user_id}:")
-    for key, value in context.user_data.items():
-        if str(user_id) in key:
-            print(f"  {key} = {value}")
+    print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
     # Обновляем карточку
     product = products_manager.get_by_id(product_id)
     if product:
         current_color = context.user_data.get(f"color_{user_id}", "белый")
-        print(f"🔄 [DIAGNOSTIC] current_color для карточки: {current_color}")
         await show_product(
             query.message.chat_id,
             product_id,

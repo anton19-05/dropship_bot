@@ -11,14 +11,13 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
         return
     
     # ============================================================
-    # ✅ ЕСЛИ НЕТ ВЫБРАННОГО ЗНАЧЕНИЯ — ВОССТАНАВЛИВАЕМ ИЗ USER_DATA
+    # ✅ АВТОМАТИЧЕСКИ ВЫБИРАЕМ ПЕРВЫЙ ВАРИАНТ
     # ============================================================
     if user_id and context:
         main_attrs = product.get_main_attributes()
         for attr_key in main_attrs.keys():
             existing = context.user_data.get(f"attr_{attr_key}_{user_id}")
             if not existing:
-                # Если нет — выбираем первый вариант
                 attr_value = main_attrs[attr_key]
                 variants = attr_value.get('variants', {})
                 if isinstance(variants, dict):
@@ -30,11 +29,10 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 
                 if first_variant:
                     context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
-                    print(f"✅ [show_product] Автовыбор: attr_{attr_key}_{user_id} = {first_variant}")
-                    
                     if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
+                        context.user_data[f"attr_colors_{user_id}"] = first_variant
                         context.user_data[f"color_{user_id}"] = first_variant
-                        print(f"✅ [show_product] Автовыбор цвета: color_{user_id} = {first_variant}")
+                        print(f"✅ [show_product] Автовыбор: attr_colors_{user_id} = {first_variant}")
     
     # Получаем текст
     text = product.get_text()
