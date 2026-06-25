@@ -11,28 +11,18 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
         return
     
     # ============================================================
-    # ✅ АВТОМАТИЧЕСКИ ВЫБИРАЕМ ПЕРВЫЙ ВАРИАНТ
+    # ✅ АВТОВЫБОР ТОЛЬКО ЕСЛИ НЕТ ЦВЕТА
     # ============================================================
     if user_id and context:
-        main_attrs = product.get_main_attributes()
-        for attr_key in main_attrs.keys():
-            existing = context.user_data.get(f"attr_{attr_key}_{user_id}")
-            if not existing:
-                attr_value = main_attrs[attr_key]
-                variants = attr_value.get('variants', {})
-                if isinstance(variants, dict):
-                    first_variant = list(variants.keys())[0] if variants else None
-                elif isinstance(variants, list):
-                    first_variant = variants[0] if variants else None
-                else:
-                    first_variant = None
-                
-                if first_variant:
-                    context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
-                    if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
-                        context.user_data[f"attr_colors_{user_id}"] = first_variant
-                        context.user_data[f"color_{user_id}"] = first_variant
-                        print(f"✅ [show_product] Автовыбор: attr_colors_{user_id} = {first_variant}")
+        existing_color = context.user_data.get(f"color_{user_id}")
+        
+        if not existing_color:
+            colors = product.get_colors()
+            default_color = colors[0] if colors else "белый"
+            context.user_data[f"color_{user_id}"] = default_color
+            print(f"✅ [show_product] color_{user_id} установлен: {default_color}")
+        else:
+            print(f"✅ [show_product] color_{user_id} уже существует: {existing_color}")
     
     # Получаем текст
     text = product.get_text()
@@ -47,8 +37,10 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 display_name = attr_key.capitalize()
                 selected_attrs.append(f"📌 {display_name}: {value}")
         
+        # ✅ ПОКАЗЫВАЕМ ТЕКУЩИЙ ЦВЕТ
+        current_color = context.user_data.get(f"color_{user_id}", "белый")
         if selected_attrs:
-            text += "\n\n--- *ВЫБРАНО:* ---"
+            text += f"\n\n--- *ВЫБРАНО:* ---"
             text += "\n" + "\n".join(selected_attrs)
     
     photo = product.get_photo()
