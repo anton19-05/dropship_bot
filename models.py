@@ -38,25 +38,24 @@ class Product:
     def get_text(self) -> str:
         """Формирует текст для карточки товара в нужном порядке"""
         text = f"📦 *{self.name}*\n\n"
-    
+        
         # 1. Рейтинг и заказы (сразу после названия)
         if self.rating:
             text += f"⭐ Рейтинг: {self.rating}\n"
         if self.orders:
             text += f"📦 Заказов: {self.orders}\n"
         text += "\n"
-    
+        
         # 2. Цена (после рейтинга)
         text += f"💰 Цена: {self.price} руб.\n"
         if self.old_price and self.old_price > self.price:
+            # Зачеркивание через тильды ~~текст~~
             text += f"~~{self.old_price} руб.~~\n"
         text += "\n"
-    
+        
         # 3. Описание товара (после цены)
-        text += f"📝 {self.description}\n"
-    
-        # Убираем "--- ВЫБРАНО: ---" — это будет показывать клавиатура
-    
+        text += f"📝 *Описание товара*\n{self.description}\n"
+        
         return text
     
     def get_photo(self) -> str:
