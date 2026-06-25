@@ -9,32 +9,80 @@ from config import ADMIN_ID
 logger = logging.getLogger(__name__)
 
 
-async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает выбор атрибутов перед добавлением в корзину"""
+async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для всех cart_* callback'ов
+    """
     query = update.callback_query
     await query.answer()
     
+    data = query.data
     user_id = query.from_user.id
-    product_code = query.data.replace("cart_add_", "")
+    chat_id = query.message.chat_id
     
-    logger.info(f"🔍 add_to_cart: user_id={user_id}, product_code={product_code}")
+    logger.info(f"🔍 cart_callback_handler: data={data}")
     
-    product = products_manager.get_by_code(product_code)
-
-    if not product:
-        logger.error(f"❌ add_to_cart: товар не найден! product_code={product_code}")
-        await query.answer("❌ Товар не найден!", show_alert=True)
+    # ============================================================
+    # 1. ВЫБОР АТРИБУТА (cart_attr_)
+    # ============================================================
+    if data.startswith("cart_attr_"):
+        # Парсим: cart_attr_PB-20000_емкость_10000_mah
+        parts = data.replace("cart_attr_", "").split("_")
+        logger.info(f"📋 cart_attr: parts={parts}")
+        
+        if len(parts) >= 3:
+            product_code = parts[0]
+            attr_key = parts[1]
+            attr_value = "_".join(parts[2:])
+            attr_value = attr_value.replace("_", " ").replace("mah", "мАч").replace("w", "W")
+            
+            if attr_key == "size":
+                context.user_data[f"cart_size_{user_id}"] = attr_value
+                logger.info(f"✅ Размер выбран: {attr_value}")
+            else:
+                context.user_data[f"cart_attr_{attr_key}_{user_id}"] = attr_value
+                logger.info(f"✅ Атрибут {attr_key} = {attr_value}")
+            
+            # Обновляем окно выбора атрибутов
+            await show_cart_attributes(update, context, product_code)
+            return
+    
+    # ============================================================
+    # 2. ПОДТВЕРЖДЕНИЕ ДОБАВЛЕНИЯ (cart_confirm_)
+    # ============================================================
+    elif data.startswith("cart_confirm_"):
+        product_code = data.replace("cart_confirm_", "")
+        await confirm_add_to_cart(update, context, product_code)
+        return
+    
+    # ============================================================
+    # 3. ДОБАВЛЕНИЕ В КОРЗИНУ (cart_add_)
+    # ============================================================
+    elif data.startswith("cart_add_"):
+        product_code = data.replace("cart_add_", "")
+        await show_cart_attributes(update, context, product_code)
         return
 
-    logger.info(f"✅ add_to_cart: товар найден: {product.name}")
+
+async def show_cart_attributes(update: Update, context: ContextTypes.DEFAULT_TYPE, product_code: str):
+    """Показывает выбор атрибутов перед добавлением в корзину"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
     
-    # Получаем обычные атрибуты
+    product = products_manager.get_by_code(product_code)
+    
+    if not product:
+        logger.error(f"❌ Товар не найден! product_code={product_code}")
+        await query.answer("❌ Товар не найден!", show_alert=True)
+        return
+    
+    logger.info(f"✅ Товар найден: {product.name}")
+    
     attrs = product.get_extra_attributes()
-    logger.info(f"📋 add_to_cart: атрибуты: {list(attrs.keys())}")
-    
     keyboard = []
     
-    # 1. Размеры (если есть)
+    # 1. Размеры
     if product.has_sizes:
         sizes = product.get_sizes()
         size_row = []
@@ -52,7 +100,7 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if size_row:
             keyboard.append(size_row)
     
-    # 2. Остальные атрибуты (не main и не colors)
+    # 2. Остальные атрибуты
     for key, value in attrs.items():
         if key in ["colors", "sizes"]:
             continue
@@ -62,7 +110,6 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 item_str = str(item)
                 selected = context.user_data.get(f"cart_attr_{key}_{user_id}") == item_str
                 marker = "✅ " if selected else ""
-                # Кодируем для callback
                 encoded_value = item_str.replace(" ", "_").replace("мАч", "mah").replace("W", "w")
                 row.append(InlineKeyboardButton(
                     f"{marker}{item_str}",
@@ -74,13 +121,13 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for i in range(0, len(row), 3):
                     keyboard.append(row[i:i+3])
     
-    # 3. Кнопка "Добавить в корзину"
+    # 3. Кнопки управления
     keyboard.append([InlineKeyboardButton("🛒 Добавить в корзину", callback_data=f"cart_confirm_{product_code}")])
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_product_{product.id}")])
     
     context.user_data[f"cart_product_{user_id}"] = product_code
     
-    # Формируем текст
+    # Текст
     selected_text = ""
     main_attrs = product.get_main_attributes()
     for attr_key in main_attrs.keys():
@@ -94,70 +141,31 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{selected_text}\n\n"
             f"👇 Выберите параметры:")
     
-    chat_id = query.message.chat_id
-    
-    # ✅ УДАЛЯЕМ старое сообщение и отправляем НОВОЕ
+    # Удаляем старое и отправляем новое
     try:
         await query.message.delete()
-        logger.info("🗑️ add_to_cart: старое сообщение удалено")
-    except Exception as e:
-        logger.warning(f"⚠️ add_to_cart: не удалось удалить сообщение: {e}")
+    except:
+        pass
     
-    # Отправляем новое сообщение
     await context.bot.send_message(
         chat_id=chat_id,
         text=text,
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    logger.info("✅ add_to_cart: новое сообщение отправлено")
+    logger.info("✅ Показаны атрибуты для добавления в корзину")
 
 
-async def cart_select_attr(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выбор атрибута при добавлении в корзину"""
+async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, product_code: str):
+    """Подтверждение добавления в корзину"""
     query = update.callback_query
-    await query.answer()
-    
     user_id = query.from_user.id
-    data = query.data.replace("cart_attr_", "")
-    parts = data.split("_")
-    
-    logger.info(f"🔍 cart_select_attr: user_id={user_id}, data={data}, parts={parts}")
-    
-    if len(parts) < 3:
-        logger.warning(f"⚠️ cart_select_attr: недостаточно данных: {parts}")
-        return
-    
-    product_code = parts[0]
-    attr_key = parts[1]
-    attr_value = "_".join(parts[2:])
-    attr_value = attr_value.replace("_", " ").replace("mah", "мАч").replace("w", "W")
-    
-    if attr_key == "size":
-        context.user_data[f"cart_size_{user_id}"] = attr_value
-        logger.info(f"✅ cart_select_attr: размер выбран: {attr_value}")
-    else:
-        context.user_data[f"cart_attr_{attr_key}_{user_id}"] = attr_value
-        logger.info(f"✅ cart_select_attr: {attr_key} = {attr_value}")
-    
-    # Обновляем окно выбора атрибутов
-    await add_to_cart(update, context)
-
-
-async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Подтверждение добавления в корзину с выбранными атрибутами"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    product_code = query.data.replace("cart_confirm_", "")
-    
-    logger.info(f"🔍 cart_confirm_add: user_id={user_id}, product_code={product_code}")
+    chat_id = query.message.chat_id
     
     product = products_manager.get_by_code(product_code)
     
     if not product:
-        logger.error(f"❌ cart_confirm_add: товар не найден!")
+        logger.error(f"❌ Товар не найден! product_code={product_code}")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
@@ -171,7 +179,6 @@ async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             attr_value = context.user_data.get(f"cart_attr_{key}_{user_id}")
             if attr_value:
                 selected_attrs[key] = attr_value
-                logger.info(f"✅ cart_confirm_add: {key} = {attr_value}")
     
     # Добавляем в корзину
     cart_key = f"cart_{user_id}"
@@ -182,7 +189,6 @@ async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if item_key in context.user_data[cart_key]:
         context.user_data[cart_key][item_key]["quantity"] += 1
-        logger.info(f"✅ cart_confirm_add: количество увеличено")
     else:
         item_data = {
             "product_code": product_code,
@@ -194,7 +200,6 @@ async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             **selected_attrs
         }
         context.user_data[cart_key][item_key] = item_data
-        logger.info(f"✅ cart_confirm_add: новый товар добавлен")
 
     # Очищаем временные данные
     context.user_data.pop(f"cart_size_{user_id}", None)
@@ -212,14 +217,11 @@ async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"✅ *{product.name} добавлен в корзину!*{attrs_text}"
     
-    chat_id = query.message.chat_id
-    
-    # ✅ УДАЛЯЕМ старое сообщение и отправляем НОВОЕ
+    # Удаляем старое и отправляем новое
     try:
         await query.message.delete()
-        logger.info("🗑️ cart_confirm_add: старое сообщение удалено")
-    except Exception as e:
-        logger.warning(f"⚠️ cart_confirm_add: не удалось удалить сообщение: {e}")
+    except:
+        pass
     
     await context.bot.send_message(
         chat_id=chat_id,
@@ -230,7 +232,7 @@ async def cart_confirm_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔙 Продолжить покупки", callback_data="main_back")]
         ])
     )
-    logger.info("✅ cart_confirm_add: новое сообщение отправлено")
+    logger.info("✅ Товар добавлен в корзину")
 
 
 # ============================================================

@@ -10,8 +10,11 @@ from config import TOKEN
 from handlers.profile import profile, edit_profile_start, handle_profile_input, editing_state
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
-    add_to_cart, cart_select_size, view_cart,
-    cart_increase, cart_decrease, cart_remove, view_cart_from_profile, view_cart_from_product, cart_remove_group, cart_select_attr, cart_confirm_add, cart_confirm_quantity
+    cart_callback_handler,  # ← УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК
+    view_cart,
+    cart_increase, cart_decrease, cart_remove,
+    view_cart_from_profile, view_cart_from_product, cart_remove_group,
+    cart_select_size, cart_confirm_quantity, add_quantity_selection
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
 from handlers.start import start, main_back
@@ -70,13 +73,14 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_select_attr, pattern="^oat_"))
     application.add_handler(CallbackQueryHandler(order_confirm, pattern="^ord_"))
     
-    # --- КОРЗИНА (ВСЕ ОБРАБОТЧИКИ!) ---
-    # ✅ ПРАВИЛЬНЫЙ ПОРЯДОК — от более конкретных к более общим
-    application.add_handler(CallbackQueryHandler(cart_confirm_add, pattern="^cart_confirm_"))    # самый конкретный
-    application.add_handler(CallbackQueryHandler(cart_select_attr, pattern="^cart_attr_"))       # средний
-    application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^cart_add_"))             # самый общий
-    application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
-    application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
+    # ============================================================
+    # ✅ КОРЗИНА — ПРАВИЛЬНЫЙ ПОРЯДОК
+    # ============================================================
+    
+    # 1. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для cart_* (cart_attr_, cart_confirm_, cart_add_)
+    application.add_handler(CallbackQueryHandler(cart_callback_handler, pattern="^cart_"))
+    
+    # 2. ОТДЕЛЬНЫЕ ОБРАБОТЧИКИ (не начинаются с cart_)
     application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
     application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
     application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
@@ -84,6 +88,10 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
+    
+    # 3. ДЛЯ РАЗМЕРОВ (если не используются через универсальный)
+    application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
+    application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
     
     # --- КАТАЛОГ ---
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
