@@ -23,7 +23,9 @@ from handlers.cart import (
     cart_incr_color,          # ✅ увеличение по цвету
     cart_decr_color,          # ✅ уменьшение по цвету
     cart_remove_color,        # ✅ удаление цвета
-    clear_cart                # ✅ очистка всей корзины
+    clear_cart,
+    cart_incr_group,
+    cart_decr_group
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
 from handlers.start import start, main_back
@@ -141,6 +143,9 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decr_color, pattern="^cart_decr_color_"))
     application.add_handler(CallbackQueryHandler(cart_remove_color, pattern="^cart_remove_color_"))
     application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
+    application.add_handler(CallbackQueryHandler(cart_incr_group, pattern="^cart_incr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_decr_group, pattern="^cart_decr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
     
     # --- ОТЗЫВЫ ---
     application.add_handler(CallbackQueryHandler(show_reviews, pattern="^reviews_"))
