@@ -37,18 +37,12 @@ def get_subcategories_keyboard(category_id):
 def get_product_keyboard(product, current_color=None, category=None, page=0, context=None, user_id=None):
     """
     Создает клавиатуру для карточки товара.
-    
-    В карточке товара отображаются ТОЛЬКО:
-    1. Главные атрибуты (type: main) — с галочками ✅
-    2. Кнопки: Отзывы, В корзину, В избранное, Корзина, Избранное, Заказать, Назад
-    
-    Обычные атрибуты (без type: main) НЕ отображаются в карточке!
-    Они будут показаны при нажатии "Заказать" или "В корзину".
+    Галочка ✅ автоматически ставится на выбранный вариант.
     """
     keyboard = []
     
     # ============================================================
-    # 1. ТОЛЬКО ГЛАВНЫЕ АТРИБУТЫ (type: main) — отображаются в карточке
+    # 1. ГЛАВНЫЕ АТРИБУТЫ (type: main) — отображаются в карточке
     # ============================================================
     main_attrs = product.get_main_attributes()
     
@@ -67,7 +61,17 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
         # Получаем выбранное значение для этого атрибута
         selected = context.user_data.get(f"attr_{attr_key}_{user_id}") if context and user_id else None
         
-        # Создаем ряд кнопок для атрибута
+        # Если ничего не выбрано — выбираем первый вариант (для галочки)
+        if not selected and variant_names:
+            selected = variant_names[0]
+            if context and user_id:
+                context.user_data[f"attr_{attr_key}_{user_id}"] = selected
+        
+        # Заголовок атрибута (без лишнего текста)
+        display_name = attr_key.capitalize()
+        keyboard.append([InlineKeyboardButton(f"📌 {display_name}:", callback_data="noop")])
+        
+        # Создаем ряд кнопок с галочками
         row = []
         for variant in variant_names:
             marker = "✅ " if selected == variant else ""
@@ -76,22 +80,12 @@ def get_product_keyboard(product, current_color=None, category=None, page=0, con
                 callback_data=f"attr_{product.id}_{attr_key}_{variant}"
             ))
         
-        # Добавляем заголовок атрибута
-        display_name = attr_key.capitalize()
-        if row:
-            keyboard.append([InlineKeyboardButton(f"📌 {display_name}:", callback_data="noop")])
-            # Разбиваем на ряды по 3 кнопки
-            for i in range(0, len(row), 3):
-                keyboard.append(row[i:i+3])
+        # Разбиваем на ряды по 3 кнопки
+        for i in range(0, len(row), 3):
+            keyboard.append(row[i:i+3])
     
     # ============================================================
-    # 2. РАЗМЕРЫ — НЕ ДОБАВЛЯЕМ В КАРТОЧКУ!
-    # Они будут показаны при нажатии "Заказать" или "В корзину"
-    # ============================================================
-    # Размеры УДАЛЕНЫ из карточки!
-    
-    # ============================================================
-    # 3. ОСТАЛЬНЫЕ КНОПКИ (без изменений)
+    # 2. ОСТАЛЬНЫЕ КНОПКИ (без изменений)
     # ============================================================
     keyboard.extend([
         [InlineKeyboardButton("⭐ Отзывы", callback_data=f"reviews_{product.id}")],

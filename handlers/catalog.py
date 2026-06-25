@@ -246,17 +246,24 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data[f"last_product_id_{user_id}"] = product_id
 
-    attrs = product.get_attributes()
-    colors = attrs.get("colors", {})
-    
-    if isinstance(colors, dict) and colors.get("type") == "main":
-        variants = colors.get("variants", {})
-        default_color = list(variants.keys())[0] if variants else "белый"
-    elif isinstance(colors, list):
-        default_color = colors[0] if colors else "белый"
-    else:
-        default_color = "белый"
-    
+    # Определяем главный атрибут и выбираем первый вариант
+    main_attrs = product.get_main_attributes()
+    for attr_key in main_attrs.keys():
+        attr_value = main_attrs[attr_key]
+        variants = attr_value.get('variants', {})
+        if isinstance(variants, dict):
+            first_variant = list(variants.keys())[0] if variants else None
+        elif isinstance(variants, list):
+            first_variant = variants[0] if variants else None
+        else:
+            first_variant = None
+        
+        if first_variant:
+            context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
+
+    # Определяем цвет для совместимости со старым кодом
+    colors = product.get_colors()
+    default_color = colors[0] if colors else "белый"
     context.user_data[f"color_{user_id}"] = default_color
 
     await show_product(
@@ -484,19 +491,27 @@ async def back_to_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Переход к карточке товара из списка товаров"""
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
     product_id = query.data.replace("goto_product_", "")
     
+    print(f"🔍 goto_product: product_id={product_id}, user_id={user_id}")
+    
     product = products_manager.get_by_id(product_id)
+    
     if not product:
+        print(f"❌ goto_product: товар не найден! product_id={product_id}")
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
 
+    print(f"✅ goto_product: товар найден: {product.name}")
+    
     context.user_data[f"last_product_id_{user_id}"] = product_id
 
+    # Сохраняем страницу и категорию для возврата
     if user_id in user_states:
         current_page = user_states[user_id].get("page", 0)
         current_category = user_states[user_id].get("category", product.category)
@@ -506,18 +521,26 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[f"back_page_{user_id}"] = 0
         context.user_data[f"back_category_{user_id}"] = product.category
 
-    # Определяем первый цвет
-    attrs = product.get_attributes()
-    colors = attrs.get("colors", {})
-    
-    if isinstance(colors, dict) and colors.get("type") == "main":
-        variants = colors.get("variants", {})
-        default_color = list(variants.keys())[0] if variants else "белый"
-    elif isinstance(colors, list):
-        default_color = colors[0] if colors else "белый"
-    else:
-        default_color = "белый"
-    
+    # Автоматически выбираем первый вариант для каждого главного атрибута
+    main_attrs = product.get_main_attributes()
+    for attr_key in main_attrs.keys():
+        attr_value = main_attrs[attr_key]
+        variants = attr_value.get('variants', {})
+        
+        if isinstance(variants, dict):
+            first_variant = list(variants.keys())[0] if variants else None
+        elif isinstance(variants, list):
+            first_variant = variants[0] if variants else None
+        else:
+            first_variant = None
+        
+        if first_variant:
+            context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
+            print(f"✅ Автовыбор: {attr_key} = {first_variant}")
+
+    # Определяем цвет для совместимости со старым кодом
+    colors = product.get_colors()
+    default_color = colors[0] if colors else "белый"
     context.user_data[f"color_{user_id}"] = default_color
 
     await show_product(
@@ -533,8 +556,8 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await query.message.delete()
-    except:
-        pass
+    except Exception as e:
+        print(f"⚠️ Не удалось удалить сообщение: {e}")
 
 
 async def back_to_category(update: Update, context: ContextTypes.DEFAULT_TYPE):

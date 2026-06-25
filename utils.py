@@ -10,23 +10,32 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if not product:
         return
     
-    # Получаем основной текст карточки
-    text = product.get_text()
-    
-    # Добавляем выбранные главные атрибуты под описанием (если они выбраны)
+    # ============================================================
+    # Автоматически выбираем первый вариант главного атрибута,
+    # если ничего не выбрано
+    # ============================================================
     if user_id and context:
         main_attrs = product.get_main_attributes()
-        selected_attrs = []
-        
         for attr_key in main_attrs.keys():
-            value = context.user_data.get(f"attr_{attr_key}_{user_id}")
-            if value:
-                display_name = attr_key.capitalize()
-                selected_attrs.append(f"📌 {display_name}: {value}")
-        
-        if selected_attrs:
-            text += "\n\n--- *ВЫБРАНО:* ---"
-            text += "\n" + "\n".join(selected_attrs)
+            # Проверяем, есть ли уже выбранное значение
+            existing = context.user_data.get(f"attr_{attr_key}_{user_id}")
+            if not existing:
+                # Если нет — выбираем первый вариант
+                attr_value = main_attrs[attr_key]
+                variants = attr_value.get('variants', {})
+                if isinstance(variants, dict):
+                    first_variant = list(variants.keys())[0] if variants else None
+                elif isinstance(variants, list):
+                    first_variant = variants[0] if variants else None
+                else:
+                    first_variant = None
+                
+                if first_variant:
+                    context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
+                    print(f"✅ Автовыбор: {attr_key} = {first_variant}")
+    
+    # Получаем основной текст карточки (без лишнего текста)
+    text = product.get_text()
     
     photo = product.get_photo()
     
