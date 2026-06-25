@@ -657,7 +657,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[f"color_{user_id}"] = attr_value
         print(f"✅ Сохранен цвет: color_{user_id} = {attr_value}")
     
-    # Сохраняем атрибут
+    # ✅ ВСЕГДА СОХРАНЯЕМ АТРИБУТ (цвет или нет)
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
