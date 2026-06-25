@@ -77,6 +77,15 @@ async def show_cart_attributes(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
+    # ✅ ПОЛУЧАЕМ ЦВЕТ
+    color = context.user_data.get(f"attr_colors_{user_id}")
+    if not color:
+        color = context.user_data.get(f"color_{user_id}", "белый")
+    
+    print(f"✅ show_cart_attributes: color={color}")
+    
+    # ... остальной код ...
+    
     logger.info(f"✅ Товар найден: {product.name}")
     
     attrs = product.get_extra_attributes()
@@ -169,8 +178,16 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    color = context.user_data.get(f"color_{user_id}", "белый")
+    # ✅ ПОЛУЧАЕМ ЦВЕТ ИЗ ПРАВИЛЬНОГО МЕСТА
+    # Сначала пробуем из attr_colors (главный атрибут)
+    color = context.user_data.get(f"attr_colors_{user_id}")
+    if not color:
+        # Если нет — пробуем из color (старый формат)
+        color = context.user_data.get(f"color_{user_id}", "белый")
+    
     size = context.user_data.get(f"cart_size_{user_id}")
+    
+    print(f"✅ confirm_add_to_cart: color={color}, size={size}")
     
     attrs = product.get_extra_attributes()
     selected_attrs = {}

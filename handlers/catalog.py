@@ -656,11 +656,7 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     print(f"🔍 select_attribute: parts={parts}")
     
-    # ВАЖНО: правильно парсим product_id, attr_key, attr_value
     if len(parts) >= 3:
-        # product_id может содержать подчёркивания (classic_shoes)
-        # attr_key — предпоследняя часть
-        # attr_value — последняя часть
         attr_key = parts[-2]
         attr_value = parts[-1]
         product_id = "_".join(parts[:-2])
@@ -671,10 +667,16 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     
-    print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}, user_id={user_id}")
+    print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}")
     
-    # Сохраняем
+    # ✅ СОХРАНЯЕМ ВЫБРАННЫЙ АТРИБУТ
     context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
+    
+    # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ ОТДЕЛЬНО ДЛЯ КОРЗИНЫ
+    if attr_key == "colors" or attr_key == "цвет":
+        context.user_data[f"color_{user_id}"] = attr_value
+        print(f"✅ Сохранен цвет: {attr_value}")
+    
     print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
     # Обновляем карточку
