@@ -527,57 +527,14 @@ async def goto_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[f"back_category_{user_id}"] = product.category
 
     # ============================================================
-    # ✅ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ГЛАВНОГО АТРИБУТА
+    # ✅ СОХРАНЯЕМ ПЕРВЫЙ ВАРИАНТ ЦВЕТА
     # ============================================================
-    main_attrs = product.get_main_attributes()
-    
-    # ВАЖНО: проверяем ключ "цвет" (русский язык)
-    if "цвет" in main_attrs:
-        attr_value = main_attrs["цвет"]
-        variants = attr_value.get('variants', {})
-        
-        if isinstance(variants, dict):
-            first_variant = list(variants.keys())[0] if variants else None
-        elif isinstance(variants, list):
-            first_variant = variants[0] if variants else None
-        else:
-            first_variant = None
-        
-        if first_variant:
-            # ✅ СОХРАНЯЕМ В ОБА МЕСТА
-            context.user_data[f"attr_цвет_{user_id}"] = first_variant
-            context.user_data[f"attr_colors_{user_id}"] = first_variant
-            context.user_data[f"color_{user_id}"] = first_variant
-            print(f"✅ Автовыбор: цвет = {first_variant}")
-            print(f"✅ attr_colors_{user_id} = {first_variant}")
-            print(f"✅ color_{user_id} = {first_variant}")
-    else:
-        # Если нет "цвет", проверяем другие ключи
-        for attr_key in main_attrs.keys():
-            attr_value = main_attrs[attr_key]
-            variants = attr_value.get('variants', {})
-            
-            if isinstance(variants, dict):
-                first_variant = list(variants.keys())[0] if variants else None
-            elif isinstance(variants, list):
-                first_variant = variants[0] if variants else None
-            else:
-                first_variant = None
-            
-            if first_variant:
-                context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
-                if attr_key in ["colors", "color"]:
-                    context.user_data[f"attr_colors_{user_id}"] = first_variant
-                    context.user_data[f"color_{user_id}"] = first_variant
-                print(f"✅ Автовыбор: {attr_key} = {first_variant}")
-
-    # Определяем цвет по умолчанию
     colors = product.get_colors()
     default_color = colors[0] if colors else "белый"
+    
+    # ✅ СОХРАНЯЕМ В ОДНО МЕСТО — color_{user_id}
     context.user_data[f"color_{user_id}"] = default_color
-    context.user_data[f"attr_colors_{user_id}"] = default_color
     print(f"✅ color_{user_id} = {default_color}")
-    print(f"✅ attr_colors_{user_id} = {default_color}")
 
     await show_product(
         query.message.chat_id,
@@ -705,14 +662,13 @@ async def select_attribute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     print(f"🎯 select_attribute: product_id={product_id}, attr_key={attr_key}, attr_value={attr_value}")
     
-    # ✅ СОХРАНЯЕМ В ОБА МЕСТА
-    context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
-    
-    if attr_key == "colors" or attr_key == "цвет" or attr_key == "color":
-        context.user_data[f"attr_colors_{user_id}"] = attr_value  # ← ДОБАВЛЕНО!
+    # ✅ ЕСЛИ ЭТО ЦВЕТ — СОХРАНЯЕМ В color_
+    if attr_key in ["colors", "цвет", "color"]:
         context.user_data[f"color_{user_id}"] = attr_value
-        print(f"✅ Сохранен цвет: attr_colors_{user_id} = {attr_value}")
+        print(f"✅ Сохранен цвет: color_{user_id} = {attr_value}")
     
+    # Сохраняем атрибут
+    context.user_data[f"attr_{attr_key}_{user_id}"] = attr_value
     print(f"✅ Сохранено: attr_{attr_key}_{user_id} = {attr_value}")
     
     # Обновляем карточку
