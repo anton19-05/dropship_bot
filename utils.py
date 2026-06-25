@@ -17,10 +17,8 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if user_id and context:
         main_attrs = product.get_main_attributes()
         for attr_key in main_attrs.keys():
-            # Проверяем, есть ли уже выбранное значение
             existing = context.user_data.get(f"attr_{attr_key}_{user_id}")
             if not existing:
-                # Если нет — выбираем первый вариант
                 attr_value = main_attrs[attr_key]
                 variants = attr_value.get('variants', {})
                 if isinstance(variants, dict):
@@ -34,8 +32,8 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                     context.user_data[f"attr_{attr_key}_{user_id}"] = first_variant
                     print(f"✅ Автовыбор: {attr_key} = {first_variant}")
     
-    # Получаем основной текст карточки (без лишнего текста)
-    text = product.get_text()
+    # Получаем текст с динамическим описанием
+    text = product.get_text(user_id, context)
     
     photo = product.get_photo()
     

@@ -16,7 +16,7 @@ class Product:
         self.category = data.get('category', '')
         self.price = data.get('price', 0)
         self.old_price = data.get('old_price', 0)
-        self.description = data.get('description', '')
+        self.description = data.get('description', '')  # общее описание (если нет в атрибутах)
         
         photo_raw = data.get('photo', '')
         if isinstance(photo_raw, dict):
@@ -35,26 +35,49 @@ class Product:
         self.colors_reviews = data.get('colors_reviews', {})
         self.colors_reviews_text = data.get('colors_reviews_text', {})
     
-    def get_text(self) -> str:
-        """Формирует текст для карточки товара в нужном порядке"""
+    def get_description_for_attributes(self, user_id: int, context) -> str:
+        """
+        Получает описание на основе выбранных главных атрибутов.
+        Если у варианта атрибута есть поле 'description' - используем его.
+        Иначе используем общее описание из колонки description.
+        """
+        main_attrs = self.get_main_attributes()
+        
+        # Проверяем, есть ли описание в выбранных вариантах
+        for attr_key, attr_value in main_attrs.items():
+            variants = attr_value.get('variants', {})
+            selected = context.user_data.get(f"attr_{attr_key}_{user_id}") if user_id and context else None
+            
+            if selected and selected in variants:
+                variant_data = variants[selected]
+                if isinstance(variant_data, dict) and 'description' in variant_data:
+                    return variant_data['description']
+                elif isinstance(variant_data, str):
+                    return variant_data
+        
+        # Если нет описания в атрибутах — используем общее описание
+        return self.description
+    
+    def get_text(self, user_id: int = None, context = None) -> str:
+        """Формирует текст для карточки товара с динамическим описанием"""
         text = f"📦 *{self.name}*\n\n"
         
-        # 1. Рейтинг и заказы (сразу после названия)
+        # 1. Рейтинг и заказы
         if self.rating:
             text += f"⭐ Рейтинг: {self.rating}\n"
         if self.orders:
             text += f"📦 Заказов: {self.orders}\n"
         text += "\n"
         
-        # 2. Цена (после рейтинга)
+        # 2. Цена
         text += f"💰 Цена: {self.price} руб.\n"
         if self.old_price and self.old_price > self.price:
-            # Зачеркивание через тильды ~~текст~~
             text += f"~~{self.old_price} руб.~~\n"
         text += "\n"
         
-        # 3. Описание товара (после цены)
-        text += f"📝 *Описание товара*\n{self.description}\n"
+        # 3. Описание товара (динамическое)
+        description = self.get_description_for_attributes(user_id, context)
+        text += f"📝 *Описание товара*\n{description}\n"
         
         return text
     
@@ -83,7 +106,6 @@ class Product:
         return extra_attrs
     
     def get_attribute_value(self, attr_key: str, user_id: int, context) -> Optional[str]:
-        """Получает выбранное значение атрибута для пользователя"""
         return context.user_data.get(f"attr_{attr_key}_{user_id}")
     
     def get_sizes(self) -> List:
