@@ -45,16 +45,16 @@ class Product:
         if self.orders:
             text += f"📦 Заказов: {self.orders}\n"
         text += "\n"
-    
+        
         # 2. Цена (после рейтинга)
         text += f"💰 Цена: {self.price} руб.\n"
         if self.old_price and self.old_price > self.price:
             text += f"~~{self.old_price} руб.~~\n"
         text += "\n"
-    
+        
         # 3. Описание товара (после цены)
         text += f"📝 {self.description}\n"
-    
+        
         return text
     
     def get_photo(self) -> str:
@@ -64,8 +64,6 @@ class Product:
     
     def get_attributes(self) -> Dict:
         return self.attributes
-    
-    # ========== НОВЫЕ МЕТОДЫ ДЛЯ ГЛАВНЫХ АТРИБУТОВ ==========
     
     def get_main_attributes(self) -> Dict:
         """Возвращает все главные атрибуты (type: main)"""
