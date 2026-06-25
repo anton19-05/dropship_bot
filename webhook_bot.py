@@ -10,11 +10,14 @@ from config import TOKEN
 from handlers.profile import profile, edit_profile_start, handle_profile_input, editing_state
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
-    cart_callback_handler,  # ← УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК
+    cart_callback_handler,
     view_cart,
     cart_increase, cart_decrease, cart_remove,
     view_cart_from_profile, view_cart_from_product, cart_remove_group,
-    cart_select_size, cart_confirm_quantity, add_quantity_selection
+    cart_select_size, cart_confirm_quantity, add_quantity_selection,
+    cart_increase_group,   # ← НОВЫЙ ИМПОРТ
+    cart_decrease_group,   # ← НОВЫЙ ИМПОРТ
+    clear_cart             # ← НОВЫЙ ИМПОРТ
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
 from handlers.start import start, main_back
@@ -107,6 +110,12 @@ def main() -> None:
     # --- КАТЕГОРИИ ---
     application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))
     application.add_handler(CallbackQueryHandler(show_subcategory_products, pattern="^subcat_"))
+
+    # --- КОРЗИНА (дополнительные обработчики для группировки) ---
+    application.add_handler(CallbackQueryHandler(cart_increase_group, pattern="^cart_incr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_decrease_group, pattern="^cart_decr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
+    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     
     # --- ОТЗЫВЫ ---
     application.add_handler(CallbackQueryHandler(show_reviews, pattern="^reviews_"))
