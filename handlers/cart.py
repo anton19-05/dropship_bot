@@ -186,11 +186,19 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ✅ ПОЛУЧАЕМ ЦВЕТ
     color = context.user_data.get(f"attr_colors_{user_id}")
     if not color:
-        color = context.user_data.get(f"color_{user_id}", "белый")
+        color = context.user_data.get(f"color_{user_id}")
+    if not color:
+        # Проверяем attr_цвет_
+        color = context.user_data.get(f"attr_цвет_{user_id}")
+    if not color:
+        color = "белый"
     
     size = context.user_data.get(f"cart_size_{user_id}")
     
     print(f"✅ [DIAGNOSTIC] confirm_add_to_cart: color={color}, size={size}")
+    print(f"📋 attr_colors_{user_id} = {context.user_data.get(f'attr_colors_{user_id}')}")
+    print(f"📋 color_{user_id} = {context.user_data.get(f'color_{user_id}')}")
+    print(f"📋 attr_цвет_{user_id} = {context.user_data.get(f'attr_цвет_{user_id}')}")
     
     attrs = product.get_extra_attributes()
     selected_attrs = {}
@@ -205,7 +213,7 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
-    # ✅ ИСПРАВЛЕНО: ключ с УЧЕТОМ ЦВЕТА
+    # ✅ КЛЮЧ С УЧЕТОМ ЦВЕТА
     if size:
         item_key = f"{product_code}_{color}_{size}"
     else:
