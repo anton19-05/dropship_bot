@@ -479,24 +479,29 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             text = f"👟 *{product.name}*\n"
             text += f"💰 {product.price} руб/шт\n"
 
-            # Показываем главный атрибут
+            # Показываем главный атрибут (например, "Цвет: коричневый")
             display_name = main_attr_key.capitalize()
             text += f"{display_name}: {main_attr_value}\n"
 
-            # Показываем остальные атрибуты
+            # Показываем остальные атрибуты (без дублирования главного)
             variant_list = list(variants.items())
-            if len(variant_list) == 1:
-                # Один вариант — показываем компактно
-                for v_key, v_data in variant_list:
-                    text += f"{v_data['label']} | {v_data['quantity']} шт\n"
-            else:
-                # Несколько вариантов — список
-                for v_key, v_data in variant_list:
-                    label = v_data['label']
-                    # Убираем дублирование главного атрибута
-                    if main_attr_key and main_attr_value:
-                        label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
-                    text += f"  {label} | {v_data['quantity']} шт\n"
+            for v_key, v_data in variant_list:
+                label = v_data['label']
+                qty = v_data['quantity']
+                
+                # Убираем дублирование главного атрибута из label
+                # (например, "Цвет: коричневый | Размер: 36" → "Размер: 36")
+                if main_attr_key and main_attr_value:
+                    # Удаляем из label упоминание главного атрибута
+                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
+                    label = label.replace(main_pattern, "").strip(" | ")
+                
+                # Если label пустой — показываем просто количество
+                if not label:
+                    text += f"{qty} шт\n"
+                else:
+                    # Заменяем "Размер: 36" на "Размер: 36"
+                    text += f"{label} | {qty} шт\n"
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
@@ -505,11 +510,18 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             for v_key, v_data in variants.items():
                 qty = v_data["quantity"]
                 first_item_key = v_data["item_keys"][0]
-                # Формируем кнопку с атрибутами
                 label = v_data['label']
-                # Убираем дублирование главного атрибута для кнопки
+                
+                # Убираем дублирование главного атрибута из label для кнопки
                 if main_attr_key and main_attr_value:
-                    label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
+                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
+                    label = label.replace(main_pattern, "").strip(" | ")
+                
+                # Для кнопки оставляем только значение (например, "36" вместо "Размер: 36")
+                # Убираем название атрибута, оставляем только значение
+                if ": " in label:
+                    label = label.split(": ")[-1]
+                
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(label, callback_data="noop"),
@@ -529,7 +541,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             # Группируем варианты по главному атрибуту (если есть)
             attr_groups = {}
             for v_key, v_data in variants.items():
-                # Находим главный атрибут в варианте
                 main_attr_val = None
                 if main_attr_key:
                     main_attr_val = v_data["item"].get(main_attr_key)
@@ -544,14 +555,19 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 if attr_val != "Стандарт":
                     text += f"{main_attr_key.capitalize()}: {attr_val}\n"
 
-                # Показываем подварианты
                 for v_data in variant_list:
                     label = v_data['label']
+                    qty = v_data['quantity']
+                    
                     # Убираем дублирование главного атрибута
                     if main_attr_key and attr_val:
-                        label = label.replace(f"{main_attr_key.capitalize()}: {attr_val}", "").strip(" | ")
-                    if label:
-                        text += f"  {label} | {v_data['quantity']} шт\n"
+                        main_pattern = f"{main_attr_key.capitalize()}: {attr_val}"
+                        label = label.replace(main_pattern, "").strip(" | ")
+                    
+                    if not label:
+                        text += f"  {qty} шт\n"
+                    else:
+                        text += f"  {label} | {qty} шт\n"
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
@@ -560,13 +576,23 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             for v_key, v_data in variants.items():
                 qty = v_data["quantity"]
                 first_item_key = v_data["item_keys"][0]
-                # Формируем кнопку с атрибутами
                 label = v_data['label']
+                
                 # Убираем дублирование главного атрибута
                 if main_attr_key and main_attr_value:
-                    label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
-                # Заменяем запятые на перенос строки для кнопок
-                button_label = label.replace(", ", "\n")
+                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
+                    label = label.replace(main_pattern, "").strip(" | ")
+                
+                # Убираем все названия атрибутов, оставляем только значения
+                # Например: "Цвет: коричневый | Размер: 36" → "коричневый | 36"
+                parts = []
+                for part in label.split(" | "):
+                    if ": " in part:
+                        parts.append(part.split(": ")[-1])
+                    else:
+                        parts.append(part)
+                button_label = "\n".join(parts)  # Для кнопки с переносом строки
+                
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(button_label, callback_data="noop"),
