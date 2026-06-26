@@ -80,10 +80,20 @@ class Product:
         text += f"📝 *Описание товара*\n{description}\n"
         
         return text
+
+    def get_photo(self, color: str = None) -> str:
+        """Возвращает путь к фото для конкретного цвета"""
+        # Если указан цвет и есть photos
+        if color and hasattr(self, 'photos') and isinstance(self.photos, dict):
+            if color in self.photos and self.photos[color]:
+                photo_path = self.photos[color]
+                if os.path.exists(photo_path):
+                    return photo_path
     
-    def get_photo(self) -> str:
+        # Если не нашли — возвращаем основное фото
         if self.photo and isinstance(self.photo, str) and os.path.exists(self.photo):
             return self.photo
+    
         return ""
     
     def get_attributes(self) -> Dict:
