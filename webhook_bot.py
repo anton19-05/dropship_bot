@@ -10,23 +10,24 @@ from config import TOKEN
 from handlers.profile import profile, edit_profile_start, handle_profile_input, editing_state
 from handlers.favorites import add_to_favorites, view_favorites, fav_to_cart, fav_remove
 from handlers.cart import (
-    cart_callback_handler,    # ✅ универсальный обработчик cart_*
-    view_cart,                # ✅ просмотр корзины
-    cart_increase,            # ✅ увеличение количества
-    cart_decrease,            # ✅ уменьшение количества
-    cart_remove,              # ✅ удаление позиции
-    view_cart_from_profile,   # ✅ корзина из профиля
-    view_cart_from_product,   # ✅ корзина из карточки товара
-    cart_remove_group,        # ✅ удаление группы (если используется)
-    cart_select_size,         # ✅ выбор размера
-    cart_confirm_quantity,    # ✅ подтверждение количества
-    cart_incr_color,          # ✅ увеличение по цвету
-    cart_decr_color,          # ✅ уменьшение по цвету
-    cart_remove_color,        # ✅ удаление цвета
+    cart_callback_handler,
+    view_cart,
+    cart_increase,
+    cart_decrease,
+    cart_remove,
+    view_cart_from_profile,
+    view_cart_from_product,
+    cart_remove_group,
+    cart_select_size,
+    cart_confirm_quantity,
+    cart_incr_color,
+    cart_decr_color,
+    cart_remove_color,
     clear_cart,
     cart_incr_group,
     cart_decr_group,
     cart_change_variant,
+    cart_remove_all,
     cart_remove_all_variants
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
@@ -47,19 +48,16 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     print(f"🔍 handle_all_text ВЫЗВАНА! user_id={user_id}")
     
-    # Проверяем, в процессе ли редактирования профиля
     if user_id in editing_state:
         print(f"✅ Режим редактирования профиля, вызываем handle_profile_input")
         await handle_profile_input(update, context)
         return
     
-    # Проверяем, в процессе ли оформления заказа
     if context.user_data.get(f"ordering_{user_id}"):
         print(f"✅ Режим оформления заказа, вызываем order_handle")
         await order_handle(update, context)
         return
     
-    # Если ничего не активно — игнорируем
     print(f"❌ Ничего не активно, игнорируем")
     await update.message.reply_text("❌ Неизвестная команда. Используйте кнопки меню.")
 
@@ -87,10 +85,10 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_confirm, pattern="^ord_"))
     
     # ============================================================
-    # ✅ КОРЗИНА — ПРАВИЛЬНЫЙ ПОРЯДОК
+    # ✅ КОРЗИНА — ТОЛЬКО ОДИН РАЗ!
     # ============================================================
     
-    # 1. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для cart_* (cart_attr_, cart_confirm_, cart_add_)
+    # 1. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для cart_*
     application.add_handler(CallbackQueryHandler(cart_callback_handler, pattern="^cart_"))
     
     # 2. ОТДЕЛЬНЫЕ ОБРАБОТЧИКИ (не начинаются с cart_)
@@ -101,12 +99,23 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
-    application.add_handler(CallbackQueryHandler(cart_change_variant, pattern="^cart_change_"))
-    application.add_handler(CallbackQueryHandler(cart_remove_all_variants, pattern="^cart_remove_all_"))
     
-    # 3. ДЛЯ РАЗМЕРОВ (если не используются через универсальный)
+    # 3. ДЛЯ РАЗМЕРОВ
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
     application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
+    
+    # 4. ДЛЯ ГРУППИРОВКИ ПО ЦВЕТУ
+    application.add_handler(CallbackQueryHandler(cart_incr_color, pattern="^cart_incr_color_"))
+    application.add_handler(CallbackQueryHandler(cart_decr_color, pattern="^cart_decr_color_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_color, pattern="^cart_remove_color_"))
+    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
+    
+    # 5. ДЛЯ ГРУППОВЫХ ОПЕРАЦИЙ
+    application.add_handler(CallbackQueryHandler(cart_incr_group, pattern="^cart_incr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_decr_group, pattern="^cart_decr_group_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_all, pattern="^cart_remove_all_"))
+    application.add_handler(CallbackQueryHandler(cart_change_variant, pattern="^cart_change_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_all_variants, pattern="^cart_remove_all_"))
     
     # --- КАТАЛОГ ---
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
@@ -122,34 +131,6 @@ def main() -> None:
     # --- КАТЕГОРИИ ---
     application.add_handler(CallbackQueryHandler(show_category_by_id, pattern="^category_"))
     application.add_handler(CallbackQueryHandler(show_subcategory_products, pattern="^subcat_"))
-
-        # ============================================================
-    # КОРЗИНА (группировка по цвету)
-    # ============================================================
-    
-    # 1. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для cart_*
-    application.add_handler(CallbackQueryHandler(cart_callback_handler, pattern="^cart_"))
-    
-    # 2. ОТДЕЛЬНЫЕ ОБРАБОТЧИКИ
-    application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
-    application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
-    application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
-    application.add_handler(CallbackQueryHandler(cart_increase, pattern="^cart_incr_"))
-    application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
-    application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
-    
-    # 3. ДЛЯ РАЗМЕРОВ
-    application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
-    application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
-    
-    # 4. ДЛЯ ГРУППИРОВКИ ПО ЦВЕТУ (НОВЫЕ)
-    application.add_handler(CallbackQueryHandler(cart_incr_color, pattern="^cart_incr_color_"))
-    application.add_handler(CallbackQueryHandler(cart_decr_color, pattern="^cart_decr_color_"))
-    application.add_handler(CallbackQueryHandler(cart_remove_color, pattern="^cart_remove_color_"))
-    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
-    application.add_handler(CallbackQueryHandler(cart_incr_group, pattern="^cart_incr_group_"))
-    application.add_handler(CallbackQueryHandler(cart_decr_group, pattern="^cart_decr_group_"))
-    application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
     
     # --- ОТЗЫВЫ ---
     application.add_handler(CallbackQueryHandler(show_reviews, pattern="^reviews_"))
