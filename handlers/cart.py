@@ -508,10 +508,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 first_item_key = v_data["item_keys"][0]
                 label = v_data['label']
                 
-                # Убираем дублирование главного атрибута
+                # ✅ ДИАГНОСТИКА
+                print(f"🔍 [DIAGNOSTIC] v_key={v_key}")
+                print(f"🔍 [DIAGNOSTIC] label={label}")
+                print(f"🔍 [DIAGNOSTIC] main_attr_key={main_attr_key}, main_attr_value={main_attr_value}")
+                
+                # Убираем дублирование главного атрибута из label для кнопки
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
+                    print(f"🔍 [DIAGNOSTIC] после удаления main_pattern: label={label}")
                 
                 # Разбиваем на части для кнопки
                 parts = []
@@ -520,11 +526,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         parts.append(part.split(": ")[-1])
                     else:
                         parts.append(part)
+                    print(f"🔍 [DIAGNOSTIC] part={part} → parts={parts}")
                 
                 if not parts:
                     parts = ["Стандарт"]
                 
                 button_text = "\n".join(parts)
+                print(f"🔍 [DIAGNOSTIC] button_text={button_text}")
                 
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
@@ -582,10 +590,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 first_item_key = v_data["item_keys"][0]
                 label = v_data['label']
                 
-                # Убираем дублирование главного атрибута
+                # ✅ ДИАГНОСТИКА
+                print(f"🔍 [DIAGNOSTIC] v_key={v_key}")
+                print(f"🔍 [DIAGNOSTIC] label={label}")
+                print(f"🔍 [DIAGNOSTIC] main_attr_key={main_attr_key}, main_attr_value={main_attr_value}")
+                
+                # Убираем дублирование главного атрибута из label для кнопки
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
+                    print(f"🔍 [DIAGNOSTIC] после удаления main_pattern: label={label}")
                 
                 # Разбиваем на части для кнопки
                 parts = []
@@ -594,11 +608,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         parts.append(part.split(": ")[-1])
                     else:
                         parts.append(part)
+                    print(f"🔍 [DIAGNOSTIC] part={part} → parts={parts}")
                 
                 if not parts:
                     parts = ["Стандарт"]
                 
                 button_text = "\n".join(parts)
+                print(f"🔍 [DIAGNOSTIC] button_text={button_text}")
                 
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
