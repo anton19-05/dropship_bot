@@ -327,7 +327,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         return
 
     # ============================================================
-    # ШАГ 1: ГРУППИРУЕМ ПО ТОВАРУ + ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ С ФОТО
+    # ШАГ 1: ГРУППИРУЕМ ПО ТОВАРУ + ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
     # ============================================================
     temp_cart = {}
 
@@ -349,10 +349,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         temp_cart[product_code]["items"].append({"item_key": item_key, "item": item})
 
-        # Определяем главный атрибут с фото
+        # ✅ ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
         if not temp_cart[product_code]["main_attr_key"]:
             main_attrs = product.get_main_attributes()
             photos = getattr(product, 'photos', {})
+            
+            # Сначала ищем атрибут с фото
             for attr_key in main_attrs.keys():
                 attr_value = item.get(attr_key)
                 if attr_value and attr_value in photos and photos[attr_value] and os.path.exists(photos[attr_value]):
@@ -361,6 +363,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     temp_cart[product_code]["has_photos"] = True
                     temp_cart[product_code]["photo"] = photos[attr_value]
                     break
+            
+            # Если фото нет — берём ПЕРВЫЙ главный атрибут (как в карточке)
+            if not temp_cart[product_code]["main_attr_key"] and main_attrs:
+                first_attr_key = list(main_attrs.keys())[0]
+                first_attr_value = item.get(first_attr_key)
+                if first_attr_value:
+                    temp_cart[product_code]["main_attr_key"] = first_attr_key
+                    temp_cart[product_code]["main_attr_value"] = first_attr_value
+                    temp_cart[product_code]["has_photos"] = False
+                    temp_cart[product_code]["photo"] = ""
 
     # ============================================================
     # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ С ФОТО
