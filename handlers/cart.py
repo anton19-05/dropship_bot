@@ -437,15 +437,24 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         total_all += total_price
 
-        # Определяем количество атрибутов для выбора режима отображения
+        # ============================================================
+        # ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ВТОРОСТЕПЕННЫХ АТРИБУТОВ
+        # ============================================================
         first_item = list(variants.values())[0]["item"] if variants else {}
-        attr_count = 0
+        secondary_attr_count = 0
+        
         for key, value in first_item.items():
-            if key not in ["product_code", "quantity", "name", "price", "item_key"]:
-                if value:
-                    attr_count += 1
-
-        use_numbers = attr_count >= 3  # Для 3+ атрибутов — номера
+            if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                continue
+            if main_attr_key and key == main_attr_key:
+                continue
+            if main_attr_key and key in ["color", "цвет"] and main_attr_key in ["color", "цвет"]:
+                continue
+            if value:
+                secondary_attr_count += 1
+        
+        # ✅ Номера ТОЛЬКО если второстепенных атрибутов 3+
+        use_numbers = secondary_attr_count >= 3
 
         # Формируем текст
         text = f"👟 *{product.name}*\n"
@@ -457,7 +466,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         variant_list = list(variants.items())
 
         # ============================================================
-        # 3+ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
+        # 3+ ВТОРОСТЕПЕННЫХ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
         # ============================================================
         if use_numbers:
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
@@ -475,7 +484,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # Кнопки с номерами
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
@@ -486,7 +494,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 ])
 
         # ============================================================
-        # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ, В КНОПКАХ ТОЛЬКО ЗНАЧЕНИЯ
+        # 0-2 ВТОРОСТЕПЕННЫХ АТРИБУТА — ПОЛНЫЙ ТЕКСТ, ТОЛЬКО ЗНАЧЕНИЯ В КНОПКАХ
         # ============================================================
         else:
             for v_key, v_data in variant_list:
@@ -504,7 +512,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # Кнопки — только значения (без главного атрибута)
             keyboard = []
             for v_key, v_data in variant_list:
                 first_item_key = v_data["item_keys"][0]
