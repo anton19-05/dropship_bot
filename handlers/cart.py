@@ -5,6 +5,12 @@ from telegram.ext import ContextTypes
 from models import products_manager, msg_manager
 from storage import save_user_data_sync
 from config import ADMIN_ID
+from cart_utils import (
+    get_cart_display_mode,
+    should_show_separate_cards,
+    format_variant_label,
+    get_photo_for_variant
+)
 
 logger = logging.getLogger(__name__)
 
@@ -292,13 +298,11 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     logger.info("✅ Товар добавлен в корзину")
 
-from cart_utils import get_cart_display_type, format_variant_label, get_photo_for_variant
-
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_product_card: bool = False):
     """
-    Показывает корзину с логикой:
-    - Если есть фото для вариантов → отдельные карточки с фото
-    - Если фото нет → одна карточка со списком всех вариантов
+    Показывает корзину по логике:
+    - 1-2 атрибута → separate (если есть фото → отдельные карточки, если нет → 1 карточка)
+    - 3+ атрибутов → grouped (если есть фото → отдельные карточки, если нет → 1 карточка)
     """
     query = update.callback_query
     await query.answer()
@@ -345,7 +349,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 "total_quantity": 0,
                 "total_price": 0,
                 "item_keys": [],
-                "display_type": get_cart_display_type(product)
+                "mode": get_cart_display_mode(product),           # separate / grouped
+                "split_by_photos": should_show_separate_cards(product)  # True / False
             }
         
         quantity = item.get("quantity", 1)
@@ -374,32 +379,23 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         variants = group_data["variants"]
         total_quantity = group_data["total_quantity"]
         total_price = group_data["total_price"]
-        display_type = group_data["display_type"]
+        mode = group_data["mode"]
+        split_by_photos = group_data["split_by_photos"]
         
         total_all += total_price
         
         # ============================================================
-        # РЕЖИМ: ОТДЕЛЬНЫЕ КАРТОЧКИ (есть фото для вариантов)
+        # РЕЖИМ: ОТДЕЛЬНЫЕ КАРТОЧКИ (есть фото)
         # ============================================================
-        if display_type == 'separate':
+        if split_by_photos:
             for variant in variants:
-                # ✅ НАХОДИМ ФОТО ДЛЯ ЭТОГО ВАРИАНТА
                 photo_to_send = get_photo_for_variant(product, variant['item'])
-                
-                # ✅ ПОЛУЧАЕМ ЦВЕТ ДЛЯ ОТОБРАЖЕНИЯ
-                color = variant['item'].get('color')
-                if not color:
-                    color = variant['item'].get('цвет')
-                if not color:
-                    for key, value in variant['item'].items():
-                        if key in ["colors", "color"] and isinstance(value, str):
-                            color = value
-                            break
                 
                 text = f"👟 *{product.name}*\n"
                 text += f"💰 {product.price} руб/шт\n"
                 
-                # ✅ ДОБАВЛЯЕМ ЦВЕТ В ТЕКСТ
+                # Показываем цвет, если есть
+                color = variant['item'].get('color') or variant['item'].get('цвет')
                 if color:
                     text += f"🎨 Цвет: {color}\n"
                 
@@ -415,7 +411,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 ]
                 
                 try:
-                    if photo_to_send:
+                    if photo_to_send and os.path.exists(photo_to_send):
                         with open(photo_to_send, 'rb') as f:
                             msg = await context.bot.send_photo(
                                 chat_id=chat_id,
@@ -447,7 +443,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             continue
         
         # ============================================================
-        # РЕЖИМ: ГРУППИРОВКА (фото для вариантов НЕТ)
+        # РЕЖИМ: ОДНА КАРТОЧКА (нет фото)
         # ============================================================
         else:
             text = f"🎣 *{product.name}*\n"
@@ -456,29 +452,34 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             
             text += "📌 *Варианты:*\n"
             for i, variant in enumerate(variants, 1):
-                # ✅ ДЛЯ ГРУППИРОВКИ ТОЖЕ ДОБАВЛЯЕМ ЦВЕТ
-                color = variant['item'].get('color')
-                if not color:
-                    color = variant['item'].get('цвет')
-                if not color:
-                    for key, value in variant['item'].items():
-                        if key in ["colors", "color"] and isinstance(value, str):
-                            color = value
-                            break
-                
                 label = variant['label']
+                # Добавляем цвет, если его нет в label
+                color = variant['item'].get('color') or variant['item'].get('цвет')
                 if color and "Цвет:" not in label:
                     label = f"Цвет: {color} | {label}"
-                
                 text += f"  {i}. {label} — {variant['quantity']} шт\n"
             
-            keyboard = [
-                [InlineKeyboardButton("🔄 Изменить количество", callback_data=f"cart_change_{product_code}")],
-                [InlineKeyboardButton("❌ Удалить все", callback_data=f"cart_remove_all_{product_code}")],
-                [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
-            ]
+            # Клавиатура зависит от режима (separate или grouped)
+            if mode == 'separate':
+                # Для 1-2 атрибутов без фото — показываем кнопки для каждого варианта
+                keyboard = []
+                for variant in variants:
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{variant['label']} ({variant['quantity']} шт)",
+                            callback_data=f"cart_change_item_{variant['item_key']}"
+                        )
+                    ])
+                keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="view_cart")])
+            else:
+                # Для 3+ атрибутов — стандартные кнопки grouped
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Изменить количество", callback_data=f"cart_change_{product_code}")],
+                    [InlineKeyboardButton("❌ Удалить все", callback_data=f"cart_remove_all_{product_code}")],
+                    [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
+                ]
             
-            # Фото для группированного режима (основное фото)
+            # Фото для режима без фото (основное)
             photo_to_send = ""
             if product.photo and os.path.exists(product.photo):
                 photo_to_send = product.photo

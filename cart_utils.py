@@ -1,116 +1,108 @@
 # cart_utils.py
-"""
-Утилиты для корзины:
-- Определение типа отображения
-- Формирование текста для корзины
-"""
 import os
+
+def count_total_attributes(product) -> int:
+    """Считает общее количество значимых атрибутов у товара"""
+    total = 0
+    main_attrs = product.get_main_attributes()
+    extra_attrs = product.get_extra_attributes()
+
+    for attr_key, attr_value in main_attrs.items():
+        variants = attr_value.get('variants', {})
+        if isinstance(variants, dict) and variants:
+            total += 1
+        elif isinstance(variants, list) and variants:
+            total += 1
+
+    for key, value in extra_attrs.items():
+        if key in ["colors", "sizes"]:
+            continue
+        if isinstance(value, list) and value:
+            total += 1
+        elif isinstance(value, dict) and value:
+            total += 1
+
+    return total
 
 
 def has_photos_for_variants(product) -> bool:
-    """
-    Проверяет, есть ли у товара фото для разных вариантов.
-    """
-    photos = product.photos if hasattr(product, 'photos') else {}
-    
-    # Проверяем, есть ли хотя бы одно фото для какого-то варианта
-    for color, photo_path in photos.items():
-        if photo_path and os.path.exists(photo_path):
+    """Проверяет, есть ли фото для вариантов"""
+    photos = getattr(product, 'photos', {})
+    if not isinstance(photos, dict):
+        return False
+    for path in photos.values():
+        if path and os.path.exists(path):
             return True
-    
     return False
 
 
-def get_cart_display_type(product) -> str:
+def get_cart_display_mode(product) -> str:
     """
-    Определяет тип отображения для товара в корзине.
+    Определяет режим отображения в корзине:
+    - 'separate' → отдельные карточки (1–2 атрибута)
+    - 'grouped'  → одна карточка со списком (3+ атрибутов)
+    """
+    total_attrs = count_total_attributes(product)
     
-    Returns:
-        str: 'separate' — отдельные карточки для каждого варианта (если есть фото)
-             'grouped' — одна карточка со списком вариантов (если фото нет)
-    """
-    # ✅ ЕСЛИ ЕСТЬ ФОТО ДЛЯ ВАРИАНТОВ — РАЗДЕЛЯЕМ
-    if has_photos_for_variants(product):
+    # ✅ 1–2 атрибута → separate
+    if total_attrs <= 2:
         return 'separate'
     
-    # ✅ ЕСЛИ ФОТО НЕТ — ГРУППИРУЕМ
+    # ✅ 3+ атрибутов → grouped
     return 'grouped'
 
 
+def should_show_separate_cards(product) -> bool:
+    """
+    Определяет, нужно ли показывать отдельные карточки:
+    - True  → отдельные карточки (есть фото)
+    - False → одна карточка (нет фото)
+    """
+    return has_photos_for_variants(product)
+
+
 def format_variant_label(product, item) -> str:
-    """
-    Формирует строку с атрибутами для варианта товара.
-    """
-    attrs_parts = []
-    
-    # ✅ ЦВЕТ (проверяем несколько мест)
-    color = item.get("color")
-    if not color:
-        # Проверяем attr_цвет_
-        color = item.get("цвет")
-    if not color:
-        # Проверяем colors
-        color = item.get("colors")
-    
+    """Формирует строку с атрибутами для варианта"""
+    parts = []
+
+    color = item.get('color') or item.get('цвет')
     if color:
-        attrs_parts.append(f"Цвет: {color}")
-    
-    # Размер
-    size = item.get("size")
+        parts.append(f"Цвет: {color}")
+
+    size = item.get('size')
     if size:
-        attrs_parts.append(f"Размер: {size}")
-    
-    # Главные атрибуты (кроме цвета)
+        parts.append(f"Размер: {size}")
+
     main_attrs = product.get_main_attributes()
-    for attr_key in main_attrs.keys():
-        if attr_key in ["colors", "цвет", "color"]:
+    for key in main_attrs:
+        if key in ["colors", "цвет", "color"]:
             continue
-        attr_value = item.get(attr_key)
-        if not attr_value:
-            attr_value = item.get(f"attr_{attr_key}")  # Проверяем альтернативный ключ
-        if attr_value:
-            display_key = attr_key.capitalize()
-            attrs_parts.append(f"{display_key}: {attr_value}")
-    
-    # Дополнительные атрибуты (не главные)
-    extra_attrs = product.get_extra_attributes()
-    for key in extra_attrs.keys():
+        val = item.get(key)
+        if val:
+            parts.append(f"{key.capitalize()}: {val}")
+
+    extra = product.get_extra_attributes()
+    for key in extra:
         if key in ["colors", "sizes"]:
             continue
-        value = item.get(key)
-        if value:
-            display_key = key.capitalize()
-            attrs_parts.append(f"{display_key}: {value}")
-    
-    return " | ".join(attrs_parts) if attrs_parts else "Стандарт"
+        val = item.get(key)
+        if val:
+            parts.append(f"{key.capitalize()}: {val}")
+
+    return " | ".join(parts) if parts else "Стандарт"
 
 
 def get_photo_for_variant(product, item) -> str:
-    """
-    Находит фото для конкретного варианта товара.
-    """
-    # Ищем фото по цвету
-    color = item.get("color")
-    if color:
-        photos = product.photos if hasattr(product, 'photos') else {}
-        if isinstance(photos, dict) and color in photos:
-            photo_path = photos[color]
-            if photo_path and os.path.exists(photo_path):
-                return photo_path
-    
-    # Ищем фото по другим атрибутам
-    main_attrs = product.get_main_attributes()
-    for attr_key in main_attrs.keys():
-        attr_value = item.get(attr_key)
-        if attr_value:
-            photos = product.photos if hasattr(product, 'photos') else {}
-            if isinstance(photos, dict) and attr_value in photos:
-                photo_path = photos[attr_value]
-                if photo_path and os.path.exists(photo_path):
-                    return photo_path
-    
-    # Если не нашли — возвращаем основное фото
-    if product.photo and os.path.exists(product.photo):
+    """Возвращает фото для варианта (если есть)"""
+    photos = getattr(product, 'photos', {})
+    if not isinstance(photos, dict):
+        return ""
+
+    color = item.get('color') or item.get('цвет')
+    if color and color in photos and photos[color] and os.path.exists(photos[color]):
+        return photos[color]
+
+    if hasattr(product, 'photo') and product.photo and os.path.exists(product.photo):
         return product.photo
-    
+
     return ""
