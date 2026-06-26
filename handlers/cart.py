@@ -349,7 +349,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         temp_cart[product_code]["items"].append({"item_key": item_key, "item": item})
 
-        # ✅ ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
+        # ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
         if not temp_cart[product_code]["main_attr_key"]:
             main_attrs = product.get_main_attributes()
             photos = getattr(product, 'photos', {})
@@ -375,7 +375,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     temp_cart[product_code]["photo"] = ""
 
     # ============================================================
-    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ С ФОТО
+    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ
     # ============================================================
     grouped_cart = {}
 
@@ -449,9 +449,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         total_all += total_price
 
-        # ============================================================
-        # ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ВТОРОСТЕПЕННЫХ АТРИБУТОВ
-        # ============================================================
+        # Определяем количество ВТОРОСТЕПЕННЫХ атрибутов
         first_item = list(variants.values())[0]["item"] if variants else {}
         secondary_attr_count = 0
         
@@ -465,7 +463,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             if value:
                 secondary_attr_count += 1
         
-        # ✅ Номера ТОЛЬКО если второстепенных атрибутов 3+
         use_numbers = secondary_attr_count >= 3
 
         # Формируем текст
@@ -485,6 +482,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 label = v_data['label']
                 qty = v_data['quantity']
 
+                # Убираем главный атрибут из label
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
@@ -496,6 +494,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
+            # Кнопки с номерами
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
@@ -513,6 +512,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 label = v_data['label']
                 qty = v_data['quantity']
 
+                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ ТЕКСТА
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
@@ -524,11 +524,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
+            # КНОПКИ — ТОЛЬКО ЗНАЧЕНИЯ (БЕЗ ГЛАВНОГО АТРИБУТА)
             keyboard = []
             for v_key, v_data in variant_list:
                 first_item_key = v_data["item_keys"][0]
                 label = v_data['label']
 
+                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ КНОПКИ
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
