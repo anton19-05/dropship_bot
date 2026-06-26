@@ -164,6 +164,14 @@ class ProductsManager:
         if not self._products_cache or (current_time - self._cache_time > self._cache_ttl):
             try:
                 raw_products = storage.get_all_products()
+                
+                # ✅ ДИАГНОСТИКА
+                for p in raw_products:
+                    if p.get('photos'):
+                        print(f"📸 {p.get('name')} - photos: {p.get('photos')}")
+                    else:
+                        print(f"⚠️ {p.get('name')} - photos отсутствуют!")
+                
                 self._products_cache = raw_products
                 self._cache_time = current_time
                 logger.info(f"📦 Загружено {len(self._products_cache)} товаров из Google Sheets")

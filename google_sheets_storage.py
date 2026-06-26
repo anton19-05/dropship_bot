@@ -40,23 +40,20 @@ class GoogleSheetsStorage:
             logger.error(f"❌ Ошибка подключения к Google Sheets: {e}")
             raise
     
+    # В google_sheets_storage.py
+
     def get_all_products(self) -> List[Dict]:
-        """
-        Получает все товары из таблицы (с обработкой дубликатов)
-        """
         try:
-            # Получаем все значения из таблицы
             all_values = self.sheet.get_all_values()
-            
+        
             if not all_values or len(all_values) < 2:
                 logger.warning("⚠️ Таблица пуста или нет данных")
                 return []
-            
-            # Получаем заголовки и делаем их уникальными
+        
             headers = all_values[0]
             unique_headers = []
             seen = {}
-            
+        
             for header in headers:
                 if header in seen:
                     seen[header] += 1
@@ -64,20 +61,19 @@ class GoogleSheetsStorage:
                 else:
                     seen[header] = 1
                     unique_headers.append(header)
-            
+        
             logger.info(f"📋 Заголовки: {unique_headers}")
-            
-            # Преобразуем данные в список словарей
+        
             products = []
             for row in all_values[1:]:
-                if not row or not row[0]:  # Пропускаем пустые строки
+                if not row or not row[0]:
                     continue
-                
+            
                 product = {}
                 for i, header in enumerate(unique_headers):
                     if i < len(row):
                         value = row[i]
-                        # Преобразуем числовые значения
+                    
                         if header in ['price', 'old_price', 'orders']:
                             try:
                                 value = int(float(value)) if value else 0
@@ -88,20 +84,22 @@ class GoogleSheetsStorage:
                                 value = float(value) if value else 0
                             except:
                                 value = 0
-                        elif header in ['attributes', 'photos']:
+                        elif header in ['attributes', 'photos', 'colors_reviews', 'colors_reviews_text']:
                             try:
                                 value = json.loads(value) if value else {}
                             except:
                                 value = {}
-                        
-                        # Маппинг для совместимости
+                    
+                        # ✅ МАППИНГ ДЛЯ ФОТО
                         if header == 'photo_url':
                             product['photo'] = value
-                        elif header.startswith('photo'):
+                        elif header == 'photo':
                             product['photo'] = value
+                        elif header == 'photos':
+                            product['photos'] = value  # ← ЭТО ВАЖНО!
                         else:
                             product[header] = value
-                
+            
                 # Добавляем недостающие поля
                 if 'photo' not in product:
                     product['photo'] = ''
@@ -109,12 +107,12 @@ class GoogleSheetsStorage:
                     product['photos'] = {}
                 if 'attributes' not in product:
                     product['attributes'] = {}
-                
-                products.append(product)
             
+                products.append(product)
+        
             logger.info(f"📦 Загружено {len(products)} товаров из Google Sheets")
             return products
-            
+        
         except Exception as e:
             logger.error(f"❌ Ошибка загрузки товаров: {e}")
             return []
