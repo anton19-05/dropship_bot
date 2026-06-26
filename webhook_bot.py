@@ -27,7 +27,6 @@ from handlers.cart import (
     cart_incr_group,
     cart_decr_group,
     cart_change_variant,
-    cart_remove_all,
     cart_remove_all_variants
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
@@ -113,7 +112,6 @@ def main() -> None:
     # 5. ДЛЯ ГРУППОВЫХ ОПЕРАЦИЙ
     application.add_handler(CallbackQueryHandler(cart_incr_group, pattern="^cart_incr_group_"))
     application.add_handler(CallbackQueryHandler(cart_decr_group, pattern="^cart_decr_group_"))
-    application.add_handler(CallbackQueryHandler(cart_remove_all, pattern="^cart_remove_all_"))
     application.add_handler(CallbackQueryHandler(cart_change_variant, pattern="^cart_change_"))
     application.add_handler(CallbackQueryHandler(cart_remove_all_variants, pattern="^cart_remove_all_"))
     
