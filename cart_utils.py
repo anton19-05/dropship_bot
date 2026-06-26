@@ -43,8 +43,15 @@ def format_variant_label(product, item) -> str:
     """
     attrs_parts = []
     
-    # Цвет
+    # ✅ ЦВЕТ (проверяем несколько мест)
     color = item.get("color")
+    if not color:
+        # Проверяем attr_цвет_
+        color = item.get("цвет")
+    if not color:
+        # Проверяем colors
+        color = item.get("colors")
+    
     if color:
         attrs_parts.append(f"Цвет: {color}")
     
@@ -56,20 +63,24 @@ def format_variant_label(product, item) -> str:
     # Главные атрибуты (кроме цвета)
     main_attrs = product.get_main_attributes()
     for attr_key in main_attrs.keys():
-        if attr_key not in ["colors", "цвет", "color"]:
-            attr_value = item.get(attr_key)
-            if attr_value:
-                display_key = attr_key.capitalize()
-                attrs_parts.append(f"{display_key}: {attr_value}")
+        if attr_key in ["colors", "цвет", "color"]:
+            continue
+        attr_value = item.get(attr_key)
+        if not attr_value:
+            attr_value = item.get(f"attr_{attr_key}")  # Проверяем альтернативный ключ
+        if attr_value:
+            display_key = attr_key.capitalize()
+            attrs_parts.append(f"{display_key}: {attr_value}")
     
     # Дополнительные атрибуты (не главные)
     extra_attrs = product.get_extra_attributes()
     for key in extra_attrs.keys():
-        if key not in ["colors", "sizes"]:
-            value = item.get(key)
-            if value:
-                display_key = key.capitalize()
-                attrs_parts.append(f"{display_key}: {value}")
+        if key in ["colors", "sizes"]:
+            continue
+        value = item.get(key)
+        if value:
+            display_key = key.capitalize()
+            attrs_parts.append(f"{display_key}: {value}")
     
     return " | ".join(attrs_parts) if attrs_parts else "Стандарт"
 

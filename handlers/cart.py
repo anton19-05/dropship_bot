@@ -191,7 +191,6 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     selected_main_attrs = {}
     
     for attr_key in main_attrs.keys():
-        # Пробуем получить значение из attr_ключ_user_id
         attr_value = context.user_data.get(f"attr_{attr_key}_{user_id}")
         if attr_value:
             selected_main_attrs[attr_key] = attr_value
@@ -203,7 +202,17 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         selected_main_attrs["цвет"] = color
         print(f"✅ Используем цвет по умолчанию: {color}")
     
-    print(f"📋 Все главные атрибуты: {selected_main_attrs}")
+    # ✅ Убеждаемся, что цвет сохранен в item
+    color_value = None
+    for key, value in selected_main_attrs.items():
+        if key in ["colors", "цвет", "color"]:
+            color_value = value
+            break
+    
+    if not color_value:
+        color_value = context.user_data.get(f"color_{user_id}", "белый")
+    
+    print(f"📋 Цвет для корзины: {color_value}")
     
     # ============================================================
     # СОБИРАЕМ ОБЫЧНЫЕ АТРИБУТЫ (не главные)
@@ -223,7 +232,7 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
-    # ✅ КЛЮЧ ГРУППИРОВКИ: product_code + все главные атрибуты
+    # ✅ КЛЮЧ ГРУППИРОВКИ С УЧЕТОМ ЦВЕТА
     main_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_main_attrs.items()])
     if size:
         item_key = f"{product_code}_{main_attrs_str}_{size}"
@@ -242,8 +251,9 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
             "name": product.name,
             "price": product.price,
             "size": size,
-            **selected_main_attrs,  # ✅ ВСЕ главные атрибуты
-            **selected_attrs        # ✅ ВСЕ обычные атрибуты
+            "color": color_value,  # ✅ ЯВНО СОХРАНЯЕМ ЦВЕТ
+            **selected_main_attrs,
+            **selected_attrs
         }
         context.user_data[cart_key][item_key] = item_data
         print(f"✅ новый товар: {item_key}")
@@ -255,11 +265,12 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.user_data.pop(f"cart_attr_{key}_{user_id}", None)
 
     # Формируем текст
-    attrs_text = ""
-    for key, value in selected_main_attrs.items():
-        attrs_text += f"\n📌 {key.capitalize()}: {value}"
+    attrs_text = f"\n🎨 Цвет: {color_value}"
     if size:
         attrs_text += f"\n📏 Размер: {size}"
+    for key, value in selected_main_attrs.items():
+        if key not in ["colors", "цвет", "color"]:
+            attrs_text += f"\n📌 {key.capitalize()}: {value}"
     for key, value in selected_attrs.items():
         attrs_text += f"\n📌 {key.capitalize()}: {value}"
 
@@ -334,7 +345,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 "total_quantity": 0,
                 "total_price": 0,
                 "item_keys": [],
-                "display_type": get_cart_display_type(product)  # ✅ ОПРЕДЕЛЯЕМ
+                "display_type": get_cart_display_type(product)
             }
         
         quantity = item.get("quantity", 1)
@@ -347,7 +358,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             "quantity": quantity,
             "price": price,
             "item_key": item_key,
-            "item": item  # ✅ Сохраняем item для поиска фото
+            "item": item
         })
         grouped_cart[product_code]["total_quantity"] += quantity
         grouped_cart[product_code]["total_price"] += price * quantity
@@ -375,8 +386,23 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 # ✅ НАХОДИМ ФОТО ДЛЯ ЭТОГО ВАРИАНТА
                 photo_to_send = get_photo_for_variant(product, variant['item'])
                 
+                # ✅ ПОЛУЧАЕМ ЦВЕТ ДЛЯ ОТОБРАЖЕНИЯ
+                color = variant['item'].get('color')
+                if not color:
+                    color = variant['item'].get('цвет')
+                if not color:
+                    for key, value in variant['item'].items():
+                        if key in ["colors", "color"] and isinstance(value, str):
+                            color = value
+                            break
+                
                 text = f"👟 *{product.name}*\n"
                 text += f"💰 {product.price} руб/шт\n"
+                
+                # ✅ ДОБАВЛЯЕМ ЦВЕТ В ТЕКСТ
+                if color:
+                    text += f"🎨 Цвет: {color}\n"
+                
                 text += f"📌 {variant['label']}\n"
                 text += f"📦 {variant['quantity']} шт | 💰 {variant['price'] * variant['quantity']} руб"
                 
@@ -430,7 +456,21 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             
             text += "📌 *Варианты:*\n"
             for i, variant in enumerate(variants, 1):
-                text += f"  {i}. {variant['label']} — {variant['quantity']} шт\n"
+                # ✅ ДЛЯ ГРУППИРОВКИ ТОЖЕ ДОБАВЛЯЕМ ЦВЕТ
+                color = variant['item'].get('color')
+                if not color:
+                    color = variant['item'].get('цвет')
+                if not color:
+                    for key, value in variant['item'].items():
+                        if key in ["colors", "color"] and isinstance(value, str):
+                            color = value
+                            break
+                
+                label = variant['label']
+                if color and "Цвет:" not in label:
+                    label = f"Цвет: {color} | {label}"
+                
+                text += f"  {i}. {label} — {variant['quantity']} шт\n"
             
             keyboard = [
                 [InlineKeyboardButton("🔄 Изменить количество", callback_data=f"cart_change_{product_code}")],
