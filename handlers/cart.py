@@ -349,7 +349,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         temp_cart[product_code]["items"].append({"item_key": item_key, "item": item})
 
-        # ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
+        # ✅ ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ
         if not temp_cart[product_code]["main_attr_key"]:
             main_attrs = product.get_main_attributes()
             photos = getattr(product, 'photos', {})
@@ -449,7 +449,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         total_all += total_price
 
-        # Определяем количество ВТОРОСТЕПЕННЫХ атрибутов
+        # Определяем количество второстепенных атрибутов
         first_item = list(variants.values())[0]["item"] if variants else {}
         secondary_attr_count = 0
         
@@ -508,35 +508,42 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # 0-2 ВТОРОСТЕПЕННЫХ АТРИБУТА — ПОЛНЫЙ ТЕКСТ, ТОЛЬКО ЗНАЧЕНИЯ В КНОПКАХ
         # ============================================================
         else:
+            # ✅ ПОДГОТАВЛИВАЕМ ДАННЫЕ ДЛЯ ОТОБРАЖЕНИЯ
+            display_variants = []
             for v_key, v_data in variant_list:
                 label = v_data['label']
                 qty = v_data['quantity']
 
-                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ ТЕКСТА
+                # Убираем главный атрибут из label
+                clean_label = label
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
-                    label = label.replace(main_pattern, "").strip(" | ")
+                    clean_label = clean_label.replace(main_pattern, "").strip(" | ")
 
-                if not label:
-                    text += f"  {qty} шт\n"
+                display_variants.append({
+                    "clean_label": clean_label,
+                    "qty": qty,
+                    "first_item_key": v_data["item_keys"][0],
+                    "v_data": v_data
+                })
+
+            # ТЕКСТ
+            for item in display_variants:
+                if not item["clean_label"]:
+                    text += f"  {item['qty']} шт\n"
                 else:
-                    text += f"  {label} — {qty} шт\n"
+                    text += f"  {item['clean_label']} — {item['qty']} шт\n"
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ — ТОЛЬКО ЗНАЧЕНИЯ (БЕЗ ГЛАВНОГО АТРИБУТА)
+            # КНОПКИ — только значения (без главного атрибута)
             keyboard = []
-            for v_key, v_data in variant_list:
-                first_item_key = v_data["item_keys"][0]
-                label = v_data['label']
-
-                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ КНОПКИ
-                if main_attr_key and main_attr_value:
-                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
-                    label = label.replace(main_pattern, "").strip(" | ")
+            for item in display_variants:
+                clean_label = item["clean_label"]
+                first_item_key = item["first_item_key"]
 
                 parts = []
-                for part in label.split(" | "):
+                for part in clean_label.split(" | "):
                     if ": " in part:
                         parts.append(part.split(": ")[-1])
                     else:
