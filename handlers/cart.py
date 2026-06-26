@@ -327,187 +327,270 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         return
 
     # ============================================================
-    # ГРУППИРОВКА ПО ТОВАРУ + ОБЪЕДИНЕНИЕ ОДИНАКОВЫХ ВАРИАНТОВ
+    # ШАГ 1: ГРУППИРУЕМ ПО ТОВАРУ + ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ С ФОТО
     # ============================================================
-    grouped_cart = {}
+    temp_cart = {}  # {product_code: {product, items: [], main_attr_key, main_attr_value, has_photos, photo}}
 
     for item_key, item in cart.items():
         product_code = item["product_code"]
         product = products_manager.get_by_code(product_code)
         if not product:
             continue
-    
-        # ✅ ФОРМИРУЕМ УНИКАЛЬНЫЙ КЛЮЧ ДЛЯ ВАРИАНТА (все атрибуты)
-        variant_parts = []
-    
-        # Все атрибуты из item (кроме служебных)
-        for key, value in item.items():
-            if key in ["product_code", "quantity", "name", "price", "item_key"]:
-                continue
-            if value:
-                variant_parts.append(f"{key}_{value}")
-    
-        variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
-    
-        # Группируем по товару
-        if product_code not in grouped_cart:
-            grouped_cart[product_code] = {
+
+        if product_code not in temp_cart:
+            temp_cart[product_code] = {
                 "product": product,
-                "variants": {},  # {variant_key: {label, quantity, item_keys, item}}
-                "total_quantity": 0,
-                "total_price": 0
+                "items": [],
+                "main_attr_key": None,
+                "main_attr_value": None,
+                "has_photos": False,
+                "photo": ""
             }
-    
-        # ✅ СУММИРУЕМ ОДИНАКОВЫЕ ВАРИАНТЫ
-        if variant_key in grouped_cart[product_code]["variants"]:
-            grouped_cart[product_code]["variants"][variant_key]["quantity"] += item.get("quantity", 1)
-            grouped_cart[product_code]["variants"][variant_key]["item_keys"].append(item_key)
-        else:
-            grouped_cart[product_code]["variants"][variant_key] = {
-                "label": format_variant_label(product, item),
-                "quantity": item.get("quantity", 1),
-                "item_keys": [item_key],
-                "item": item
-            }
-    
-        grouped_cart[product_code]["total_quantity"] += item.get("quantity", 1)
-        grouped_cart[product_code]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
+
+        temp_cart[product_code]["items"].append({"item_key": item_key, "item": item})
+
+        # Определяем главный атрибут с фото
+        if not temp_cart[product_code]["main_attr_key"]:
+            main_attrs = product.get_main_attributes()
+            photos = getattr(product, 'photos', {})
+            for attr_key in main_attrs.keys():
+                attr_value = item.get(attr_key)
+                if attr_value and attr_value in photos and photos[attr_value] and os.path.exists(photos[attr_value]):
+                    temp_cart[product_code]["main_attr_key"] = attr_key
+                    temp_cart[product_code]["main_attr_value"] = attr_value
+                    temp_cart[product_code]["has_photos"] = True
+                    temp_cart[product_code]["photo"] = photos[attr_value]
+                    break
 
     # ============================================================
-    # ОПРЕДЕЛЯЕМ split_by_photos ДЛЯ КАЖДОГО ТОВАРА
+    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ С ФОТО
     # ============================================================
-    for product_code, group_data in grouped_cart.items():
-        variants_count = len(group_data["variants"])
-        group_data["split_by_photos"] = should_show_separate_cards(
-            group_data["product"], 
-            variants_count
-        )
+    grouped_cart = {}
+
+    for product_code, group in temp_cart.items():
+        product = group["product"]
+        has_photos = group["has_photos"]
+        main_attr_key = group["main_attr_key"]
+        photo = group["photo"]
+
+        for entry in group["items"]:
+            item = entry["item"]
+            item_key = entry["item_key"]
+
+            if has_photos and main_attr_key:
+                # Группируем по значению главного атрибута с фото
+                main_value = item.get(main_attr_key)
+                group_key = f"{product_code}_{main_attr_key}_{main_value}"
+            else:
+                # Без фото — одна группа на товар
+                group_key = f"{product_code}_grouped"
+
+            if group_key not in grouped_cart:
+                grouped_cart[group_key] = {
+                    "product": product,
+                    "variants": [],
+                    "total_quantity": 0,
+                    "total_price": 0,
+                    "main_attr_key": main_attr_key,
+                    "main_attr_value": main_value if has_photos else None,
+                    "has_photos": has_photos,
+                    "photo": photo if has_photos else "",
+                    "items": []
+                }
+
+            grouped_cart[group_key]["items"].append({"item_key": item_key, "item": item})
+            grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
+            grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
 
     # ============================================================
-    # ОТОБРАЖЕНИЕ
+    # ШАГ 3: ФОРМИРУЕМ ВАРИАНТЫ ДЛЯ КАЖДОЙ ГРУППЫ
+    # ============================================================
+    final_cart = {}
+
+    for group_key, group in grouped_cart.items():
+        product = group["product"]
+        variants = {}
+        total_quantity = group["total_quantity"]
+        total_price = group["total_price"]
+        has_photos = group["has_photos"]
+        photo = group["photo"]
+        main_attr_key = group["main_attr_key"]
+
+        for entry in group["items"]:
+            item = entry["item"]
+            item_key = entry["item_key"]
+
+            # Формируем ключ варианта (все атрибуты кроме главного с фото)
+            variant_parts = []
+            for key, value in item.items():
+                if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                    continue
+                if has_photos and key == main_attr_key:
+                    continue
+                if value:
+                    variant_parts.append(f"{key}_{value}")
+
+            variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
+
+            if variant_key not in variants:
+                variants[variant_key] = {
+                    "label": format_variant_label(product, item),
+                    "quantity": 0,
+                    "item_keys": [],
+                    "item": item
+                }
+
+            variants[variant_key]["quantity"] += item.get("quantity", 1)
+            variants[variant_key]["item_keys"].append(item_key)
+
+        final_cart[group_key] = {
+            "product": product,
+            "variants": variants,
+            "total_quantity": total_quantity,
+            "total_price": total_price,
+            "has_photos": has_photos,
+            "photo": photo,
+            "main_attr_key": main_attr_key,
+            "main_attr_value": group["main_attr_value"],
+            "items": group["items"]
+        }
+
+    # ============================================================
+    # ШАГ 4: ОТОБРАЖЕНИЕ
     # ============================================================
     total_all = 0
-    
-    for product_code, group_data in grouped_cart.items():
-        product = group_data["product"]
-        variants = group_data["variants"]  # словарь {variant_key: {label, quantity, item_keys}}
-        total_quantity = group_data["total_quantity"]
-        total_price = group_data["total_price"]
-        mode = group_data["mode"]
-        split_by_photos = group_data["split_by_photos"]
-        
+
+    for group_key, group in final_cart.items():
+        product = group["product"]
+        variants = group["variants"]
+        total_quantity = group["total_quantity"]
+        total_price = group["total_price"]
+        has_photos = group["has_photos"]
+        photo = group["photo"]
+        main_attr_key = group["main_attr_key"]
+        main_attr_value = group["main_attr_value"]
+
         total_all += total_price
-        
+
         # ============================================================
-        # РЕЖИМ: ОТДЕЛЬНЫЕ КАРТОЧКИ (есть фото и >1 вариант)
+        # ЕСТЬ ФОТО — ОТДЕЛЬНАЯ КАРТОЧКА
         # ============================================================
-        if split_by_photos:
-            for variant_key, variant_data in variants.items():
-                photo_to_send = get_photo_for_variant(product, variant_data["item"])
-                qty = variant_data["quantity"]
-                item_key = variant_data["item_keys"][0]  # берем первый для управления
-                
-                text = f"👟 *{product.name}*\n"
-                text += f"💰 {product.price} руб/шт\n"
-                
-                # Показываем цвет, если есть
-                color = variant_data['item'].get('color') or variant_data['item'].get('цвет')
-                if color:
-                    text += f"🎨 Цвет: {color}\n"
-                
-                text += f"📌 {variant_data['label']}\n"
-                text += f"📦 {qty} шт | 💰 {product.price * qty} руб"
-                
-                keyboard = [
-                    [InlineKeyboardButton("➖", callback_data=f"cart_decr_{item_key}"),
-                     InlineKeyboardButton(f"{qty} шт", callback_data="noop"),
-                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{item_key}")],
-                    [InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{item_key}")],
-                    [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
-                ]
-                
-                try:
-                    if photo_to_send and os.path.exists(photo_to_send):
-                        with open(photo_to_send, 'rb') as f:
-                            msg = await context.bot.send_photo(
-                                chat_id=chat_id,
-                                photo=f,
-                                caption=text,
-                                parse_mode="Markdown",
-                                reply_markup=InlineKeyboardMarkup(keyboard)
-                            )
-                            await msg_manager.add(context.bot, chat_id, user_id, msg)
-                    else:
-                        msg = await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=text,
-                            parse_mode="Markdown",
-                            reply_markup=InlineKeyboardMarkup(keyboard)
-                        )
-                        await msg_manager.add(context.bot, chat_id, user_id, msg)
-                except Exception as e:
-                    print(f"Ошибка отправки товара в корзине: {e}")
-                    msg = await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=text,
-                        parse_mode="Markdown",
-                        reply_markup=InlineKeyboardMarkup(keyboard)
-                    )
-                    await msg_manager.add(context.bot, chat_id, user_id, msg)
-            
-            # Переходим к следующему товару
-            continue
-        
+        if has_photos:
+            text = f"👟 *{product.name}*\n"
+            text += f"💰 {product.price} руб/шт\n"
+
+            # Показываем главный атрибут
+            display_name = main_attr_key.capitalize()
+            text += f"{display_name}: {main_attr_value}\n"
+
+            # Показываем остальные атрибуты
+            variant_list = list(variants.items())
+            if len(variant_list) == 1:
+                # Один вариант — показываем компактно
+                for v_key, v_data in variant_list:
+                    text += f"{v_data['label']} | {v_data['quantity']} шт\n"
+            else:
+                # Несколько вариантов — список
+                for v_key, v_data in variant_list:
+                    label = v_data['label']
+                    # Убираем дублирование главного атрибута
+                    if main_attr_key and main_attr_value:
+                        label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
+                    text += f"  {label} | {v_data['quantity']} шт\n"
+
+            text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
+
+            # Клавиатура для каждого варианта
+            keyboard = []
+            for v_key, v_data in variants.items():
+                qty = v_data["quantity"]
+                first_item_key = v_data["item_keys"][0]
+                # Формируем кнопку с атрибутами
+                label = v_data['label']
+                # Убираем дублирование главного атрибута для кнопки
+                if main_attr_key and main_attr_value:
+                    label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
+                keyboard.append([
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
+                    InlineKeyboardButton(label, callback_data="noop"),
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
+                ])
+
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
+            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
+
         # ============================================================
-        # РЕЖИМ: ОДНА КАРТОЧКА (нет фото или 1 вариант)
+        # НЕТ ФОТО — ОДНА КАРТОЧКА СО ВСЕМИ ВАРИАНТАМИ
         # ============================================================
         else:
-            text = f"🎣 *{product.name}*\n"
+            text = f"👟 *{product.name}*\n"
             text += f"💰 {product.price} руб/шт\n"
-            text += f"📦 Всего: {total_quantity} шт | 💰 {total_price} руб\n\n"
-            
-            text += "📌 *Варианты:*\n"
-            variant_list = list(variants.items())
-            for i, (variant_key, variant_data) in enumerate(variant_list, 1):
-                label = variant_data['label']
-                qty = variant_data['quantity']
-                text += f"  {i}. {label} — {qty} шт\n"
-            
-            # Клавиатура с + / - для общего количества
-            keyboard = [
-                [InlineKeyboardButton("➖", callback_data=f"cart_decr_group_{product_code}"),
-                 InlineKeyboardButton(f"{total_quantity} шт", callback_data="noop"),
-                 InlineKeyboardButton("➕", callback_data=f"cart_incr_group_{product_code}")],
-                [InlineKeyboardButton("❌ Удалить все", callback_data=f"cart_remove_all_{product_code}")],
-                [InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")]
-            ]
-            
-            # Фото для режима без фото (основное)
-            photo_to_send = ""
-            if product.photo and os.path.exists(product.photo):
-                photo_to_send = product.photo
-            
-            try:
-                if photo_to_send:
-                    with open(photo_to_send, 'rb') as f:
-                        msg = await context.bot.send_photo(
-                            chat_id=chat_id,
-                            photo=f,
-                            caption=text,
-                            parse_mode="Markdown",
-                            reply_markup=InlineKeyboardMarkup(keyboard)
-                        )
-                        await msg_manager.add(context.bot, chat_id, user_id, msg)
-                else:
-                    msg = await context.bot.send_message(
+
+            # Группируем варианты по главному атрибуту (если есть)
+            attr_groups = {}
+            for v_key, v_data in variants.items():
+                # Находим главный атрибут в варианте
+                main_attr_val = None
+                if main_attr_key:
+                    main_attr_val = v_data["item"].get(main_attr_key)
+                group_name = main_attr_val if main_attr_val else "Стандарт"
+
+                if group_name not in attr_groups:
+                    attr_groups[group_name] = []
+                attr_groups[group_name].append(v_data)
+
+            # Показываем варианты, сгруппированные по главному атрибуту
+            for attr_val, variant_list in attr_groups.items():
+                if attr_val != "Стандарт":
+                    text += f"{main_attr_key.capitalize()}: {attr_val}\n"
+
+                # Показываем подварианты
+                for v_data in variant_list:
+                    label = v_data['label']
+                    # Убираем дублирование главного атрибута
+                    if main_attr_key and attr_val:
+                        label = label.replace(f"{main_attr_key.capitalize()}: {attr_val}", "").strip(" | ")
+                    if label:
+                        text += f"  {label} | {v_data['quantity']} шт\n"
+
+            text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
+
+            # Клавиатура для каждого варианта
+            keyboard = []
+            for v_key, v_data in variants.items():
+                qty = v_data["quantity"]
+                first_item_key = v_data["item_keys"][0]
+                # Формируем кнопку с атрибутами
+                label = v_data['label']
+                # Убираем дублирование главного атрибута
+                if main_attr_key and main_attr_value:
+                    label = label.replace(f"{main_attr_key.capitalize()}: {main_attr_value}", "").strip(" | ")
+                # Заменяем запятые на перенос строки для кнопок
+                button_label = label.replace(", ", "\n")
+                keyboard.append([
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
+                    InlineKeyboardButton(button_label, callback_data="noop"),
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
+                ])
+
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
+            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
+
+        # ============================================================
+        # ОТПРАВКА
+        # ============================================================
+        try:
+            if has_photos and photo and os.path.exists(photo):
+                with open(photo, 'rb') as f:
+                    msg = await context.bot.send_photo(
                         chat_id=chat_id,
-                        text=text,
+                        photo=f,
+                        caption=text,
                         parse_mode="Markdown",
                         reply_markup=InlineKeyboardMarkup(keyboard)
                     )
                     await msg_manager.add(context.bot, chat_id, user_id, msg)
-            except Exception as e:
-                print(f"Ошибка отправки товара в корзине: {e}")
+            else:
                 msg = await context.bot.send_message(
                     chat_id=chat_id,
                     text=text,
@@ -515,6 +598,15 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
                 await msg_manager.add(context.bot, chat_id, user_id, msg)
+        except Exception as e:
+            print(f"Ошибка отправки: {e}")
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            await msg_manager.add(context.bot, chat_id, user_id, msg)
 
     # Итого
     await context.bot.send_message(
