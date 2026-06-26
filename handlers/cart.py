@@ -453,26 +453,26 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         first_item = list(variants.values())[0]["item"] if variants else {}
         secondary_attr_count = 0
         
+        # ✅ СПИСОК КЛЮЧЕЙ, КОТОРЫЕ МОГУТ БЫТЬ ГЛАВНЫМ АТРИБУТОМ
+        main_keys = []
+        if main_attr_key:
+            main_keys.append(main_attr_key)
+            # Добавляем русский/английский вариант
+            if main_attr_key == "color":
+                main_keys.append("цвет")
+            elif main_attr_key == "цвет":
+                main_keys.append("color")
+        
         for key, value in first_item.items():
             if key in ["product_code", "quantity", "name", "price", "item_key"]:
                 continue
-            if main_attr_key and key == main_attr_key:
-                continue
-            if main_attr_key and key in ["color", "цвет"] and main_attr_key in ["color", "цвет"]:
+            # ✅ ПРОПУСКАЕМ ГЛАВНЫЙ АТРИБУТ (ЛЮБОЙ ВАРИАНТ)
+            if key in main_keys:
                 continue
             if value:
                 secondary_attr_count += 1
         
         use_numbers = secondary_attr_count >= 3
-
-        # Формируем текст
-        text = f"👟 *{product.name}*\n"
-        text += f"💰 {product.price} руб/шт\n\n"
-
-        if main_attr_key and main_attr_value:
-            text += f"📌 {main_attr_key.capitalize()}: {main_attr_value}\n\n"
-
-        variant_list = list(variants.items())
 
         # ============================================================
         # 3+ ВТОРОСТЕПЕННЫХ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
