@@ -330,47 +330,35 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     # ГРУППИРОВКА ПО ТОВАРУ + ОБЪЕДИНЕНИЕ ОДИНАКОВЫХ ВАРИАНТОВ
     # ============================================================
     grouped_cart = {}
-    
+
     for item_key, item in cart.items():
         product_code = item["product_code"]
         product = products_manager.get_by_code(product_code)
         if not product:
             continue
-        
-        # Формируем ключ для группировки ОДИНАКОВЫХ вариантов
-        # (все атрибуты кроме количества)
-        variant_key_parts = []
-        
-        # Цвет
-        color = item.get('color') or item.get('цвет')
-        if color:
-            variant_key_parts.append(f"цвет_{color}")
-        
-        # Размер
-        size = item.get('size')
-        if size:
-            variant_key_parts.append(f"размер_{size}")
-        
-        # Все остальные атрибуты
+    
+        # ✅ ФОРМИРУЕМ УНИКАЛЬНЫЙ КЛЮЧ ДЛЯ ВАРИАНТА (все атрибуты)
+        variant_parts = []
+    
+        # Все атрибуты из item (кроме служебных)
         for key, value in item.items():
-            if key not in ["product_code", "quantity", "name", "price", "color", "цвет", "size", "main_attr"]:
-                if value:
-                    variant_key_parts.append(f"{key}_{value}")
-        
-        variant_key = "_".join(variant_key_parts) if variant_key_parts else "стандарт"
-        
+            if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                continue
+            if value:
+                variant_parts.append(f"{key}_{value}")
+    
+        variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
+    
         # Группируем по товару
         if product_code not in grouped_cart:
             grouped_cart[product_code] = {
                 "product": product,
                 "variants": {},  # {variant_key: {label, quantity, item_keys, item}}
                 "total_quantity": 0,
-                "total_price": 0,
-                "mode": get_cart_display_mode(product),
-                "split_by_photos": False
+                "total_price": 0
             }
-        
-        # Добавляем или суммируем
+    
+        # ✅ СУММИРУЕМ ОДИНАКОВЫЕ ВАРИАНТЫ
         if variant_key in grouped_cart[product_code]["variants"]:
             grouped_cart[product_code]["variants"][variant_key]["quantity"] += item.get("quantity", 1)
             grouped_cart[product_code]["variants"][variant_key]["item_keys"].append(item_key)
@@ -381,7 +369,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 "item_keys": [item_key],
                 "item": item
             }
-        
+    
         grouped_cart[product_code]["total_quantity"] += item.get("quantity", 1)
         grouped_cart[product_code]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
 
