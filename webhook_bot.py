@@ -25,7 +25,9 @@ from handlers.cart import (
     cart_remove_color,        # ✅ удаление цвета
     clear_cart,
     cart_incr_group,
-    cart_decr_group
+    cart_decr_group,
+    cart_change_variant,
+    cart_remove_all_variants
 )
 from handlers.order import order_start, order_handle, order_select_size, back_to_size, show_order_form, order_select_attr, order_confirm
 from handlers.start import start, main_back
@@ -99,6 +101,8 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
+    application.add_handler(CallbackQueryHandler(cart_change_variant, pattern="^cart_change_"))
+    application.add_handler(CallbackQueryHandler(cart_remove_all_variants, pattern="^cart_remove_all_"))
     
     # 3. ДЛЯ РАЗМЕРОВ (если не используются через универсальный)
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
