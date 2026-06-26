@@ -329,7 +329,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
     # ============================================================
     # ШАГ 1: ГРУППИРУЕМ ПО ТОВАРУ + ОПРЕДЕЛЯЕМ ГЛАВНЫЙ АТРИБУТ С ФОТО
     # ============================================================
-    temp_cart = {}  # {product_code: {product, items: [], main_attr_key, main_attr_value, has_photos, photo}}
+    temp_cart = {}
 
     for item_key, item in cart.items():
         product_code = item["product_code"]
@@ -378,49 +378,24 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             item_key = entry["item_key"]
 
             if has_photos and main_attr_key:
-                # Группируем по значению главного атрибута с фото
                 main_value = item.get(main_attr_key)
                 group_key = f"{product_code}_{main_attr_key}_{main_value}"
             else:
-                # Без фото — одна группа на товар
                 group_key = f"{product_code}_grouped"
 
             if group_key not in grouped_cart:
                 grouped_cart[group_key] = {
                     "product": product,
-                    "variants": [],
+                    "variants": {},
                     "total_quantity": 0,
                     "total_price": 0,
                     "main_attr_key": main_attr_key,
                     "main_attr_value": main_value if has_photos else None,
                     "has_photos": has_photos,
                     "photo": photo if has_photos else "",
-                    "items": []
                 }
 
-            grouped_cart[group_key]["items"].append({"item_key": item_key, "item": item})
-            grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
-            grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
-
-    # ============================================================
-    # ШАГ 3: ФОРМИРУЕМ ВАРИАНТЫ ДЛЯ КАЖДОЙ ГРУППЫ
-    # ============================================================
-    final_cart = {}
-
-    for group_key, group in grouped_cart.items():
-        product = group["product"]
-        variants = {}
-        total_quantity = group["total_quantity"]
-        total_price = group["total_price"]
-        has_photos = group["has_photos"]
-        photo = group["photo"]
-        main_attr_key = group["main_attr_key"]
-
-        for entry in group["items"]:
-            item = entry["item"]
-            item_key = entry["item_key"]
-
-            # Формируем ключ варианта (все атрибуты кроме главного с фото)
+            # Формируем ключ варианта (все атрибуты кроме главного)
             variant_parts = []
             for key, value in item.items():
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
@@ -432,35 +407,25 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
 
-            if variant_key not in variants:
-                variants[variant_key] = {
+            if variant_key not in grouped_cart[group_key]["variants"]:
+                grouped_cart[group_key]["variants"][variant_key] = {
                     "label": format_variant_label(product, item),
                     "quantity": 0,
                     "item_keys": [],
                     "item": item
                 }
 
-            variants[variant_key]["quantity"] += item.get("quantity", 1)
-            variants[variant_key]["item_keys"].append(item_key)
-
-        final_cart[group_key] = {
-            "product": product,
-            "variants": variants,
-            "total_quantity": total_quantity,
-            "total_price": total_price,
-            "has_photos": has_photos,
-            "photo": photo,
-            "main_attr_key": main_attr_key,
-            "main_attr_value": group["main_attr_value"],
-            "items": group["items"]
-        }
+            grouped_cart[group_key]["variants"][variant_key]["quantity"] += item.get("quantity", 1)
+            grouped_cart[group_key]["variants"][variant_key]["item_keys"].append(item_key)
+            grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
+            grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
 
     # ============================================================
-    # ШАГ 4: ОТОБРАЖЕНИЕ
+    # ШАГ 3: ОТОБРАЖЕНИЕ
     # ============================================================
     total_all = 0
 
-    for group_key, group in final_cart.items():
+    for group_key, group in grouped_cart.items():
         product = group["product"]
         variants = group["variants"]
         total_quantity = group["total_quantity"]
@@ -472,158 +437,106 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
         total_all += total_price
 
-        # ============================================================
-        # ЕСТЬ ФОТО — ОТДЕЛЬНАЯ КАРТОЧКА
-        # ============================================================
-        if has_photos:
-            text = f"👟 *{product.name}*\n"
-            text += f"💰 {product.price} руб/шт\n"
+        # Определяем количество атрибутов для выбора режима отображения
+        first_item = list(variants.values())[0]["item"] if variants else {}
+        attr_count = 0
+        for key, value in first_item.items():
+            if key not in ["product_code", "quantity", "name", "price", "item_key"]:
+                if value:
+                    attr_count += 1
 
-            # Показываем главный атрибут (например, "Цвет: коричневый")
-            display_name = main_attr_key.capitalize()
-            text += f"{display_name}: {main_attr_value}\n"
+        use_numbers = attr_count >= 3  # Для 3+ атрибутов — номера
 
-            # Показываем остальные атрибуты (без дублирования главного)
-            variant_list = list(variants.items())
+        # Формируем текст
+        text = f"👟 *{product.name}*\n"
+        text += f"💰 {product.price} руб/шт\n\n"
+
+        if main_attr_key and main_attr_value:
+            text += f"📌 {main_attr_key.capitalize()}: {main_attr_value}\n\n"
+
+        variant_list = list(variants.items())
+
+        # ============================================================
+        # 3+ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
+        # ============================================================
+        if use_numbers:
+            for idx, (v_key, v_data) in enumerate(variant_list, 1):
+                label = v_data['label']
+                qty = v_data['quantity']
+
+                if main_attr_key and main_attr_value:
+                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
+                    label = label.replace(main_pattern, "").strip(" | ")
+
+                if not label:
+                    text += f"  {idx}. {qty} шт\n"
+                else:
+                    text += f"  {idx}. {label} — {qty} шт\n"
+
+            text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
+
+            # Кнопки с номерами
+            keyboard = []
+            for idx, (v_key, v_data) in enumerate(variant_list, 1):
+                first_item_key = v_data["item_keys"][0]
+                keyboard.append([
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
+                    InlineKeyboardButton(str(idx), callback_data="noop"),
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
+                ])
+
+        # ============================================================
+        # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ, В КНОПКАХ ТОЛЬКО ЗНАЧЕНИЯ
+        # ============================================================
+        else:
             for v_key, v_data in variant_list:
                 label = v_data['label']
                 qty = v_data['quantity']
-                
-                # Убираем дублирование главного атрибута из label
+
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
-                
+
                 if not label:
-                    text += f"{qty} шт\n"
+                    text += f"  {qty} шт\n"
                 else:
-                    text += f"{label} | {qty} шт\n"
+                    text += f"  {label} — {qty} шт\n"
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КЛАВИАТУРА С ПОЛНЫМИ ДАННЫМИ ЧЕРЕЗ \n
+            # Кнопки — только значения (без главного атрибута)
             keyboard = []
-            for v_key, v_data in variants.items():
-                qty = v_data["quantity"]
+            for v_key, v_data in variant_list:
                 first_item_key = v_data["item_keys"][0]
                 label = v_data['label']
-                
-                # ✅ ДИАГНОСТИКА
-                print(f"🔍 [DIAGNOSTIC] v_key={v_key}")
-                print(f"🔍 [DIAGNOSTIC] label={label}")
-                print(f"🔍 [DIAGNOSTIC] main_attr_key={main_attr_key}, main_attr_value={main_attr_value}")
-                
-                # Убираем дублирование главного атрибута из label для кнопки
+
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
-                    print(f"🔍 [DIAGNOSTIC] после удаления main_pattern: label={label}")
-                
-                # Разбиваем на части для кнопки
+
                 parts = []
                 for part in label.split(" | "):
                     if ": " in part:
                         parts.append(part.split(": ")[-1])
                     else:
                         parts.append(part)
-                    print(f"🔍 [DIAGNOSTIC] part={part} → parts={parts}")
-                
-                if not parts:
-                    parts = ["Стандарт"]
-                
-                button_text = "\n".join(parts)
-                print(f"🔍 [DIAGNOSTIC] button_text={button_text}")
-                
+
+                if main_attr_value and main_attr_value in parts:
+                    parts.remove(main_attr_value)
+
+                button_text = ", ".join(parts) if parts else "Стандарт"
+
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
-            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
-            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
-
         # ============================================================
-        # НЕТ ФОТО — ОДНА КАРТОЧКА СО ВСЕМИ ВАРИАНТАМИ
+        # ОБЩИЕ КНОПКИ
         # ============================================================
-        else:
-            text = f"👟 *{product.name}*\n"
-            text += f"💰 {product.price} руб/шт\n"
-
-            # Группируем варианты по главному атрибуту (если есть)
-            attr_groups = {}
-            for v_key, v_data in variants.items():
-                main_attr_val = None
-                if main_attr_key:
-                    main_attr_val = v_data["item"].get(main_attr_key)
-                group_name = main_attr_val if main_attr_val else "Стандарт"
-
-                if group_name not in attr_groups:
-                    attr_groups[group_name] = []
-                attr_groups[group_name].append(v_data)
-
-            # Показываем варианты, сгруппированные по главному атрибуту
-            for attr_val, variant_list in attr_groups.items():
-                if attr_val != "Стандарт":
-                    text += f"{main_attr_key.capitalize()}: {attr_val}\n"
-
-                for v_data in variant_list:
-                    label = v_data['label']
-                    qty = v_data['quantity']
-                    
-                    # Убираем дублирование главного атрибута
-                    if main_attr_key and attr_val:
-                        main_pattern = f"{main_attr_key.capitalize()}: {attr_val}"
-                        label = label.replace(main_pattern, "").strip(" | ")
-                    
-                    if not label:
-                        text += f"  {qty} шт\n"
-                    else:
-                        text += f"  {label} | {qty} шт\n"
-
-            text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
-
-            # ✅ КЛАВИАТУРА С ПОЛНЫМИ ДАННЫМИ ЧЕРЕЗ \n
-            keyboard = []
-            for v_key, v_data in variants.items():
-                qty = v_data["quantity"]
-                first_item_key = v_data["item_keys"][0]
-                label = v_data['label']
-                
-                # ✅ ДИАГНОСТИКА
-                print(f"🔍 [DIAGNOSTIC] v_key={v_key}")
-                print(f"🔍 [DIAGNOSTIC] label={label}")
-                print(f"🔍 [DIAGNOSTIC] main_attr_key={main_attr_key}, main_attr_value={main_attr_value}")
-                
-                # Убираем дублирование главного атрибута из label для кнопки
-                if main_attr_key and main_attr_value:
-                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
-                    label = label.replace(main_pattern, "").strip(" | ")
-                    print(f"🔍 [DIAGNOSTIC] после удаления main_pattern: label={label}")
-                
-                # Разбиваем на части для кнопки
-                parts = []
-                for part in label.split(" | "):
-                    if ": " in part:
-                        parts.append(part.split(": ")[-1])
-                    else:
-                        parts.append(part)
-                    print(f"🔍 [DIAGNOSTIC] part={part} → parts={parts}")
-                
-                if not parts:
-                    parts = ["Стандарт"]
-                
-                button_text = "\n".join(parts)
-                print(f"🔍 [DIAGNOSTIC] button_text={button_text}")
-                
-                keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
-                    InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
-                ])
-
-            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
-            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
+        keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
+        keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
         # ОТПРАВКА
