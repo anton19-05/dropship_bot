@@ -10,21 +10,68 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
     if not product:
         return
     
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 show_product: product_id={prod_id}, color_id={color_id}, main_value={main_value}")
+    print(f"📋 photos: {product.photos if hasattr(product, 'photos') else 'нет'}")
+    print(f"📋 photo: {product.photo if hasattr(product, 'photo') else 'нет'}")
+    
     # ============================================================
-    # ✅ АВТОВЫБОР ТОЛЬКО ЕСЛИ НЕТ ЦВЕТА
+    # ✅ ПОЛУЧАЕМ ТЕКУЩИЙ ВЫБРАННЫЙ АТРИБУТ
     # ============================================================
     if user_id and context:
-        existing_color = context.user_data.get(f"color_{user_id}")
+        # Проверяем, есть ли выбранный цвет
+        selected_color = context.user_data.get(f"color_{user_id}")
+        if not selected_color:
+            selected_color = context.user_data.get(f"attr_цвет_{user_id}")
+        if not selected_color:
+            selected_color = context.user_data.get(f"attr_colors_{user_id}")
         
-        if not existing_color:
-            colors = product.get_colors()
-            default_color = colors[0] if colors else "белый"
-            context.user_data[f"color_{user_id}"] = default_color
-            print(f"✅ [show_product] color_{user_id} установлен: {default_color}")
-        else:
-            print(f"✅ [show_product] color_{user_id} уже существует: {existing_color}")
+        # Если есть выбранный цвет — используем его для фото
+        if selected_color:
+            color_id = selected_color
+            print(f"✅ Используем выбранный цвет: {color_id}")
+        
+        # Также проверяем другие главные атрибуты
+        main_attrs = product.get_main_attributes()
+        for attr_key in main_attrs.keys():
+            if attr_key in ["colors", "цвет", "color"]:
+                continue
+            attr_value = context.user_data.get(f"attr_{attr_key}_{user_id}")
+            if attr_value:
+                # Проверяем, есть ли фото для этого атрибута
+                photos = product.photos if hasattr(product, 'photos') else {}
+                if isinstance(photos, dict) and attr_value in photos:
+                    color_id = attr_value
+                    print(f"✅ Используем атрибут {attr_key}={attr_value} для фото")
+                    break
     
-    # Получаем текст
+    # ============================================================
+    # ✅ ПОЛУЧАЕМ ФОТО ДЛЯ ВЫБРАННОГО АТРИБУТА
+    # ============================================================
+    photo_path = ""
+    photos = product.photos if hasattr(product, 'photos') else {}
+    
+    # Сначала пробуем найти фото по color_id
+    if color_id and isinstance(photos, dict) and color_id in photos:
+        photo_path = photos[color_id]
+        print(f"✅ Найдено фото для {color_id}: {photo_path}")
+    
+    # Если не нашли — пробуем основное фото
+    if not photo_path or not os.path.exists(photo_path):
+        photo_path = product.photo if hasattr(product, 'photo') else ""
+        print(f"✅ Используем основное фото: {photo_path}")
+    
+    # Если и основного нет — ищем любое фото из photos
+    if (not photo_path or not os.path.exists(photo_path)) and isinstance(photos, dict):
+        for color, path in photos.items():
+            if path and os.path.exists(path):
+                photo_path = path
+                print(f"✅ Используем первое доступное фото: {photo_path}")
+                break
+    
+    # ============================================================
+    # ✅ ФОРМИРУЕМ ТЕКСТ
+    # ============================================================
     text = product.get_text()
     
     # Добавляем выбранные атрибуты в текст
@@ -37,17 +84,16 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 display_name = attr_key.capitalize()
                 selected_attrs.append(f"📌 {display_name}: {value}")
         
-        # ✅ ПОКАЗЫВАЕМ ТЕКУЩИЙ ЦВЕТ
-        current_color = context.user_data.get(f"color_{user_id}", "белый")
         if selected_attrs:
-            text += f"\n\n--- *ВЫБРАНО:* ---"
+            text += "\n\n--- *ВЫБРАНО:* ---"
             text += "\n" + "\n".join(selected_attrs)
     
-    photo = product.get_photo()
-    
+    # ============================================================
+    # ✅ ОТПРАВЛЯЕМ СООБЩЕНИЕ
+    # ============================================================
     try:
-        if os.path.exists(photo):
-            with open(photo, 'rb') as f:
+        if photo_path and os.path.exists(photo_path):
+            with open(photo_path, 'rb') as f:
                 msg = await bot.send_photo(
                     chat_id=chat_id,
                     photo=f,
