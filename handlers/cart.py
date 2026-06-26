@@ -343,15 +343,24 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             continue
         
         if product_code not in grouped_cart:
+            # В grouped_cart, при создании группы:
             grouped_cart[product_code] = {
                 "product": product,
                 "variants": [],
                 "total_quantity": 0,
                 "total_price": 0,
                 "item_keys": [],
-                "mode": get_cart_display_mode(product),           # separate / grouped
-                "split_by_photos": should_show_separate_cards(product)  # True / False
+                "mode": get_cart_display_mode(product),
+                "split_by_photos": False  # временно, обновим ниже
             }
+
+            # ПОСЛЕ того как все варианты собраны, обновляем split_by_photos:
+            for product_code, group_data in grouped_cart.items():
+                variants_count = len(group_data["variants"])
+                group_data["split_by_photos"] = should_show_separate_cards(
+                    group_data["product"], 
+                    variants_count
+                )
         
         quantity = item.get("quantity", 1)
         price = item.get("price", product.price)

@@ -44,20 +44,19 @@ def get_cart_display_mode(product) -> str:
     """
     total_attrs = count_total_attributes(product)
     
-    # ✅ 1–2 атрибута → separate
     if total_attrs <= 2:
         return 'separate'
-    
-    # ✅ 3+ атрибутов → grouped
     return 'grouped'
 
 
-def should_show_separate_cards(product) -> bool:
+def should_show_separate_cards(product, variants_count: int) -> bool:
     """
     Определяет, нужно ли показывать отдельные карточки:
-    - True  → отдельные карточки (есть фото)
-    - False → одна карточка (нет фото)
+    - True  → отдельные карточки (есть фото И вариантов > 1)
+    - False → одна карточка (нет фото или всего 1 вариант)
     """
+    if variants_count <= 1:
+        return False
     return has_photos_for_variants(product)
 
 
