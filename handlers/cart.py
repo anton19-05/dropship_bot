@@ -490,41 +490,45 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 qty = v_data['quantity']
                 
                 # Убираем дублирование главного атрибута из label
-                # (например, "Цвет: коричневый | Размер: 36" → "Размер: 36")
                 if main_attr_key and main_attr_value:
-                    # Удаляем из label упоминание главного атрибута
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
                 
-                # Если label пустой — показываем просто количество
                 if not label:
                     text += f"{qty} шт\n"
                 else:
-                    # Заменяем "Размер: 36" на "Размер: 36"
                     text += f"{label} | {qty} шт\n"
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # Клавиатура для каждого варианта
+            # ✅ КЛАВИАТУРА С ПОЛНЫМИ ДАННЫМИ ЧЕРЕЗ \n
             keyboard = []
             for v_key, v_data in variants.items():
                 qty = v_data["quantity"]
                 first_item_key = v_data["item_keys"][0]
                 label = v_data['label']
                 
-                # Убираем дублирование главного атрибута из label для кнопки
+                # Убираем дублирование главного атрибута
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
                 
-                # Для кнопки оставляем только значение (например, "36" вместо "Размер: 36")
-                # Убираем название атрибута, оставляем только значение
-                if ": " in label:
-                    label = label.split(": ")[-1]
+                # Разбиваем на части для кнопки
+                parts = []
+                for part in label.split(" | "):
+                    if ": " in part:
+                        parts.append(part.split(": ")[-1])
+                    else:
+                        parts.append(part)
+                
+                if not parts:
+                    parts = ["Стандарт"]
+                
+                button_text = "\n".join(parts)
                 
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
-                    InlineKeyboardButton(label, callback_data="noop"),
+                    InlineKeyboardButton(button_text, callback_data="noop"),
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
@@ -571,7 +575,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # Клавиатура для каждого варианта
+            # ✅ КЛАВИАТУРА С ПОЛНЫМИ ДАННЫМИ ЧЕРЕЗ \n
             keyboard = []
             for v_key, v_data in variants.items():
                 qty = v_data["quantity"]
@@ -583,19 +587,22 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     label = label.replace(main_pattern, "").strip(" | ")
                 
-                # Убираем все названия атрибутов, оставляем только значения
-                # Например: "Цвет: коричневый | Размер: 36" → "коричневый | 36"
+                # Разбиваем на части для кнопки
                 parts = []
                 for part in label.split(" | "):
                     if ": " in part:
                         parts.append(part.split(": ")[-1])
                     else:
                         parts.append(part)
-                button_label = "\n".join(parts)  # Для кнопки с переносом строки
+                
+                if not parts:
+                    parts = ["Стандарт"]
+                
+                button_text = "\n".join(parts)
                 
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
-                    InlineKeyboardButton(button_label, callback_data="noop"),
+                    InlineKeyboardButton(button_text, callback_data="noop"),
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
