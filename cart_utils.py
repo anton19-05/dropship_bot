@@ -64,15 +64,26 @@ def format_variant_label(product, item) -> str:
     """Формирует строку с атрибутами для варианта"""
     parts = []
 
+    # ✅ ЦВЕТ — добавляем вручную (но только если его нет в main_attrs)
     color = item.get('color') or item.get('цвет')
-    if color:
+    
+    # Проверяем, есть ли цвет в главных атрибутах
+    main_attrs = product.get_main_attributes()
+    color_in_main = False
+    for key in main_attrs:
+        if key in ["colors", "цвет", "color"]:
+            color_in_main = True
+            break
+    
+    # Если цвет не в главных атрибутах — добавляем
+    if color and not color_in_main:
         parts.append(f"Цвет: {color}")
 
     size = item.get('size')
     if size:
         parts.append(f"Размер: {size}")
 
-    main_attrs = product.get_main_attributes()
+    # Главные атрибуты (кроме цвета, если он уже добавлен)
     for key in main_attrs:
         if key in ["colors", "цвет", "color"]:
             continue
