@@ -375,7 +375,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     temp_cart[product_code]["photo"] = ""
 
     # ============================================================
-    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ
+    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ (ВСЕГДА)
     # ============================================================
     grouped_cart = {}
 
@@ -394,7 +394,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             if main_attr_key:
                 main_value = item.get(main_attr_key)
 
-            if has_photos and main_attr_key and main_value:
+            # ✅ ВСЕГДА ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ
+            if main_attr_key and main_value:
                 group_key = f"{product_code}_{main_attr_key}_{main_value}"
             else:
                 group_key = f"{product_code}_grouped"
@@ -406,7 +407,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "total_quantity": 0,
                     "total_price": 0,
                     "main_attr_key": main_attr_key,
-                    "main_attr_value": main_value,  # ✅ ВСЕГДА СОХРАНЯЕМ
+                    "main_attr_value": main_value,
                     "has_photos": has_photos,
                     "photo": photo if has_photos else "",
                 }
@@ -416,7 +417,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             for key, value in item.items():
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
                     continue
-                if has_photos and key == main_attr_key:
+                if key == main_attr_key:
                     continue
                 if value:
                     variant_parts.append(f"{key}_{value}")
