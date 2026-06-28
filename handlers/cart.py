@@ -412,8 +412,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "photo": photo if has_photos else "",
                 }
 
-            # Формируем ключ варианта (все атрибуты кроме главного)
-            # Формируем ключ варианта (все атрибуты КРОМЕ главного)
+            # ============================================================
+            # ФОРМИРУЕМ КЛЮЧ ВАРИАНТА (ВСЕ АТРИБУТЫ КРОМЕ ГЛАВНОГО)
+            # ============================================================
             variant_parts = []
             for key, value in item.items():
                 # Пропускаем служебные поля
@@ -431,7 +432,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 if value:
                     variant_parts.append(f"{key}_{value}")
 
+            # ✅ ДИАГНОСТИКА
+            print(f"🔍 [DIAGNOSTIC] variant_parts: {variant_parts}")
+
             variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
+
+            print(f"🔍 [DIAGNOSTIC] variant_key: {variant_key}")
 
             if variant_key not in grouped_cart[group_key]["variants"]:
                 grouped_cart[group_key]["variants"][variant_key] = {
