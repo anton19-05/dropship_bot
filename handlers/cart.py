@@ -306,10 +306,21 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         print(f"✅ новый товар: {full_key}")
         print(f"📋 item_data: {item_data}")
 
-    # Очищаем временные данные
+    # ============================================================
+    # ✅ ОЧИЩАЕМ ВРЕМЕННЫЕ ДАННЫЕ ПОСЛЕ ДОБАВЛЕНИЯ
+    # ============================================================
+    context.user_data.pop(f"cart_size_{user_id}", None)
     for key in attrs.keys():
         if key not in ["colors", "sizes"]:
             context.user_data.pop(f"cart_attr_{key}_{user_id}", None)
+    
+    # Очищаем временные размеры из карточки
+    for key in list(context.user_data.keys()):
+        if key.startswith(f"attr_") and key.endswith(f"_{user_id}"):
+            attr_key = key.replace(f"attr_", "").replace(f"_{user_id}", "")
+            if attr_key in ["size", "размер"]:
+                context.user_data.pop(key, None)
+                print(f"✅ Очищен временный размер: {key}")
 
     # Формируем текст
     attrs_text = ""
