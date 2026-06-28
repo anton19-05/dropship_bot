@@ -39,20 +39,15 @@ class Product:
         """Получает описание на основе выбранных главных атрибутов"""
         main_attrs = self.get_main_attributes()
     
+        # Проверяем каждый главный атрибут
         for attr_key, attr_value in main_attrs.items():
             variants = attr_value.get('variants', {})
             selected = context.user_data.get(f"attr_{attr_key}_{user_id}") if user_id and context else None
         
             if selected and selected in variants:
                 variant_data = variants[selected]
-                if isinstance(variant_data, dict):
-                    # ✅ ЕСЛИ ЕСТЬ description — ИСПОЛЬЗУЕМ ЕГО
-                    if 'description' in variant_data:
-                        return variant_data['description']
-                    # Если нет description — возвращаем пустую строку
-                    return ""
-                elif isinstance(variant_data, str):
-                    return variant_data
+                if isinstance(variant_data, dict) and 'description' in variant_data:
+                    return variant_data['description']
     
         # Если нет описания в атрибутах — используем общее описание
         return self.description

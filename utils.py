@@ -70,9 +70,33 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 break
     
     # ============================================================
-    # ✅ ФОРМИРУЕМ ТЕКСТ
+    # ✅ ФОРМИРУЕМ ТЕКСТ (С ДИНАМИЧЕСКИМ ОПИСАНИЕМ)
     # ============================================================
-    text = product.get_text()
+    # Получаем динамическое описание из выбранных атрибутов
+    description = product.get_description_for_attributes(user_id, context)
+    
+    # Формируем текст вручную, чтобы подставить правильное описание
+    text = f"📦 *{product.name}*\n\n"
+    
+    # Рейтинг и заказы
+    if product.rating:
+        text += f"⭐ Рейтинг: {product.rating}\n"
+    if product.orders:
+        text += f"📦 Заказов: {product.orders}\n"
+    text += "\n"
+    
+    # Цена
+    text += f"💰 Цена: {product.price} руб.\n"
+    if product.old_price and product.old_price > product.price:
+        text += f"~~{product.old_price} руб.~~\n"
+    text += "\n"
+    
+    # ✅ ДИНАМИЧЕСКОЕ ОПИСАНИЕ
+    if description:
+        text += f"📝 *Описание товара*\n{description}\n"
+    else:
+        # Если описания нет — показываем стандартное
+        text += f"📝 *Описание товара*\n{product.description}\n"
     
     # Добавляем выбранные атрибуты в текст
     if user_id and context:
@@ -85,7 +109,7 @@ async def show_product(chat_id, prod_id, color_id, context, bot, category=None, 
                 selected_attrs.append(f"📌 {display_name}: {value}")
         
         if selected_attrs:
-            text += "\n\n--- *ВЫБРАНО:* ---"
+            text += "\n--- *ВЫБРАНО:* ---"
             text += "\n" + "\n".join(selected_attrs)
     
     # ============================================================
