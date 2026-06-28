@@ -413,12 +413,21 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 }
 
             # Формируем ключ варианта (все атрибуты кроме главного)
+            # Формируем ключ варианта (все атрибуты КРОМЕ главного)
             variant_parts = []
             for key, value in item.items():
+                # Пропускаем служебные поля
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
                     continue
-                if key == main_attr_key:
-                    continue
+                # Пропускаем главный атрибут (и его синонимы)
+                if main_attr_key:
+                    if key == main_attr_key:
+                        continue
+                    if main_attr_key == "цвет" and key == "color":
+                        continue
+                    if main_attr_key == "color" and key == "цвет":
+                        continue
+                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ (включая материал)
                 if value:
                     variant_parts.append(f"{key}_{value}")
 
