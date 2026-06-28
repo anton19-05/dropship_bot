@@ -236,17 +236,33 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
             print(f"✅ Обычный атрибут {key} = {attr_value}")
     
     # ✅ ВАЖНО: также проверяем, есть ли атрибуты из выбора в карточке
-    # (например, материал мог быть выбран как главный атрибут)
     for key, value in context.user_data.items():
         if key.startswith(f"attr_") and key.endswith(f"_{user_id}"):
             attr_key = key.replace(f"attr_", "").replace(f"_{user_id}", "")
-            # Если этот атрибут уже есть в selected_main_attrs или selected_attrs — пропускаем
             if attr_key in selected_main_attrs or attr_key in selected_attrs:
                 continue
-            # Если это не служебный ключ
             if attr_key not in ["product_code", "quantity", "name", "price", "item_key"]:
                 selected_attrs[attr_key] = value
                 print(f"✅ Дополнительный атрибут {attr_key} = {value}")
+    
+    # ============================================================
+    # ✅ ПОЛУЧАЕМ РАЗМЕР
+    # ============================================================
+    size = context.user_data.get(f"cart_size_{user_id}")
+    if not size:
+        size = context.user_data.get(f"attr_size_{user_id}")
+    if not size:
+        for key, value in selected_main_attrs.items():
+            if key in ["size", "размер"]:
+                size = value
+                break
+        if not size:
+            for key, value in selected_attrs.items():
+                if key in ["size", "размер"]:
+                    size = value
+                    break
+    
+    print(f"✅ Размер для корзины: {size}")
     
     # ============================================================
     # ✅ ДОБАВЛЯЕМ В КОРЗИНУ
@@ -255,18 +271,19 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
-    # Формируем ключ с учетом ВСЕХ атрибутов
+    # Формируем ключ
     main_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_main_attrs.items()])
     extra_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_attrs.items()])
+    size_str = f"_size_{size}" if size else ""
     
     if main_attrs_str and extra_attrs_str:
-        full_key = f"{product_code}_{main_attrs_str}_{extra_attrs_str}"
+        full_key = f"{product_code}_{main_attrs_str}_{extra_attrs_str}{size_str}"
     elif main_attrs_str:
-        full_key = f"{product_code}_{main_attrs_str}"
+        full_key = f"{product_code}_{main_attrs_str}{size_str}"
     elif extra_attrs_str:
-        full_key = f"{product_code}_{extra_attrs_str}"
+        full_key = f"{product_code}_{extra_attrs_str}{size_str}"
     else:
-        full_key = product_code
+        full_key = f"{product_code}{size_str}"
     
     print(f"✅ full_key={full_key}")
     
@@ -279,9 +296,12 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
             "quantity": 1,
             "name": product.name,
             "price": product.price,
-            **selected_main_attrs,  # ✅ ВСЕ главные атрибуты
-            **selected_attrs         # ✅ ВСЕ обычные атрибуты
+            **selected_main_attrs,
+            **selected_attrs
         }
+        if size:
+            item_data["size"] = size
+        
         context.user_data[cart_key][full_key] = item_data
         print(f"✅ новый товар: {full_key}")
         print(f"📋 item_data: {item_data}")
@@ -297,6 +317,8 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         attrs_text += f"\n🔥 {key.capitalize()}: {value}"
     for key, value in selected_attrs.items():
         attrs_text += f"\n🔥 {key.capitalize()}: {value}"
+    if size:
+        attrs_text += f"\n🔥 Размер: {size}"
 
     text = f"✅ *{product.name} добавлен в корзину!*{attrs_text}"
     
@@ -446,11 +468,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         continue
                     if main_attr_key == "color" and key == "цвет":
                         continue
-                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ (включая материал)
+                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ (включая size)
                 if value:
                     variant_parts.append(f"{key}_{value}")
+                # ✅ ЕСЛИ АТРИБУТ ПУСТОЙ — НЕ ДОБАВЛЯЕМ
+                # (но если это size и он None — пропускаем)
 
-            # ✅ ДИАГНОСТИКА
             print(f"🔍 [DIAGNOSTIC] variant_parts: {variant_parts}")
 
             variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
