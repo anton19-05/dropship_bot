@@ -188,8 +188,6 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Товар не найден!", show_alert=True)
         return
     
-    size = context.user_data.get(f"cart_size_{user_id}")
-    
     # ============================================================
     # ✅ СОБИРАЕМ ВСЕ ГЛАВНЫЕ АТРИБУТЫ
     # ============================================================
@@ -221,64 +219,84 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     print(f"📋 Цвет для корзины: {color_value}")
     
     # ============================================================
-    # СОБИРАЕМ ОБЫЧНЫЕ АТРИБУТЫ (не главные)
+    # ✅ СОБИРАЕМ ВСЕ ОБЫЧНЫЕ АТРИБУТЫ (не главные)
     # ============================================================
     attrs = product.get_extra_attributes()
     selected_attrs = {}
     for key in attrs.keys():
-        if key not in ["colors", "sizes"]:
-            attr_value = context.user_data.get(f"cart_attr_{key}_{user_id}")
-            if not attr_value:
-                attr_value = context.user_data.get(f"attr_{key}_{user_id}")
-            if attr_value:
-                selected_attrs[key] = attr_value
+        if key in ["colors", "sizes"]:
+            continue
+        # Сначала пробуем из cart_attr_ (выбор в корзине)
+        attr_value = context.user_data.get(f"cart_attr_{key}_{user_id}")
+        if not attr_value:
+            # Потом из attr_ (выбор в карточке)
+            attr_value = context.user_data.get(f"attr_{key}_{user_id}")
+        if attr_value:
+            selected_attrs[key] = attr_value
+            print(f"✅ Обычный атрибут {key} = {attr_value}")
     
-    # Добавляем в корзину
+    # ✅ ВАЖНО: также проверяем, есть ли атрибуты из выбора в карточке
+    # (например, материал мог быть выбран как главный атрибут)
+    for key, value in context.user_data.items():
+        if key.startswith(f"attr_") and key.endswith(f"_{user_id}"):
+            attr_key = key.replace(f"attr_", "").replace(f"_{user_id}", "")
+            # Если этот атрибут уже есть в selected_main_attrs или selected_attrs — пропускаем
+            if attr_key in selected_main_attrs or attr_key in selected_attrs:
+                continue
+            # Если это не служебный ключ
+            if attr_key not in ["product_code", "quantity", "name", "price", "item_key"]:
+                selected_attrs[attr_key] = value
+                print(f"✅ Дополнительный атрибут {attr_key} = {value}")
+    
+    # ============================================================
+    # ✅ ДОБАВЛЯЕМ В КОРЗИНУ
+    # ============================================================
     cart_key = f"cart_{user_id}"
     if cart_key not in context.user_data:
         context.user_data[cart_key] = {}
 
-    # ✅ КЛЮЧ ГРУППИРОВКИ С УЧЕТОМ ЦВЕТА
+    # Формируем ключ с учетом ВСЕХ атрибутов
     main_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_main_attrs.items()])
-    if size:
-        item_key = f"{product_code}_{main_attrs_str}_{size}"
+    extra_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_attrs.items()])
+    
+    if main_attrs_str and extra_attrs_str:
+        full_key = f"{product_code}_{main_attrs_str}_{extra_attrs_str}"
+    elif main_attrs_str:
+        full_key = f"{product_code}_{main_attrs_str}"
+    elif extra_attrs_str:
+        full_key = f"{product_code}_{extra_attrs_str}"
     else:
-        item_key = f"{product_code}_{main_attrs_str}"
+        full_key = product_code
     
-    print(f"✅ item_key={item_key}")
+    print(f"✅ full_key={full_key}")
     
-    if item_key in context.user_data[cart_key]:
-        context.user_data[cart_key][item_key]["quantity"] += 1
-        print(f"✅ увеличено количество для {item_key}")
+    if full_key in context.user_data[cart_key]:
+        context.user_data[cart_key][full_key]["quantity"] += 1
+        print(f"✅ увеличено количество для {full_key}")
     else:
         item_data = {
             "product_code": product_code,
             "quantity": 1,
             "name": product.name,
             "price": product.price,
-            "size": size,
-            "color": color_value,  # ✅ ЯВНО СОХРАНЯЕМ ЦВЕТ
-            **selected_main_attrs,
-            **selected_attrs
+            **selected_main_attrs,  # ✅ ВСЕ главные атрибуты
+            **selected_attrs         # ✅ ВСЕ обычные атрибуты
         }
-        context.user_data[cart_key][item_key] = item_data
-        print(f"✅ новый товар: {item_key}")
+        context.user_data[cart_key][full_key] = item_data
+        print(f"✅ новый товар: {full_key}")
+        print(f"📋 item_data: {item_data}")
 
     # Очищаем временные данные
-    context.user_data.pop(f"cart_size_{user_id}", None)
     for key in attrs.keys():
         if key not in ["colors", "sizes"]:
             context.user_data.pop(f"cart_attr_{key}_{user_id}", None)
 
     # Формируем текст
-    attrs_text = f"\n🎨 Цвет: {color_value}"
-    if size:
-        attrs_text += f"\n📏 Размер: {size}"
+    attrs_text = ""
     for key, value in selected_main_attrs.items():
-        if key not in ["colors", "цвет", "color"]:
-            attrs_text += f"\n📌 {key.capitalize()}: {value}"
+        attrs_text += f"\n🔥 {key.capitalize()}: {value}"
     for key, value in selected_attrs.items():
-        attrs_text += f"\n📌 {key.capitalize()}: {value}"
+        attrs_text += f"\n🔥 {key.capitalize()}: {value}"
 
     text = f"✅ *{product.name} добавлен в корзину!*{attrs_text}"
     
