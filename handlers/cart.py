@@ -631,6 +631,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # 0-2 ВТОРОСТЕПЕННЫХ АТРИБУТА — ПОЛНЫЙ ТЕКСТ
         # ============================================================
         else:
+            # ✅ ДЛЯ 1 АТРИБУТА — ПОКАЗЫВАЕМ ВСЕ ЗНАЧЕНИЯ КАК ОТДЕЛЬНЫЕ СТРОКИ
             display_variants = []
             for v_key, v_data in variant_list:
                 label = v_data['label']
@@ -640,6 +641,17 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 if main_attr_key and main_attr_value:
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     clean_label = clean_label.replace(main_pattern, "").strip(" | ")
+
+                # ✅ ЕСЛИ clean_label ПУСТОЙ — ЗНАЧИТ ЭТО ЕДИНСТВЕННЫЙ АТРИБУТ
+                # ПОКАЗЫВАЕМ ЕГО КАК ОТДЕЛЬНУЮ СТРОКУ
+                if not clean_label:
+                    # Берем значение из item
+                    for key, value in v_data['item'].items():
+                        if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                            continue
+                        if value:
+                            clean_label = f"{key.capitalize()}: {value}"
+                            break
 
                 display_variants.append({
                     "clean_label": clean_label,
