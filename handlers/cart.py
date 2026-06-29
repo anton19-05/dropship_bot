@@ -663,31 +663,48 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # ============================================================
         else:
             display_variants = []
+
             for v_key, v_data in variant_list:
                 label = v_data['label']
                 qty = v_data['quantity']
+                item = v_data['item']
 
+                # ✅ 1. Убираем из label все упоминания главного атрибута
                 clean_label = label
-
-                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ LABEL
                 if main_attr_key and main_attr_value:
-                    # Вариант 1: "Цвет: черный | Размер: 36"
+                    # Вариант: "Цвет: черный | ..."
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     clean_label = clean_label.replace(main_pattern, "").strip(" | ")
-                    
-                    # Вариант 2: "Размер: 36" (если главный атрибут уже в начале)
+
+                    # Вариант: "Размер: 36" (если атрибут один)
                     if clean_label == main_attr_value or clean_label == "":
                         clean_label = ""
 
-                # ✅ ЕСЛИ clean_label ПУСТОЙ — ЗНАЧИТ ЭТО ТОЛЬКО ГЛАВНЫЙ АТРИБУТ
-                # ПОКАЗЫВАЕМ ЕГО КАК ОТДЕЛЬНУЮ СТРОКУ
+                # ✅ 2. Если clean_label пустой — создаём его из item вручную
                 if not clean_label:
-                    # Берем значение из item
-                    for key, value in v_data['item'].items():
+                    for key, value in item.items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
-                        if value and str(value) == str(main_attr_value):
-                            clean_label = f"{key.capitalize()}: {value}"
+                        if value:
+                            # Пропускаем главный атрибут
+                            if main_attr_key and key == main_attr_key:
+                                continue
+                            if main_attr_key == "размер" and key == "size":
+                                continue
+                            if main_attr_key == "size" and key == "размер":
+                                continue
+                            if main_attr_key == "цвет" and key == "color":
+                                continue
+                            if main_attr_key == "color" and key == "цвет":
+                                continue
+
+                            display_name = key.capitalize()
+                            if key in ["color", "цвет"]:
+                                display_name = "Цвет"
+                            elif key in ["size", "размер"]:
+                                display_name = "Размер"
+
+                            clean_label = f"{display_name}: {value}"
                             break
 
                 display_variants.append({
@@ -697,7 +714,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "v_data": v_data
                 })
 
-            # ТЕКСТ
+            # ✅ 3. Формируем текст
             for item in display_variants:
                 if not item["clean_label"]:
                     text += f"  {item['qty']} шт\n"
@@ -706,35 +723,46 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ
+            # ✅ 4. Формируем кнопки (без дублей)
             keyboard = []
             item_index_map = {}
+
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
                 item_index_map[str(idx)] = first_item_key
 
                 clean_label = item["clean_label"]
-                parts = []
-                for part in clean_label.split(" | "):
-                    if ": " in part:
-                        parts.append(part.split(": ")[-1])
-                    else:
-                        parts.append(part)
 
-                # ✅ ЕСЛИ parts ПУСТОЙ — БЕРЕМ ЗНАЧЕНИЕ ИЗ item
+                # Извлекаем значения для кнопки
+                parts = []
+                if clean_label:
+                    for part in clean_label.split(" | "):
+                        if ": " in part:
+                            parts.append(part.split(": ")[-1])
+                        else:
+                            parts.append(part)
+
+                # Если parts пустой — берём значение из item
                 if not parts:
                     for key, value in item["v_data"]["item"].items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
                         if value:
+                            # Пропускаем главный атрибут
+                            if main_attr_key and key == main_attr_key:
+                                continue
+                            if main_attr_key == "размер" and key == "size":
+                                continue
+                            if main_attr_key == "size" and key == "размер":
+                                continue
+                            if main_attr_key == "цвет" and key == "color":
+                                continue
+                            if main_attr_key == "color" and key == "цвет":
+                                continue
                             parts.append(str(value))
                             break
 
-                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ КНОПКИ
-                if main_attr_value and main_attr_value in parts:
-                    parts.remove(main_attr_value)
-
-                # ✅ УБИРАЕМ ДУБЛИ В КНОПКЕ
+                # Убираем дубли в кнопке
                 unique_parts = []
                 for p in parts:
                     if p not in unique_parts:
