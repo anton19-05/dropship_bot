@@ -475,19 +475,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 elif not main_value and main_attr_key == "color":
                     main_value = item.get("цвет")
 
-            # ✅ ФОРМИРУЕМ GROUP_KEY (ВСЕГДА УЧИТЫВАЕМ ГЛАВНЫЙ АТРИБУТ)
-            if main_attr_key and main_value:
-                group_key = f"{product_code}_{main_attr_key}_{main_value}"
-            elif total_attr_count <= 1:
+            # ✅ ЕСЛИ ВСЕГО 1 АТРИБУТ — НЕ ГРУППИРУЕМ ПО ЗНАЧЕНИЯМ
+            if total_attr_count <= 1:
                 group_key = f"{product_code}_single_attr"
+            elif main_attr_key and main_value:
+                group_key = f"{product_code}_{main_attr_key}_{main_value}"
             else:
                 group_key = f"{product_code}_grouped"
-
-            # ✅ ДЛЯ ФОТО: ОБНОВЛЯЕМ PHOTO В ГРУППЕ, ЕСЛИ ОНО ЕСТЬ
-            if has_photos and main_attr_key and main_value:
-                photos = getattr(product, 'photos', {})
-                if main_value in photos and photos[main_value] and os.path.exists(photos[main_value]):
-                    photo = photos[main_value]
 
             if group_key not in grouped_cart:
                 grouped_cart[group_key] = {
@@ -500,6 +494,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "has_photos": has_photos,
                     "photo": photo if has_photos and photo and os.path.exists(photo) else "",
                 }
+            else:
+                # ✅ ЕСЛИ ГРУППА УЖЕ СУЩЕСТВУЕТ — ОБНОВЛЯЕМ PHOTO
+                if has_photos and main_attr_key and main_value:
+                    photos = getattr(product, 'photos', {})
+                    if main_value in photos and photos[main_value] and os.path.exists(photos[main_value]):
+                        grouped_cart[group_key]["photo"] = photos[main_value]
 
             # ============================================================
             # ФОРМИРУЕМ КЛЮЧ ВАРИАНТА (ВСЕ АТРИБУТЫ КРОМЕ ГЛАВНОГО)
