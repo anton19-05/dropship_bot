@@ -221,32 +221,20 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ============================================================
     # ✅ СОБИРАЕМ ВСЕ ОБЫЧНЫЕ АТРИБУТЫ (не главные)
     # ============================================================
-    attrs = product.get_extra_attributes()
-    selected_attrs = {}
-    for key in attrs.keys():
+    extra_attrs = product.get_extra_attributes()
+    selected_extra_attrs = {}
+    for key in extra_attrs.keys():
         if key in ["colors", "sizes"]:
             continue
-        # Сначала пробуем из cart_attr_ (выбор в корзине)
         attr_value = context.user_data.get(f"cart_attr_{key}_{user_id}")
         if not attr_value:
-            # Потом из attr_ (выбор в карточке)
             attr_value = context.user_data.get(f"attr_{key}_{user_id}")
         if attr_value:
-            selected_attrs[key] = attr_value
+            selected_extra_attrs[key] = attr_value
             print(f"✅ Обычный атрибут {key} = {attr_value}")
     
-    # ✅ ВАЖНО: также проверяем, есть ли атрибуты из выбора в карточке
-    for key, value in context.user_data.items():
-        if key.startswith(f"attr_") and key.endswith(f"_{user_id}"):
-            attr_key = key.replace(f"attr_", "").replace(f"_{user_id}", "")
-            if attr_key in selected_main_attrs or attr_key in selected_attrs:
-                continue
-            if attr_key not in ["product_code", "quantity", "name", "price", "item_key"]:
-                selected_attrs[attr_key] = value
-                print(f"✅ Дополнительный атрибут {attr_key} = {value}")
-    
     # ============================================================
-    # ✅ ПОЛУЧАЕМ РАЗМЕР
+    # ✅ ПОЛУЧАЕМ РАЗМЕР (если есть)
     # ============================================================
     size = context.user_data.get(f"cart_size_{user_id}")
     if not size:
@@ -257,7 +245,7 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
                 size = value
                 break
         if not size:
-            for key, value in selected_attrs.items():
+            for key, value in selected_extra_attrs.items():
                 if key in ["size", "размер"]:
                     size = value
                     break
@@ -273,7 +261,7 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Формируем ключ
     main_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_main_attrs.items()])
-    extra_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_attrs.items()])
+    extra_attrs_str = "_".join([f"{k}_{v}" for k, v in selected_extra_attrs.items()])
     size_str = f"_size_{size}" if size else ""
     
     if main_attrs_str and extra_attrs_str:
@@ -297,7 +285,7 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
             "name": product.name,
             "price": product.price,
             **selected_main_attrs,
-            **selected_attrs
+            **selected_extra_attrs
         }
         if size:
             item_data["size"] = size
@@ -307,26 +295,43 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
         print(f"📋 item_data: {item_data}")
 
     # ============================================================
-    # ✅ ОЧИЩАЕМ ВРЕМЕННЫЕ ДАННЫЕ ПОСЛЕ ДОБАВЛЕНИЯ
+    # ✅ ОЧИЩАЕМ ВСЕ ВРЕМЕННЫЕ ДАННЫЕ
     # ============================================================
+    # Очищаем размер
     context.user_data.pop(f"cart_size_{user_id}", None)
-    for key in attrs.keys():
+    
+    # Очищаем атрибуты корзины
+    for key in extra_attrs.keys():
         if key not in ["colors", "sizes"]:
             context.user_data.pop(f"cart_attr_{key}_{user_id}", None)
     
-    # Очищаем временные размеры из карточки
+    # ✅ ОЧИЩАЕМ ВСЕ ВРЕМЕННЫЕ АТРИБУТЫ ИЗ КАРТОЧКИ
+    keys_to_remove = []
+    all_product_attrs = list(main_attrs.keys()) + list(extra_attrs.keys())
     for key in list(context.user_data.keys()):
         if key.startswith(f"attr_") and key.endswith(f"_{user_id}"):
             attr_key = key.replace(f"attr_", "").replace(f"_{user_id}", "")
-            if attr_key in ["size", "размер"]:
-                context.user_data.pop(key, None)
-                print(f"✅ Очищен временный размер: {key}")
+            if attr_key in all_product_attrs:
+                keys_to_remove.append(key)
+                print(f"✅ Очищен атрибут: {key}")
+    
+    for key in keys_to_remove:
+        context.user_data.pop(key, None)
+    
+    # Очищаем цвет
+    if "color" in all_product_attrs or "цвет" in all_product_attrs:
+        context.user_data.pop(f"color_{user_id}", None)
+        print(f"✅ Очищен цвет: color_{user_id}")
+    
+    print(f"📋 Очищено {len(keys_to_remove)} временных атрибутов")
 
-    # Формируем текст
+    # ============================================================
+    # ✅ ОТПРАВЛЯЕМ СООБЩЕНИЕ
+    # ============================================================
     attrs_text = ""
     for key, value in selected_main_attrs.items():
         attrs_text += f"\n🔥 {key.capitalize()}: {value}"
-    for key, value in selected_attrs.items():
+    for key, value in selected_extra_attrs.items():
         attrs_text += f"\n🔥 {key.capitalize()}: {value}"
     if size:
         attrs_text += f"\n🔥 Размер: {size}"
