@@ -442,7 +442,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         photo = group["photo"]
 
         # ✅ ПРОВЕРЯЕМ, СКОЛЬКО ВСЕГО АТРИБУТОВ У ТОВАРА
-        all_attrs = product.get_main_attributes()
+        all_attrs = dict(product.get_main_attributes())
         all_attrs.update(product.get_extra_attributes())
         total_attr_count = len(all_attrs)
 
@@ -502,16 +502,31 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
 
-            if variant_key not in grouped_cart[group_key]["variants"]:
-                grouped_cart[group_key]["variants"][variant_key] = {
-                    "label": format_variant_label(product, item),
-                    "quantity": 0,
-                    "item_keys": [],
-                    "item": item
-                }
+            # ✅ ДЛЯ 1 АТРИБУТА — НЕ СЛИВАЕМ ОДИНАКОВЫЕ variant_key
+            if total_attr_count <= 1:
+                # Используем уникальный ключ на основе item_key
+                unique_key = f"single_{item_key}"
+                if unique_key not in grouped_cart[group_key]["variants"]:
+                    grouped_cart[group_key]["variants"][unique_key] = {
+                        "label": format_variant_label(product, item),
+                        "quantity": 0,
+                        "item_keys": [],
+                        "item": item
+                    }
+                grouped_cart[group_key]["variants"][unique_key]["quantity"] += item.get("quantity", 1)
+                grouped_cart[group_key]["variants"][unique_key]["item_keys"].append(item_key)
+            else:
+                # Для 2+ атрибутов — сливаем по variant_key
+                if variant_key not in grouped_cart[group_key]["variants"]:
+                    grouped_cart[group_key]["variants"][variant_key] = {
+                        "label": format_variant_label(product, item),
+                        "quantity": 0,
+                        "item_keys": [],
+                        "item": item
+                    }
+                grouped_cart[group_key]["variants"][variant_key]["quantity"] += item.get("quantity", 1)
+                grouped_cart[group_key]["variants"][variant_key]["item_keys"].append(item_key)
 
-            grouped_cart[group_key]["variants"][variant_key]["quantity"] += item.get("quantity", 1)
-            grouped_cart[group_key]["variants"][variant_key]["item_keys"].append(item_key)
             grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
             grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
 
