@@ -475,13 +475,19 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 elif not main_value and main_attr_key == "color":
                     main_value = item.get("цвет")
 
-            # ✅ ЕСЛИ ВСЕГО 1 АТРИБУТ — НЕ ГРУППИРУЕМ ПО ЗНАЧЕНИЯМ
-            if total_attr_count <= 1:
-                group_key = f"{product_code}_single_attr"
-            elif main_attr_key and main_value:
+            # ✅ ФОРМИРУЕМ GROUP_KEY (ВСЕГДА УЧИТЫВАЕМ ГЛАВНЫЙ АТРИБУТ)
+            if main_attr_key and main_value:
                 group_key = f"{product_code}_{main_attr_key}_{main_value}"
+            elif total_attr_count <= 1:
+                group_key = f"{product_code}_single_attr"
             else:
                 group_key = f"{product_code}_grouped"
+
+            # ✅ ДЛЯ ФОТО: ОБНОВЛЯЕМ PHOTO В ГРУППЕ, ЕСЛИ ОНО ЕСТЬ
+            if has_photos and main_attr_key and main_value:
+                photos = getattr(product, 'photos', {})
+                if main_value in photos and photos[main_value] and os.path.exists(photos[main_value]):
+                    photo = photos[main_value]
 
             if group_key not in grouped_cart:
                 grouped_cart[group_key] = {
@@ -492,7 +498,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "main_attr_key": main_attr_key,
                     "main_attr_value": main_value,
                     "has_photos": has_photos,
-                    "photo": photo if has_photos else "",
+                    "photo": photo if has_photos and photo and os.path.exists(photo) else "",
                 }
 
             # ============================================================
@@ -520,7 +526,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             # ✅ ДЛЯ 1 АТРИБУТА — НЕ СЛИВАЕМ ОДИНАКОВЫЕ variant_key
             if total_attr_count <= 1:
-                # Используем уникальный ключ на основе item_key
                 unique_key = f"single_{item_key}"
                 if unique_key not in grouped_cart[group_key]["variants"]:
                     grouped_cart[group_key]["variants"][unique_key] = {
@@ -532,7 +537,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 grouped_cart[group_key]["variants"][unique_key]["quantity"] += item.get("quantity", 1)
                 grouped_cart[group_key]["variants"][unique_key]["item_keys"].append(item_key)
             else:
-                # Для 2+ атрибутов — сливаем по variant_key
                 if variant_key not in grouped_cart[group_key]["variants"]:
                     grouped_cart[group_key]["variants"][variant_key] = {
                         "label": format_variant_label(product, item),
