@@ -61,10 +61,10 @@ def should_show_separate_cards(product, variants_count: int) -> bool:
 
 
 def format_variant_label(product, item) -> str:
-    """Формирует строку с атрибутами для варианта"""
+    """Формирует строку с атрибутами для варианта (БЕЗ ДУБЛИРОВАНИЯ)"""
     parts = []
 
-    # ✅ ЦВЕТ — добавляем вручную (но только если его нет в main_attrs)
+    # ✅ ЦВЕТ — добавляем, если есть
     color = item.get('color') or item.get('цвет')
     
     # Проверяем, есть ли цвет в главных атрибутах
@@ -75,7 +75,7 @@ def format_variant_label(product, item) -> str:
             color_in_main = True
             break
     
-    # Если цвет не в главных атрибутах — добавляем
+    # Добавляем цвет, если он НЕ в главных атрибутах (иначе он добавится отдельно)
     if color and not color_in_main:
         parts.append(f"Цвет: {color}")
 
@@ -83,7 +83,7 @@ def format_variant_label(product, item) -> str:
     if size:
         parts.append(f"Размер: {size}")
 
-    # Главные атрибуты (кроме цвета, если он уже добавлен)
+    # Главные атрибуты (кроме цвета)
     for key in main_attrs:
         if key in ["colors", "цвет", "color"]:
             continue
@@ -91,9 +91,14 @@ def format_variant_label(product, item) -> str:
         if val:
             parts.append(f"{key.capitalize()}: {val}")
 
+    # Обычные атрибуты (кроме размера, если он уже добавлен)
     extra = product.get_extra_attributes()
     for key in extra:
         if key in ["colors", "sizes"]:
+            continue
+        if key == "size" and size:
+            continue
+        if key == "размер" and size:
             continue
         val = item.get(key)
         if val:

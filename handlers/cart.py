@@ -449,11 +449,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             main_value = None
             if main_attr_key:
                 main_value = item.get(main_attr_key)
+                if not main_value and main_attr_key == "цвет":
+                    main_value = item.get("color")
+                elif not main_value and main_attr_key == "color":
+                    main_value = item.get("цвет")
 
             # ✅ ВСЕГДА ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ
             if main_attr_key and main_value:
                 group_key = f"{product_code}_{main_attr_key}_{main_value}"
             else:
+                # Если нет главного атрибута — группируем по товару
                 group_key = f"{product_code}_grouped"
 
             if group_key not in grouped_cart:
@@ -473,10 +478,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             # ============================================================
             variant_parts = []
             for key, value in item.items():
-                # Пропускаем служебные поля
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
                     continue
-                # Пропускаем главный атрибут (и его синонимы)
+                # Пропускаем главный атрибут
                 if main_attr_key:
                     if key == main_attr_key:
                         continue
@@ -484,17 +488,11 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         continue
                     if main_attr_key == "color" and key == "цвет":
                         continue
-                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ (включая size)
+                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ
                 if value:
                     variant_parts.append(f"{key}_{value}")
-                # ✅ ЕСЛИ АТРИБУТ ПУСТОЙ — НЕ ДОБАВЛЯЕМ
-                # (но если это size и он None — пропускаем)
-
-            print(f"🔍 [DIAGNOSTIC] variant_parts: {variant_parts}")
 
             variant_key = "_".join(sorted(variant_parts)) if variant_parts else "standard"
-
-            print(f"🔍 [DIAGNOSTIC] variant_key: {variant_key}")
 
             if variant_key not in grouped_cart[group_key]["variants"]:
                 grouped_cart[group_key]["variants"][variant_key] = {
