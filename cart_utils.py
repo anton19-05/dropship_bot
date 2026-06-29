@@ -64,45 +64,48 @@ def format_variant_label(product, item) -> str:
     """Формирует строку с атрибутами для варианта (БЕЗ ДУБЛИРОВАНИЯ)"""
     parts = []
 
-    # ✅ ЦВЕТ — добавляем, если есть
-    color = item.get('color') or item.get('цвет')
-    
-    # Проверяем, есть ли цвет в главных атрибутах
+    # Получаем все главные атрибуты
     main_attrs = product.get_main_attributes()
-    color_in_main = False
-    for key in main_attrs:
-        if key in ["colors", "цвет", "color"]:
-            color_in_main = True
-            break
+    main_attr_keys = list(main_attrs.keys())
     
-    # Добавляем цвет, если он НЕ в главных атрибутах (иначе он добавится отдельно)
-    if color and not color_in_main:
-        parts.append(f"Цвет: {color}")
+    # Получаем все обычные атрибуты
+    extra_attrs = product.get_extra_attributes()
+    extra_attr_keys = list(extra_attrs.keys())
 
-    size = item.get('size')
-    if size:
-        parts.append(f"Размер: {size}")
+    # ✅ Добавляем атрибуты из item, но без дублирования
+    added_keys = set()
 
-    # Главные атрибуты (кроме цвета)
-    for key in main_attrs:
-        if key in ["colors", "цвет", "color"]:
+    for key, value in item.items():
+        # Пропускаем служебные
+        if key in ["product_code", "quantity", "name", "price", "item_key"]:
             continue
-        val = item.get(key)
-        if val:
-            parts.append(f"{key.capitalize()}: {val}")
-
-    # Обычные атрибуты (кроме размера, если он уже добавлен)
-    extra = product.get_extra_attributes()
-    for key in extra:
-        if key in ["colors", "sizes"]:
+        
+        # Пропускаем пустые значения
+        if not value:
             continue
-        if key == "size" and size:
+        
+        # Проверяем, не добавлен ли уже этот атрибут (по смыслу)
+        # Например, если есть "цвет" и "color" — это одно и то же
+        normalized_key = key
+        if key in ["color", "цвет"]:
+            normalized_key = "цвет"
+        
+        if normalized_key in added_keys:
             continue
-        if key == "размер" and size:
-            continue
-        val = item.get(key)
-        if val:
-            parts.append(f"{key.capitalize()}: {val}")
+        
+        # Добавляем атрибут
+        display_name = key.capitalize()
+        if key == "color":
+            display_name = "Цвет"
+        elif key == "цвет":
+            display_name = "Цвет"
+        elif key == "size":
+            display_name = "Размер"
+        elif key == "размер":
+            display_name = "Размер"
+        
+        parts.append(f"{display_name}: {value}")
+        added_keys.add(normalized_key)
 
     return " | ".join(parts) if parts else "Стандарт"
 

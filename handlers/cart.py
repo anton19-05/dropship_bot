@@ -480,9 +480,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             for key, value in item.items():
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
                     continue
-                # Пропускаем главный атрибут
+                # Пропускаем главный атрибут (и его синонимы)
                 if main_attr_key:
                     if key == main_attr_key:
+                        continue
+                    if main_attr_key == "размер" and key == "size":
+                        continue
+                    if main_attr_key == "size" and key == "размер":
                         continue
                     if main_attr_key == "цвет" and key == "color":
                         continue
