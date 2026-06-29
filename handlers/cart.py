@@ -668,8 +668,10 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 qty = v_data['quantity']
                 item = v_data['item']
 
-                # ✅ СОЗДАЕМ clean_label НАПРЯМУЮ ИЗ item, А НЕ ИЗ label
+                # ✅ СОЗДАЕМ clean_label НАПРЯМУЮ ИЗ item (НОРМАЛИЗУЯ КЛЮЧИ)
                 clean_parts = []
+                used_keys = set()  # для отслеживания уже добавленных атрибутов
+
                 for key, value in item.items():
                     if key in ["product_code", "quantity", "name", "price", "item_key"]:
                         continue
@@ -686,26 +688,43 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         if main_attr_key == "color" and key == "цвет":
                             continue
                     if value:
-                        display_name = key.capitalize()
-                        if key in ["color", "цвет"]:
+                        # ✅ НОРМАЛИЗУЕМ КЛЮЧ (размер/size → размер, цвет/color → цвет)
+                        normalized_key = key
+                        if key in ["size", "размер"]:
+                            normalized_key = "размер"
+                        elif key in ["color", "цвет"]:
+                            normalized_key = "цвет"
+
+                        # ✅ ПРОВЕРЯЕМ, НЕ ДОБАВЛЯЛИ ЛИ УЖЕ ЭТОТ АТРИБУТ
+                        if normalized_key in used_keys:
+                            continue
+                        used_keys.add(normalized_key)
+
+                        display_name = normalized_key.capitalize()
+                        if normalized_key == "цвет":
                             display_name = "Цвет"
-                        elif key in ["size", "размер"]:
+                        elif normalized_key == "размер":
                             display_name = "Размер"
+
                         clean_parts.append(f"{display_name}: {value}")
 
                 clean_label = " | ".join(clean_parts) if clean_parts else ""
 
                 # ✅ Если clean_label пустой — значит это единственный атрибут (главный)
-                # Показываем его как есть
                 if not clean_label:
                     for key, value in item.items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
                         if value:
-                            display_name = key.capitalize()
-                            if key in ["color", "цвет"]:
+                            normalized_key = key
+                            if key in ["size", "размер"]:
+                                normalized_key = "размер"
+                            elif key in ["color", "цвет"]:
+                                normalized_key = "цвет"
+                            display_name = normalized_key.capitalize()
+                            if normalized_key == "цвет":
                                 display_name = "Цвет"
-                            elif key in ["size", "размер"]:
+                            elif normalized_key == "размер":
                                 display_name = "Размер"
                             clean_label = f"{display_name}: {value}"
                             break
@@ -747,6 +766,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 # Если parts пустой — берём значение из item
                 if not parts:
+                    used_values = set()
                     for key, value in item["v_data"]["item"].items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
@@ -762,6 +782,15 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                                 continue
                             if main_attr_key == "color" and key == "цвет":
                                 continue
+                            # ✅ НОРМАЛИЗУЕМ И УБИРАЕМ ДУБЛИ
+                            normalized_key = key
+                            if normalized_key in ["size", "размер"]:
+                                normalized_key = "размер"
+                            elif normalized_key in ["color", "цвет"]:
+                                normalized_key = "цвет"
+                            if normalized_key in used_values:
+                                continue
+                            used_values.add(normalized_key)
                             parts.append(str(value))
                             break
 
