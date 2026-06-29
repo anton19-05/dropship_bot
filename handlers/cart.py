@@ -431,7 +431,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     temp_cart[product_code]["photo"] = ""
 
     # ============================================================
-    # ШАГ 2: ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ (ВСЕГДА)
+    # ШАГ 2: ГРУППИРОВКА (С УЧЁТОМ КОЛИЧЕСТВА АТРИБУТОВ)
     # ============================================================
     grouped_cart = {}
 
@@ -440,6 +440,11 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         has_photos = group["has_photos"]
         main_attr_key = group["main_attr_key"]
         photo = group["photo"]
+
+        # ✅ ПРОВЕРЯЕМ, СКОЛЬКО ВСЕГО АТРИБУТОВ У ТОВАРА
+        all_attrs = product.get_main_attributes()
+        all_attrs.update(product.get_extra_attributes())
+        total_attr_count = len(all_attrs)
 
         for entry in group["items"]:
             item = entry["item"]
@@ -454,11 +459,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 elif not main_value and main_attr_key == "color":
                     main_value = item.get("цвет")
 
-            # ✅ ВСЕГДА ГРУППИРУЕМ ПО ГЛАВНОМУ АТРИБУТУ
-            if main_attr_key and main_value:
+            # ✅ ЕСЛИ ВСЕГО 1 АТРИБУТ — НЕ ГРУППИРУЕМ ПО ЗНАЧЕНИЯМ
+            if total_attr_count <= 1:
+                group_key = f"{product_code}_single_attr"
+            elif main_attr_key and main_value:
                 group_key = f"{product_code}_{main_attr_key}_{main_value}"
             else:
-                # Если нет главного атрибута — группируем по товару
                 group_key = f"{product_code}_grouped"
 
             if group_key not in grouped_cart:
@@ -480,7 +486,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             for key, value in item.items():
                 if key in ["product_code", "quantity", "name", "price", "item_key"]:
                     continue
-                # Пропускаем главный атрибут (и его синонимы)
                 if main_attr_key:
                     if key == main_attr_key:
                         continue
@@ -492,7 +497,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         continue
                     if main_attr_key == "color" and key == "цвет":
                         continue
-                # ✅ ДОБАВЛЯЕМ ВСЕ ОСТАЛЬНЫЕ АТРИБУТЫ
                 if value:
                     variant_parts.append(f"{key}_{value}")
 
