@@ -506,17 +506,18 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             grouped_cart[group_key]["variants"][variant_key]["item_keys"].append(item_key)
             grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
             grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
+
         # ============================================================
-        # 🔥 ТОТАЛЬНАЯ ДИАГНОСТИКА
+        # 🔥 ТОТАЛЬНАЯ ДИАГНОСТИКА (исправленная)
         # ============================================================
         print(f"\n{'='*50}")
         print(f"🔍 ТОВАР: {product.name}")
-        print(f"🔍 main_attr_key: {main_attr_key}")
-        print(f"🔍 main_attr_value: {main_attr_value}")
-        print(f"🔍 has_photos: {has_photos}")
-        print(f"🔍 variant_list: {len(variant_list)} вариантов")
+        print(f"🔍 main_attr_key: {group.get('main_attr_key')}")
+        print(f"🔍 main_attr_value: {group.get('main_attr_value')}")
+        print(f"🔍 has_photos: {group.get('has_photos')}")
+        print(f"🔍 variants: {len(grouped_cart[group_key]['variants'])} вариантов")
         
-        for idx, (v_key, v_data) in enumerate(variant_list, 1):
+        for idx, (v_key, v_data) in enumerate(grouped_cart[group_key]['variants'].items(), 1):
             print(f"\n  📌 Вариант {idx}:")
             print(f"     v_key: {v_key}")
             print(f"     label: {v_data['label']}")
