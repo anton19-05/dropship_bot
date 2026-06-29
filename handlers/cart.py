@@ -506,6 +506,24 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             grouped_cart[group_key]["variants"][variant_key]["item_keys"].append(item_key)
             grouped_cart[group_key]["total_quantity"] += item.get("quantity", 1)
             grouped_cart[group_key]["total_price"] += item.get("price", product.price) * item.get("quantity", 1)
+        # ============================================================
+        # 🔥 ТОТАЛЬНАЯ ДИАГНОСТИКА
+        # ============================================================
+        print(f"\n{'='*50}")
+        print(f"🔍 ТОВАР: {product.name}")
+        print(f"🔍 main_attr_key: {main_attr_key}")
+        print(f"🔍 main_attr_value: {main_attr_value}")
+        print(f"🔍 has_photos: {has_photos}")
+        print(f"🔍 variant_list: {len(variant_list)} вариантов")
+        
+        for idx, (v_key, v_data) in enumerate(variant_list, 1):
+            print(f"\n  📌 Вариант {idx}:")
+            print(f"     v_key: {v_key}")
+            print(f"     label: {v_data['label']}")
+            print(f"     quantity: {v_data['quantity']}")
+            print(f"     item keys: {list(v_data['item'].keys())}")
+            print(f"     item: {v_data['item']}")
+        print(f"{'='*50}\n")
 
     # ============================================================
     # ШАГ 3: ОТОБРАЖЕНИЕ
