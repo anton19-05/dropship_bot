@@ -665,45 +665,48 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             display_variants = []
 
             for v_key, v_data in variant_list:
-                label = v_data['label']
                 qty = v_data['quantity']
                 item = v_data['item']
 
-                # ✅ 1. Убираем из label все упоминания главного атрибута
-                clean_label = label
-                if main_attr_key and main_attr_value:
-                    # Вариант: "Цвет: черный | ..."
-                    main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
-                    clean_label = clean_label.replace(main_pattern, "").strip(" | ")
+                # ✅ СОЗДАЕМ clean_label НАПРЯМУЮ ИЗ item, А НЕ ИЗ label
+                clean_parts = []
+                for key, value in item.items():
+                    if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                        continue
+                    # Пропускаем главный атрибут
+                    if main_attr_key:
+                        if key == main_attr_key:
+                            continue
+                        if main_attr_key == "размер" and key == "size":
+                            continue
+                        if main_attr_key == "size" and key == "размер":
+                            continue
+                        if main_attr_key == "цвет" and key == "color":
+                            continue
+                        if main_attr_key == "color" and key == "цвет":
+                            continue
+                    if value:
+                        display_name = key.capitalize()
+                        if key in ["color", "цвет"]:
+                            display_name = "Цвет"
+                        elif key in ["size", "размер"]:
+                            display_name = "Размер"
+                        clean_parts.append(f"{display_name}: {value}")
 
-                    # Вариант: "Размер: 36" (если атрибут один)
-                    if clean_label == main_attr_value or clean_label == "":
-                        clean_label = ""
+                clean_label = " | ".join(clean_parts) if clean_parts else ""
 
-                # ✅ 2. Если clean_label пустой — создаём его из item вручную
+                # ✅ Если clean_label пустой — значит это единственный атрибут (главный)
+                # Показываем его как есть
                 if not clean_label:
                     for key, value in item.items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
                         if value:
-                            # Пропускаем главный атрибут
-                            if main_attr_key and key == main_attr_key:
-                                continue
-                            if main_attr_key == "размер" and key == "size":
-                                continue
-                            if main_attr_key == "size" and key == "размер":
-                                continue
-                            if main_attr_key == "цвет" and key == "color":
-                                continue
-                            if main_attr_key == "color" and key == "цвет":
-                                continue
-
                             display_name = key.capitalize()
                             if key in ["color", "цвет"]:
                                 display_name = "Цвет"
                             elif key in ["size", "размер"]:
                                 display_name = "Размер"
-
                             clean_label = f"{display_name}: {value}"
                             break
 
@@ -714,7 +717,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "v_data": v_data
                 })
 
-            # ✅ 3. Формируем текст
+            # ТЕКСТ
             for item in display_variants:
                 if not item["clean_label"]:
                     text += f"  {item['qty']} шт\n"
@@ -723,7 +726,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ 4. Формируем кнопки (без дублей)
+            # КНОПКИ
             keyboard = []
             item_index_map = {}
 
