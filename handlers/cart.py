@@ -226,8 +226,10 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     for key in extra_attrs.keys():
         if key in ["colors", "sizes"]:
             continue
+        # Сначала пробуем из cart_attr_ (выбор в корзине)
         attr_value = context.user_data.get(f"cart_attr_{key}_{user_id}")
         if not attr_value:
+            # Потом из attr_ (выбор в карточке)
             attr_value = context.user_data.get(f"attr_{key}_{user_id}")
         if attr_value:
             selected_extra_attrs[key] = attr_value
@@ -326,15 +328,29 @@ async def confirm_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE
     print(f"📋 Очищено {len(keys_to_remove)} временных атрибутов")
 
     # ============================================================
-    # ✅ ОТПРАВЛЯЕМ СООБЩЕНИЕ
+    # ✅ ФОРМИРУЕМ ТЕКСТ (БЕЗ ДУБЛИРОВАНИЯ)
     # ============================================================
-    attrs_text = ""
+    # Объединяем атрибуты и убираем дубли
+    all_attrs = {}
     for key, value in selected_main_attrs.items():
-        attrs_text += f"\n🔥 {key.capitalize()}: {value}"
+        normalized_key = key
+        if key in ["size", "размер"]:
+            normalized_key = "размер"
+        elif key in ["color", "цвет"]:
+            normalized_key = "цвет"
+        all_attrs[normalized_key] = value
+    
     for key, value in selected_extra_attrs.items():
+        normalized_key = key
+        if key in ["size", "размер"]:
+            normalized_key = "размер"
+        elif key in ["color", "цвет"]:
+            normalized_key = "цвет"
+        all_attrs[normalized_key] = value
+
+    attrs_text = ""
+    for key, value in all_attrs.items():
         attrs_text += f"\n🔥 {key.capitalize()}: {value}"
-    if size:
-        attrs_text += f"\n🔥 Размер: {size}"
 
     text = f"✅ *{product.name} добавлен в корзину!*{attrs_text}"
     
@@ -657,16 +673,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     clean_label = clean_label.replace(main_pattern, "").strip(" | ")
 
-                # ✅ ЕСЛИ clean_label ПУСТОЙ — ЗНАЧИТ ЭТО ЕДИНСТВЕННЫЙ АТРИБУТ
-                # ПОКАЗЫВАЕМ ЕГО КАК ОТДЕЛЬНУЮ СТРОКУ
-                if not clean_label:
-                    # Берем значение из item
-                    for key, value in v_data['item'].items():
-                        if key in ["product_code", "quantity", "name", "price", "item_key"]:
-                            continue
-                        if value:
-                            clean_label = f"{key.capitalize()}: {value}"
-                            break
+                # ✅ ЕСЛИ clean_label СОДЕРЖИТ ТОТ ЖЕ АТРИБУТ — УБИРАЕМ
+                # Например, если в clean_label есть "Жесткость: Мягкая", а в заголовке уже "Жесткость: Мягкая"
+                if main_attr_key and main_attr_value:
+                    # Проверяем, есть ли в clean_label упоминание главного атрибута
+                    if main_attr_key.capitalize() in clean_label and main_attr_value in clean_label:
+                        # Убираем полностью
+                        clean_label = ""
 
                 display_variants.append({
                     "clean_label": clean_label,
@@ -697,6 +710,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         parts.append(part.split(": ")[-1])
                     else:
                         parts.append(part)
+
+                # ✅ ЕСЛИ parts ПУСТОЙ — БЕРЕМ ЗНАЧЕНИЕ ИЗ item
+                if not parts:
+                    # Ищем первый non-служебный атрибут
+                    for key, value in item["v_data"]["item"].items():
+                        if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                            continue
+                        if value:
+                            parts.append(str(value))
+                            break
 
                 if main_attr_value and main_attr_value in parts:
                     parts.remove(main_attr_value)
