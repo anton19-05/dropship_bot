@@ -662,24 +662,33 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # 0-2 ВТОРОСТЕПЕННЫХ АТРИБУТА — ПОЛНЫЙ ТЕКСТ
         # ============================================================
         else:
-            # ✅ ДЛЯ 1 АТРИБУТА — ПОКАЗЫВАЕМ ВСЕ ЗНАЧЕНИЯ КАК ОТДЕЛЬНЫЕ СТРОКИ
             display_variants = []
             for v_key, v_data in variant_list:
                 label = v_data['label']
                 qty = v_data['quantity']
 
                 clean_label = label
+
+                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ LABEL
                 if main_attr_key and main_attr_value:
+                    # Вариант 1: "Цвет: черный | Размер: 36"
                     main_pattern = f"{main_attr_key.capitalize()}: {main_attr_value}"
                     clean_label = clean_label.replace(main_pattern, "").strip(" | ")
-
-                # ✅ ЕСЛИ clean_label СОДЕРЖИТ ТОТ ЖЕ АТРИБУТ — УБИРАЕМ
-                # Например, если в clean_label есть "Жесткость: Мягкая", а в заголовке уже "Жесткость: Мягкая"
-                if main_attr_key and main_attr_value:
-                    # Проверяем, есть ли в clean_label упоминание главного атрибута
-                    if main_attr_key.capitalize() in clean_label and main_attr_value in clean_label:
-                        # Убираем полностью
+                    
+                    # Вариант 2: "Размер: 36" (если главный атрибут уже в начале)
+                    if clean_label == main_attr_value or clean_label == "":
                         clean_label = ""
+
+                # ✅ ЕСЛИ clean_label ПУСТОЙ — ЗНАЧИТ ЭТО ТОЛЬКО ГЛАВНЫЙ АТРИБУТ
+                # ПОКАЗЫВАЕМ ЕГО КАК ОТДЕЛЬНУЮ СТРОКУ
+                if not clean_label:
+                    # Берем значение из item
+                    for key, value in v_data['item'].items():
+                        if key in ["product_code", "quantity", "name", "price", "item_key"]:
+                            continue
+                        if value and str(value) == str(main_attr_value):
+                            clean_label = f"{key.capitalize()}: {value}"
+                            break
 
                 display_variants.append({
                     "clean_label": clean_label,
@@ -688,6 +697,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "v_data": v_data
                 })
 
+            # ТЕКСТ
             for item in display_variants:
                 if not item["clean_label"]:
                     text += f"  {item['qty']} шт\n"
@@ -696,7 +706,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С КОРОТКИМИ ИНДЕКСАМИ
+            # КНОПКИ
             keyboard = []
             item_index_map = {}
             for idx, item in enumerate(display_variants, 1):
@@ -713,7 +723,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 # ✅ ЕСЛИ parts ПУСТОЙ — БЕРЕМ ЗНАЧЕНИЕ ИЗ item
                 if not parts:
-                    # Ищем первый non-служебный атрибут
                     for key, value in item["v_data"]["item"].items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
@@ -721,10 +730,17 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                             parts.append(str(value))
                             break
 
+                # ✅ УБИРАЕМ ГЛАВНЫЙ АТРИБУТ ИЗ КНОПКИ
                 if main_attr_value and main_attr_value in parts:
                     parts.remove(main_attr_value)
 
-                button_text = ", ".join(parts) if parts else "Стандарт"
+                # ✅ УБИРАЕМ ДУБЛИ В КНОПКЕ
+                unique_parts = []
+                for p in parts:
+                    if p not in unique_parts:
+                        unique_parts.append(p)
+
+                button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
