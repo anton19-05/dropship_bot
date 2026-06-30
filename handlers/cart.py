@@ -588,25 +588,25 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         total_all += total_price
 
         # ============================================================
-        # ПОДСЧЁТ ВТОРОСТЕПЕННЫХ АТРИБУТОВ
+        # ПОДСЧЁТ ВТОРОСТЕПЕННЫХ АТРИБУТОВ (ИСКЛЮЧАЯ ВСЕ ГЛАВНЫЕ)
         # ============================================================
         first_item = list(variants.values())[0]["item"] if variants else {}
         secondary_attr_count = 0
         
-        # ✅ СПИСОК КЛЮЧЕЙ, КОТОРЫЕ МОГУТ БЫТЬ ГЛАВНЫМ АТРИБУТОМ
-        main_keys = []
-        if main_attr_key:
-            main_keys.append(main_attr_key)
-            if main_attr_key == "color":
-                main_keys.append("цвет")
-            elif main_attr_key == "цвет":
-                main_keys.append("color")
+        # ✅ СПИСОК ВСЕХ ГЛАВНЫХ АТРИБУТОВ (С СИНОНИМАМИ)
+        main_keys = list(product.get_main_attributes().keys())
+        if "размер" in main_keys:
+            main_keys.append("size")
+        if "size" in main_keys:
+            main_keys.append("размер")
+        if "цвет" in main_keys:
+            main_keys.append("color")
+        if "color" in main_keys:
+            main_keys.append("цвет")
         
         # ✅ ДИАГНОСТИКА
-        print(f"🔍 [DIAGNOSTIC] main_attr_key={main_attr_key}")
-        print(f"🔍 [DIAGNOSTIC] main_keys={main_keys}")
+        print(f"🔍 [DIAGNOSTIC] main_keys (все главные): {main_keys}")
         print(f"🔍 [DIAGNOSTIC] first_item keys: {list(first_item.keys())}")
-        print(f"🔍 [DIAGNOSTIC] first_item: {first_item}")
         
         for key, value in first_item.items():
             if key in ["product_code", "quantity", "name", "price", "item_key"]:
