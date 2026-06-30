@@ -600,6 +600,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # ФОРМИРОВАНИЕ ТЕКСТА
         # ============================================================
         variant_list = list(variants.items())
+        
+        # ✅ ЕСЛИ НЕТ ВАРИАНТОВ — ПРОПУСКАЕМ
+        if not variant_list:
+            print(f"⚠️ Нет вариантов для товара {product.name}, пропускаем")
+            print(f"⚠️ variant_list пустой для {product.name}")
+            print(f"📋 variants: {variants}")
+            continue
 
         text = f"👟 *{product.name}*\n"
         text += f"💰 {product.price} руб/шт\n\n"
@@ -626,7 +633,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-                        # ✅ КНОПКИ С РЕАЛЬНЫМ item_key
+            # ✅ КНОПКИ С РЕАЛЬНЫМ item_key
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
