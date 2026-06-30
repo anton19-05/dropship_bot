@@ -595,14 +595,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         
         # ✅ СПИСОК ВСЕХ ГЛАВНЫХ АТРИБУТОВ (С СИНОНИМАМИ)
         main_keys = list(product.get_main_attributes().keys())
-        if "размер" in main_keys:
+        # Добавляем синонимы для размера
+        if "размер" in main_keys or "size" in main_keys:
             main_keys.append("size")
-        if "size" in main_keys:
             main_keys.append("размер")
-        if "цвет" in main_keys:
+        # Добавляем синонимы для цвета
+        if "цвет" in main_keys or "color" in main_keys:
             main_keys.append("color")
-        if "color" in main_keys:
             main_keys.append("цвет")
+        # Убираем дубли
+        main_keys = list(set(main_keys))
         
         # ✅ ДИАГНОСТИКА
         print(f"🔍 [DIAGNOSTIC] main_keys (все главные): {main_keys}")
