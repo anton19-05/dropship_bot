@@ -820,10 +820,19 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
+        # ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО ПЕРЕД ОТПРАВКОЙ
+        # ============================================================
+        if has_photos and main_attr_key and main_attr_value:
+            photos = getattr(product, 'photos', {})
+            if main_attr_value in photos and photos[main_attr_value] and os.path.exists(photos[main_attr_value]):
+                photo = photos[main_attr_value]
+                print(f"🔄 Принудительное обновление фото для {main_attr_key}={main_attr_value}: {photo}")
+
+        # ============================================================
         # ОТПРАВКА
         # ============================================================
         try:
-            if has_photos and photo and os.path.exists(photo):
+            if photo and os.path.exists(photo):
                 with open(photo, 'rb') as f:
                     msg = await context.bot.send_photo(
                         chat_id=chat_id,
