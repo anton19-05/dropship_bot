@@ -633,9 +633,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 first_item_key = v_data["item_keys"][0]
                 item_index_map[str(idx)] = first_item_key
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
         # ============================================================
@@ -783,9 +783,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
         # ============================================================
