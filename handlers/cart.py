@@ -626,16 +626,14 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С КОРОТКИМИ ИНДЕКСАМИ
+            # ✅ КНОПКИ С РЕАЛЬНЫМ item_key
             keyboard = []
-            item_index_map = {}
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
-                item_index_map[str(idx)] = first_item_key
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
         # ============================================================
@@ -725,13 +723,10 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ
+            # КНОПКИ С РЕАЛЬНЫМ item_key
             keyboard = []
-            item_index_map = {}
-
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
-                item_index_map[str(idx)] = first_item_key
 
                 clean_label = item["clean_label"]
 
@@ -783,9 +778,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
         # ============================================================
@@ -851,13 +846,10 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    idx = int(query.data.replace("cart_incr_", ""))
+    item_key = query.data.replace("cart_incr_", "")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
-    items = list(cart.items())
-    
-    if idx <= len(items):
-        item_key = items[idx - 1][0]
+    if item_key in cart:
         cart[item_key]["quantity"] += 1
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
@@ -868,13 +860,10 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    idx = int(query.data.replace("cart_decr_", ""))
+    item_key = query.data.replace("cart_decr_", "")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
-    items = list(cart.items())
-    
-    if idx <= len(items):
-        item_key = items[idx - 1][0]
+    if item_key in cart:
         if cart[item_key]["quantity"] > 1:
             cart[item_key]["quantity"] -= 1
         else:
@@ -889,12 +878,11 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     item_key = query.data.replace("cart_remove_", "")
-    cart_key = f"cart_{user_id}"
-    cart = context.user_data.get(cart_key, {})
     
+    cart = context.user_data.get(f"cart_{user_id}", {})
     if item_key in cart:
         del cart[item_key]
-        save_user_data_sync(user_id, {cart_key: context.user_data[cart_key]}, context)
+        save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
     await view_cart(update, context)
 
