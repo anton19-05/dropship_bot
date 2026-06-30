@@ -626,12 +626,10 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С КОРОТКИМИ ИНДЕКСАМИ
+                        # ✅ КНОПКИ С РЕАЛЬНЫМ item_key
             keyboard = []
-            item_index_map = {}
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
-                item_index_map[str(idx)] = first_item_key
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
@@ -725,13 +723,10 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ
+            # КНОПКИ С РЕАЛЬНЫМ item_key
             keyboard = []
-            item_index_map = {}
-
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
-                item_index_map[str(idx)] = first_item_key
 
                 clean_label = item["clean_label"]
 
