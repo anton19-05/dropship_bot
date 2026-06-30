@@ -590,11 +590,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # ============================================================
         # ОПРЕДЕЛЯЕМ РЕЖИМ ОТОБРАЖЕНИЯ
         # ============================================================
-        # ✅ ОБЩЕЕ КОЛИЧЕСТВО АТРИБУТОВ (ГЛАВНЫЕ + ВТОРОСТЕПЕННЫЕ)
         total_attrs = len(product.get_main_attributes()) + len(product.get_extra_attributes())
         use_numbers = total_attrs >= 3
-        
-        print(f"🔍 [DIAGNOSTIC] total_attrs={total_attrs}, use_numbers={use_numbers}")
 
         # ============================================================
         # ФОРМИРОВАНИЕ ТЕКСТА
@@ -626,7 +623,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С РЕАЛЬНЫМ item_key
+            # КНОПКИ С item_key
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
@@ -646,14 +643,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 qty = v_data['quantity']
                 item = v_data['item']
 
-                # ✅ СОЗДАЕМ clean_label НАПРЯМУЮ ИЗ item (НОРМАЛИЗУЯ КЛЮЧИ)
+                # СОЗДАЕМ clean_label ИЗ item (НОРМАЛИЗУЯ КЛЮЧИ)
                 clean_parts = []
-                used_keys = set()  # для отслеживания уже добавленных атрибутов
+                used_keys = set()
 
                 for key, value in item.items():
                     if key in ["product_code", "quantity", "name", "price", "item_key"]:
                         continue
-                    # Пропускаем главный атрибут
                     if main_attr_key:
                         if key == main_attr_key:
                             continue
@@ -666,14 +662,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         if main_attr_key == "color" and key == "цвет":
                             continue
                     if value:
-                        # ✅ НОРМАЛИЗУЕМ КЛЮЧ (размер/size → размер, цвет/color → цвет)
                         normalized_key = key
                         if key in ["size", "размер"]:
                             normalized_key = "размер"
                         elif key in ["color", "цвет"]:
                             normalized_key = "цвет"
 
-                        # ✅ ПРОВЕРЯЕМ, НЕ ДОБАВЛЯЛИ ЛИ УЖЕ ЭТОТ АТРИБУТ
                         if normalized_key in used_keys:
                             continue
                         used_keys.add(normalized_key)
@@ -688,7 +682,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 clean_label = " | ".join(clean_parts) if clean_parts else ""
 
-                # ✅ Если clean_label пустой — значит это единственный атрибут (главный)
                 if not clean_label:
                     for key, value in item.items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
@@ -723,14 +716,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ С РЕАЛЬНЫМ item_key
+            # КНОПКИ С item_key
             keyboard = []
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
 
                 clean_label = item["clean_label"]
-
-                # Извлекаем значения для кнопки
                 parts = []
                 if clean_label:
                     for part in clean_label.split(" | "):
@@ -739,14 +730,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                         else:
                             parts.append(part)
 
-                # Если parts пустой — берём значение из item
                 if not parts:
                     used_values = set()
                     for key, value in item["v_data"]["item"].items():
                         if key in ["product_code", "quantity", "name", "price", "item_key"]:
                             continue
                         if value:
-                            # Пропускаем главный атрибут
                             if main_attr_key and key == main_attr_key:
                                 continue
                             if main_attr_key == "размер" and key == "size":
@@ -757,7 +746,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                                 continue
                             if main_attr_key == "color" and key == "цвет":
                                 continue
-                            # ✅ НОРМАЛИЗУЕМ И УБИРАЕМ ДУБЛИ
                             normalized_key = key
                             if normalized_key in ["size", "размер"]:
                                 normalized_key = "размер"
@@ -769,7 +757,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                             parts.append(str(value))
                             break
 
-                # Убираем дубли в кнопке
                 unique_parts = []
                 for p in parts:
                     if p not in unique_parts:
@@ -790,7 +777,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
-        # ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО ПЕРЕД ОТПРАВКОЙ
+        # ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО
         # ============================================================
         if has_photos and variants:
             first_variant = list(variants.values())[0]
@@ -830,7 +817,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             )
             await msg_manager.add(context.bot, chat_id, user_id, msg)
 
-    # Итого
+    # ============================================================
+    # ИТОГ (ВСЕГДА ВНИЗУ)
+    # ============================================================
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"💰 *ОБЩИЙ ИТОГ: {total_all} руб*",
