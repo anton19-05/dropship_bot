@@ -495,11 +495,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     "photo": photo if has_photos and photo and os.path.exists(photo) else "",
                 }
             else:
-                # ✅ ЕСЛИ ГРУППА УЖЕ СУЩЕСТВУЕТ — ОБНОВЛЯЕМ PHOTO
+                # ✅ ОБНОВЛЯЕМ PHOTO В СУЩЕСТВУЮЩЕЙ ГРУППЕ
                 if has_photos and main_attr_key and main_value:
                     photos = getattr(product, 'photos', {})
                     if main_value in photos and photos[main_value] and os.path.exists(photos[main_value]):
                         grouped_cart[group_key]["photo"] = photos[main_value]
+                        print(f"🔄 Обновлено фото для {group_key}: {photos[main_value]}")
 
             # ============================================================
             # ФОРМИРУЕМ КЛЮЧ ВАРИАНТА (ВСЕ АТРИБУТЫ КРОМЕ ГЛАВНОГО)
