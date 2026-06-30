@@ -588,40 +588,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         total_all += total_price
 
         # ============================================================
-        # ПОДСЧЁТ ВТОРОСТЕПЕННЫХ АТРИБУТОВ (ИСКЛЮЧАЯ ВСЕ ГЛАВНЫЕ)
+        # ОПРЕДЕЛЯЕМ РЕЖИМ ОТОБРАЖЕНИЯ
         # ============================================================
-        first_item = list(variants.values())[0]["item"] if variants else {}
-        secondary_attr_count = 0
+        # ✅ ОБЩЕЕ КОЛИЧЕСТВО АТРИБУТОВ (ГЛАВНЫЕ + ВТОРОСТЕПЕННЫЕ)
+        total_attrs = len(product.get_main_attributes()) + len(product.get_extra_attributes())
+        use_numbers = total_attrs >= 3
         
-        # ✅ СПИСОК ВСЕХ ГЛАВНЫХ АТРИБУТОВ (С СИНОНИМАМИ)
-        main_keys = list(product.get_main_attributes().keys())
-        # Добавляем синонимы для размера
-        if "размер" in main_keys or "size" in main_keys:
-            main_keys.append("size")
-            main_keys.append("размер")
-        # Добавляем синонимы для цвета
-        if "цвет" in main_keys or "color" in main_keys:
-            main_keys.append("color")
-            main_keys.append("цвет")
-        # Убираем дубли
-        main_keys = list(set(main_keys))
-        
-        # ✅ ДИАГНОСТИКА
-        print(f"🔍 [DIAGNOSTIC] main_keys (все главные): {main_keys}")
-        print(f"🔍 [DIAGNOSTIC] first_item keys: {list(first_item.keys())}")
-        
-        for key, value in first_item.items():
-            if key in ["product_code", "quantity", "name", "price", "item_key"]:
-                continue
-            if key in main_keys:
-                continue
-            if value:
-                secondary_attr_count += 1
-                print(f"🔍 [DIAGNOSTIC] secondary attr: {key}={value}")
-        
-        print(f"🔍 [DIAGNOSTIC] secondary_attr_count={secondary_attr_count}")
-        
-        use_numbers = secondary_attr_count >= 3
+        print(f"🔍 [DIAGNOSTIC] total_attrs={total_attrs}, use_numbers={use_numbers}")
 
         # ============================================================
         # ФОРМИРОВАНИЕ ТЕКСТА
@@ -635,7 +608,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             text += f"📌 {main_attr_key.capitalize()}: {main_attr_value}\n\n"
 
         # ============================================================
-        # 3+ ВТОРОСТЕПЕННЫХ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
+        # 3+ АТРИБУТОВ — НУМЕРОВАННЫЙ СПИСОК
         # ============================================================
         if use_numbers:
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
@@ -666,7 +639,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 ])
 
         # ============================================================
-        # 0-2 ВТОРОСТЕПЕННЫХ АТРИБУТА — ПОЛНЫЙ ТЕКСТ
+        # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ
         # ============================================================
         else:
             display_variants = []
@@ -824,11 +797,11 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
         # ============================================================
         # ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО ПЕРЕД ОТПРАВКОЙ
         # ============================================================
-        if has_photos and main_attr_key and main_attr_value:
-            photos = getattr(product, 'photos', {})
-            if main_attr_value in photos and photos[main_attr_value] and os.path.exists(photos[main_attr_value]):
-                photo = photos[main_attr_value]
-                print(f"🔄 Принудительное обновление фото для {main_attr_key}={main_attr_value}: {photo}")
+        if has_photos and variants:
+            first_variant = list(variants.values())[0]
+            photo = get_photo_for_variant(product, first_variant["item"])
+            if photo:
+                print(f"🔄 Обновлено фото для варианта: {photo}")
 
         # ============================================================
         # ОТПРАВКА
