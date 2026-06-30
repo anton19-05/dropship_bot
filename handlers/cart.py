@@ -642,9 +642,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
                 key_map[short_key] = first_item_key
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{short_key}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{short_key}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
             # ✅ СОХРАНЯЕМ МАППИНГ
             context.user_data[f"cart_key_map_{user_id}"] = key_map
@@ -788,9 +788,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{short_key}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{short_key}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
 
             # ✅ СОХРАНЯЕМ МАППИНГ
@@ -859,17 +859,15 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    short_key = query.data.replace("cart_incr_", "")
+    idx = int(query.data.replace("cart_incr_", ""))
     
-    # Восстанавливаем item_key по хешу
-    key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(short_key)
+    cart = context.user_data.get(f"cart_{user_id}", {})
+    items = list(cart.items())
     
-    if item_key:
-        cart = context.user_data.get(f"cart_{user_id}", {})
-        if item_key in cart:
-            cart[item_key]["quantity"] += 1
-            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+    if idx <= len(items):
+        item_key = items[idx - 1][0]
+        cart[item_key]["quantity"] += 1
+        save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
     await view_cart(update, context)
 
@@ -878,25 +876,24 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    short_key = query.data.replace("cart_decr_", "")
+    idx = int(query.data.replace("cart_decr_", ""))
     
-    # Восстанавливаем item_key по хешу
-    key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(short_key)
+    cart = context.user_data.get(f"cart_{user_id}", {})
+    items = list(cart.items())
     
-    if item_key:
-        cart = context.user_data.get(f"cart_{user_id}", {})
-        if item_key in cart:
-            if cart[item_key]["quantity"] > 1:
-                cart[item_key]["quantity"] -= 1
-            else:
-                del cart[item_key]
-            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+    if idx <= len(items):
+        item_key = items[idx - 1][0]
+        if cart[item_key]["quantity"] > 1:
+            cart[item_key]["quantity"] -= 1
+        else:
+            del cart[item_key]
+        save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
     await view_cart(update, context)
 
 
 async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удаляет отдельный товар из корзины по item_key (если такая кнопка будет добавлена)"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -904,17 +901,9 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     cart = context.user_data.get(f"cart_{user_id}", {})
     
-    # Проверяем, есть ли такой ключ
     if item_key in cart:
         del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-    else:
-        # Если ключ не найден — возможно, это короткий хеш
-        key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-        real_key = key_map.get(item_key)
-        if real_key and real_key in cart:
-            del cart[real_key]
-            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
     await view_cart(update, context)
 
@@ -928,24 +917,32 @@ async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удаляет все позиции в группе"""
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
-    product_code = query.data.replace("cart_remove_group_", "")
-    cart_key = f"cart_{user_id}"
-    cart = context.user_data.get(cart_key, {})
     
-    items_to_remove = [key for key in cart.keys() if cart[key]["product_code"] == product_code]
+    user_id = query.from_user.id
+    group_key = query.data.replace("cart_remove_group_", "")
+    
+    cart = context.user_data.get(f"cart_{user_id}", {})
+    
+    # Находим все позиции в группе и удаляем
+    items_to_remove = []
+    for item_key, item in cart.items():
+        product_code = item.get("product_code", "")
+        color = item.get("color", "белый")
+        current_group_key = f"{product_code}_{color}"
+        
+        if current_group_key == group_key:
+            items_to_remove.append(item_key)
+    
     for key in items_to_remove:
         del cart[key]
     
-    if cart:
-        context.user_data[cart_key] = cart
-    else:
-        context.user_data.pop(cart_key, None)
+    if not cart:
+        context.user_data.pop(f"cart_{user_id}", None)
     
-    save_user_data_sync(user_id, {cart_key: context.user_data.get(cart_key, {})}, context)
-    
+    save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     await view_cart(update, context)
 
 
