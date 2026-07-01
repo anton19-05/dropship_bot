@@ -677,11 +677,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{group_key}_{idx}")
                 ])
             
-            # ✅ КНОПКА УДАЛЕНИЯ
-            first_item_key = list(variants.values())[0]["item_keys"][0] if variants else None
-            if first_item_key:
-                key_map["delete"] = first_item_key
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{group_key}_delete")])
+            # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
             # ✅ СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ (используем group_key)
@@ -829,11 +826,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{group_key}_{idx}")
                 ])
             
-            # ✅ КНОПКА УДАЛЕНИЯ
-            first_item_key = display_variants[0]["first_item_key"] if display_variants else None
-            if first_item_key:
-                key_map["delete"] = first_item_key
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{group_key}_delete")])
+            # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
             # ✅ СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ (используем group_key)
