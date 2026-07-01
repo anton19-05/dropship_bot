@@ -983,7 +983,7 @@ async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все позиции в группе"""
+    """Удаляет все позиции в группе по product_code"""
     query = update.callback_query
     await query.answer()
     
@@ -992,29 +992,25 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     print(f"🔍 [DIAGNOSTIC] cart_remove_group: group_key={group_key}")
     
+    # ✅ ИЗВЛЕКАЕМ product_code ИЗ group_key
+    # group_key может быть:
+    # - "CLS-001_цвет_коричневый"
+    # - "CLS-001_single_attr"
+    # - "CLS-001_grouped"
+    # В любом случае, product_code — это первая часть до "_"
+    product_code = group_key.split("_")[0]
+    
+    print(f"🔍 [DIAGNOSTIC] product_code={product_code}")
+    
     cart = context.user_data.get(f"cart_{user_id}", {})
     
     print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
     
-    # ✅ ИЩЕМ ВСЕ ПОЗИЦИИ, КОТОРЫЕ ВХОДЯТ В ГРУППУ
+    # ✅ УДАЛЯЕМ ВСЕ ТОВАРЫ С ЭТИМ product_code
     items_to_remove = []
     for item_key, item in cart.items():
-        # Проверяем, принадлежит ли этот товар к группе
-        # group_key формируется как: {product_code}_{main_attr_key}_{main_value}
-        # или {product_code}_single_attr
-        if item_key.startswith(group_key.split("_")[0]):  # Проверяем по product_code
-            # Дополнительная проверка: если в group_key есть атрибут, проверяем и его
-            parts = group_key.split("_")
-            if len(parts) >= 3:
-                # group_key = product_code_main_attr_key_main_value
-                # Проверяем, что товар имеет этот атрибут
-                attr_key = parts[1]
-                attr_value = "_".join(parts[2:])
-                if item.get(attr_key) == attr_value:
-                    items_to_remove.append(item_key)
-            else:
-                # group_key = product_code_single_attr или product_code_grouped
-                items_to_remove.append(item_key)
+        if item.get("product_code") == product_code:
+            items_to_remove.append(item_key)
     
     print(f"🗑️ [DIAGNOSTIC] Удаляем позиции: {items_to_remove}")
     
