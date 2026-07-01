@@ -678,6 +678,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 ])
             
             # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
+            print(f"🔍 [DIAGNOSTIC] group_key для удаления: {group_key}")
+            print(f"🔍 [DIAGNOSTIC] product.id: {product.id}")
             keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
@@ -827,6 +829,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 ])
             
             # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
+            print(f"🔍 [DIAGNOSTIC] group_key для удаления: {group_key}")
+            print(f"🔍 [DIAGNOSTIC] product.id: {product.id}")
             keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
@@ -990,39 +994,40 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     group_key = query.data.replace("cart_remove_group_", "")
     
-    print(f"🔍 [DIAGNOSTIC] cart_remove_group: group_key={group_key}")
+    print(f"🔍 [DIAGNOSTIC] cart_remove_group ВЫЗВАНА!")
+    print(f"🔍 [DIAGNOSTIC] group_key = '{group_key}'")
     
     # ✅ ИЗВЛЕКАЕМ product_code ИЗ group_key
-    # group_key может быть:
-    # - "CLS-001_цвет_коричневый"
-    # - "CLS-001_single_attr"
-    # - "CLS-001_grouped"
-    # В любом случае, product_code — это первая часть до "_"
     product_code = group_key.split("_")[0]
-    
-    print(f"🔍 [DIAGNOSTIC] product_code={product_code}")
+    print(f"🔍 [DIAGNOSTIC] product_code = '{product_code}'")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
-    
     print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
     
     # ✅ УДАЛЯЕМ ВСЕ ТОВАРЫ С ЭТИМ product_code
     items_to_remove = []
     for item_key, item in cart.items():
-        if item.get("product_code") == product_code:
+        item_product_code = item.get("product_code")
+        print(f"🔍 [DIAGNOSTIC] Проверяем: item_key={item_key}, product_code={item_product_code}")
+        if item_product_code == product_code:
             items_to_remove.append(item_key)
+            print(f"✅ [DIAGNOSTIC] Добавлен в список удаления: {item_key}")
     
     print(f"🗑️ [DIAGNOSTIC] Удаляем позиции: {items_to_remove}")
     
     for key in items_to_remove:
         del cart[key]
+        print(f"✅ [DIAGNOSTIC] Удалён: {key}")
     
     if not cart:
         context.user_data.pop(f"cart_{user_id}", None)
+        print(f"📋 [DIAGNOSTIC] Корзина пуста, удалена")
     
     print(f"📋 [DIAGNOSTIC] cart после удаления: {cart}")
     
     save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+    print(f"✅ [DIAGNOSTIC] cart_remove_group ЗАВЕРШЕНА")
+    
     await view_cart(update, context)
 
 
