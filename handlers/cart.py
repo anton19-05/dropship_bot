@@ -634,32 +634,27 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ХЕШЕМ
+            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ)
             keyboard = []
             key_map = {}
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                key_map[short_key] = first_item_key
+                key_map[str(idx)] = first_item_key
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{short_key}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{short_key}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
             
             # ✅ КНОПКА УДАЛЕНИЯ
             first_item_key = list(variants.values())[0]["item_keys"][0] if variants else None
             if first_item_key:
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{short_key}")])
+                key_map["delete"] = first_item_key
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_delete")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
             # ✅ СОХРАНЯЕМ МАППИНГ
             context.user_data[f"cart_key_map_{user_id}"] = key_map
-            
-            # КНОПКА УДАЛЕНИЯ (ТОЖЕ С item_key)
-            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
-            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
         # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ
@@ -743,13 +738,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ХЕШЕМ
+            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ)
             keyboard = []
-            key_map = {}  # ← СОЗДАЁМ ПУСТОЙ СЛОВАРЬ
+            key_map = {}
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                key_map[short_key] = first_item_key  # ← СОХРАНЯЕМ МАППИНГ
+                key_map[str(idx)] = first_item_key
 
                 clean_label = item["clean_label"]
 
@@ -799,19 +793,18 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{short_key}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{short_key}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
-            
-            # ✅ КНОПКА УДАЛЕНИЯ (ТОЖЕ С ХЕШЕМ)
+
+            # ✅ КНОПКА УДАЛЕНИЯ (ИСПОЛЬЗУЕТ ФИКСИРОВАННЫЙ КЛЮЧ "delete")
             first_item_key = display_variants[0]["first_item_key"] if display_variants else None
             if first_item_key:
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                key_map[short_key] = first_item_key  # ← ДОБАВЛЯЕМ В МАППИНГ
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{short_key}")])
+                key_map["delete"] = first_item_key
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data="cart_remove_delete")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
-            
+
             # ✅ СОХРАНЯЕМ МАППИНГ В context.user_data
             context.user_data[f"cart_key_map_{user_id}"] = key_map
 
@@ -872,11 +865,13 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    short_key = query.data.replace("cart_incr_", "")
     
-    # Восстанавливаем item_key по хешу
+    # Получаем индекс из callback_data
+    idx = query.data.replace("cart_incr_", "")
+    
+    # Восстанавливаем item_key по индексу
     key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(short_key)
+    item_key = key_map.get(str(idx))
     
     if item_key:
         cart = context.user_data.get(f"cart_{user_id}", {})
@@ -887,7 +882,7 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Хеш не найден: {short_key}")
+        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx}")
     
     await view_cart(update, context)
 
@@ -896,11 +891,13 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    short_key = query.data.replace("cart_decr_", "")
     
-    # Восстанавливаем item_key по хешу
+    # Получаем индекс из callback_data
+    idx = query.data.replace("cart_decr_", "")
+    
+    # Восстанавливаем item_key по индексу
     key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(short_key)
+    item_key = key_map.get(str(idx))
     
     if item_key:
         cart = context.user_data.get(f"cart_{user_id}", {})
@@ -914,7 +911,7 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Хеш не найден: {short_key}")
+        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx}")
     
     await view_cart(update, context)
 
@@ -923,11 +920,13 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    short_key = query.data.replace("cart_remove_", "")
     
-    # Восстанавливаем item_key по хешу
+    # Получаем ключ из callback_data (всегда "delete")
+    key = query.data.replace("cart_remove_", "")
+    
+    # Восстанавливаем item_key по ключу "delete"
     key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(short_key)
+    item_key = key_map.get(key)  # key = "delete"
     
     if item_key:
         cart = context.user_data.get(f"cart_{user_id}", {})
@@ -938,7 +937,7 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Хеш не найден: {short_key}")
+        print(f"❌ [DIAGNOSTIC] Ключ не найден: {key}")
     
     await view_cart(update, context)
 
