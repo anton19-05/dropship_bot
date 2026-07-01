@@ -951,29 +951,23 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удаляет товар по item_key (если используется)"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    item_key = query.data.replace("cart_remove_", "")
     
-    # Парсим: cart_remove_{group_key}_delete
-    parts = query.data.replace("cart_remove_", "").split("_")
-    # Удаляем последнюю часть "delete"
-    group_key = "_".join(parts[:-1])
+    # Если это удаление группы — перенаправляем
+    if item_key.startswith("group_"):
+        # Создаём фейковый update для cart_remove_group
+        update.callback_query.data = f"cart_remove_group_{item_key.replace('group_', '')}"
+        await cart_remove_group(update, context)
+        return
     
-    # Восстанавливаем item_key по ключу "delete" из маппинга этой группы
-    key_map = context.user_data.get(f"cart_key_map_{user_id}_{group_key}", {})
-    item_key = key_map.get("delete")
-    
-    if item_key:
-        cart = context.user_data.get(f"cart_{user_id}", {})
-        if item_key in cart:
-            del cart[item_key]
-            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-            print(f"✅ [DIAGNOSTIC] Удалено: {item_key}")
-        else:
-            print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
-    else:
-        print(f"❌ [DIAGNOSTIC] Ключ 'delete' не найден для группы {group_key}")
+    cart = context.user_data.get(f"cart_{user_id}", {})
+    if item_key in cart:
+        del cart[item_key]
+        save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     
     await view_cart(update, context)
 
