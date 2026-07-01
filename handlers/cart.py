@@ -743,10 +743,13 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С item_key (ВМЕСТО idx)
+            # ✅ КНОПКИ С ХЕШЕМ
             keyboard = []
+            key_map = {}  # ← СОЗДАЁМ ПУСТОЙ СЛОВАРЬ
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
+                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
+                key_map[short_key] = first_item_key  # ← СОХРАНЯЕМ МАППИНГ
 
                 clean_label = item["clean_label"]
 
@@ -801,14 +804,15 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{short_key}")
                 ])
             
-            # ✅ КНОПКА УДАЛЕНИЯ
+            # ✅ КНОПКА УДАЛЕНИЯ (ТОЖЕ С ХЕШЕМ)
             first_item_key = display_variants[0]["first_item_key"] if display_variants else None
             if first_item_key:
                 short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
+                key_map[short_key] = first_item_key  # ← ДОБАВЛЯЕМ В МАППИНГ
                 keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{short_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
-            # ✅ СОХРАНЯЕМ МАППИНГ
+            # ✅ СОХРАНЯЕМ МАППИНГ В context.user_data
             context.user_data[f"cart_key_map_{user_id}"] = key_map
 
         # ============================================================
