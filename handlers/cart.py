@@ -634,18 +634,18 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ С ИНДЕКСАМИ
+                        # КНОПКИ С item_key
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
             
-            # ✅ ОБЩАЯ КНОПКА УДАЛЕНИЯ (С ИНДЕКСОМ 1)
-            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{1}")])
+            # КНОПКА УДАЛЕНИЯ (ТОЖЕ С item_key)
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
@@ -730,7 +730,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ С ИНДЕКСАМИ
+            # ✅ КНОПКИ С item_key (ВМЕСТО idx)
             keyboard = []
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
@@ -782,15 +782,17 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
+                # ✅ ИСПОЛЬЗУЕМ item_key ВМЕСТО idx
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{first_item_key}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{first_item_key}")
                 ])
 
-            # ✅ ОБЩАЯ КНОПКА УДАЛЕНИЯ (С ИНДЕКСОМ 1)
-            # Используем idx=1 для удаления первого/единственного варианта в группе
-            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{1}")])
+            # ✅ ОБЩАЯ КНОПКА УДАЛЕНИЯ (ТОЖЕ С item_key)
+            first_item_key = display_variants[0]["first_item_key"] if display_variants else None
+            if first_item_key:
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
@@ -849,30 +851,16 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
-    # ✅ ДИАГНОСТИКА
-    print(f"🔍 [DIAGNOSTIC] cart_increase ВЫЗВАНА!")
-    print(f"🔍 [DIAGNOSTIC] data: {query.data}")
-    
     user_id = query.from_user.id
-    idx = int(query.data.replace("cart_incr_", ""))
-    
-    print(f"🔍 [DIAGNOSTIC] idx: {idx}")
+    item_key = query.data.replace("cart_incr_", "")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
-    items = list(cart.items())
-    
-    print(f"🔍 [DIAGNOSTIC] items: {len(items)} товаров")
-    for i, (key, value) in enumerate(items, 1):
-        print(f"  {i}. key={key}, value={value}")
-    
-    if idx <= len(items):
-        item_key = items[idx - 1][0]
-        print(f"✅ [DIAGNOSTIC] Найден товар: {item_key}")
+    if item_key in cart:
         cart[item_key]["quantity"] += 1
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+        print(f"✅ [DIAGNOSTIC] Увеличено количество: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
+        print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     
     await view_cart(update, context)
 
@@ -880,67 +868,36 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
-    # ✅ ДИАГНОСТИКА
-    print(f"🔍 [DIAGNOSTIC] cart_decrease ВЫЗВАНА!")
-    print(f"🔍 [DIAGNOSTIC] data: {query.data}")
-    
     user_id = query.from_user.id
-    idx = int(query.data.replace("cart_decr_", ""))
-    
-    print(f"🔍 [DIAGNOSTIC] idx: {idx}")
+    item_key = query.data.replace("cart_decr_", "")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
-    items = list(cart.items())
-    
-    print(f"🔍 [DIAGNOSTIC] items: {len(items)} товаров")
-    for i, (key, value) in enumerate(items, 1):
-        print(f"  {i}. key={key}, value={value}")
-    
-    if idx <= len(items):
-        item_key = items[idx - 1][0]
-        print(f"✅ [DIAGNOSTIC] Найден товар: {item_key}")
+    if item_key in cart:
         if cart[item_key]["quantity"] > 1:
             cart[item_key]["quantity"] -= 1
         else:
             del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+        print(f"✅ [DIAGNOSTIC] Уменьшено количество: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
+        print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     
     await view_cart(update, context)
 
 
 async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет товар по индексу в корзине"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    item_key = query.data.replace("cart_remove_", "")
     
-    # Пробуем получить индекс
-    try:
-        idx = int(query.data.replace("cart_remove_", ""))
-    except ValueError:
-        # Если не число — возможно это item_key (для совместимости)
-        item_key = query.data.replace("cart_remove_", "")
-        cart = context.user_data.get(f"cart_{user_id}", {})
-        if item_key in cart:
-            del cart[item_key]
-            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-        await view_cart(update, context)
-        return
-    
-    # Удаляем по индексу
     cart = context.user_data.get(f"cart_{user_id}", {})
-    items = list(cart.items())
-    
-    if idx <= len(items):
-        item_key = items[idx - 1][0]
+    if item_key in cart:
         del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
         print(f"✅ [DIAGNOSTIC] Товар удалён: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
+        print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     
     await view_cart(update, context)
 
