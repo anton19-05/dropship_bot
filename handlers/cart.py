@@ -61,7 +61,7 @@ async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # ============================================================
-    # 3. ДОБАВЛЕНИЕ В КОРЗИНУ (cart_add_) — С ПРОВЕРКОЙ
+    # 3. ДОБАВЛЕНИЕ В КОРЗИНУ (cart_add_)
     # ============================================================
     elif data.startswith("cart_add_"):
         product_code = data.replace("cart_add_", "")
@@ -71,19 +71,27 @@ async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("❌ Товар не найден!", show_alert=True)
             return
         
-        # ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ДОПОЛНИТЕЛЬНЫЕ АТРИБУТЫ
-        extra_attrs = product.get_extra_attributes()
+        # ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ДОПОЛНИТЕЛЬНЫЕ АТРИБУТЫ (ВКЛЮЧАЯ РАЗМЕРЫ)
         has_extra_attrs = False
         
-        for key, value in extra_attrs.items():
-            if key in ["colors", "sizes"]:
-                continue
-            if isinstance(value, list) and value:
+        # Проверяем размеры (если есть)
+        if product.has_sizes:
+            sizes = product.get_sizes()
+            if sizes and len(sizes) > 0:
                 has_extra_attrs = True
-                break
-            elif isinstance(value, dict) and value:
-                has_extra_attrs = True
-                break
+        
+        # Проверяем остальные дополнительные атрибуты
+        if not has_extra_attrs:
+            extra_attrs = product.get_extra_attributes()
+            for key, value in extra_attrs.items():
+                if key in ["colors"]:  # colors — это главный атрибут, пропускаем
+                    continue
+                if isinstance(value, list) and value:
+                    has_extra_attrs = True
+                    break
+                elif isinstance(value, dict) and value:
+                    has_extra_attrs = True
+                    break
         
         if has_extra_attrs:
             # Есть доп. атрибуты — показываем окно выбора
