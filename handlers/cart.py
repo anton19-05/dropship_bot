@@ -634,7 +634,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ИНДЕКСАМИ
+            # КНОПКИ С ИНДЕКСАМИ
             keyboard = []
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
@@ -644,11 +644,8 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
             
-            # ✅ ОБЩИЕ КНОПКИ (УДАЛЕНИЕ КОНКРЕТНОГО ТОВАРА)
-            # Берём первый item_key для удаления
-            first_item_key = list(variants.values())[0]["item_keys"][0] if variants else None
-            if first_item_key:
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
+            # ✅ ОБЩАЯ КНОПКА УДАЛЕНИЯ (С ИНДЕКСОМ 1)
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{1}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
@@ -733,7 +730,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ИНДЕКСАМИ (БЕЗ key_map)
+            # КНОПКИ С ИНДЕКСАМИ
             keyboard = []
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
@@ -777,7 +774,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                             parts.append(str(value))
                             break
 
-                # ✅ Убираем дубли в кнопке
+                # Убираем дубли в кнопке
                 unique_parts = []
                 for p in parts:
                     if p not in unique_parts:
@@ -791,11 +788,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
 
-            # ✅ ОБЩИЕ КНОПКИ
-            # Для удаления используем первый item_key из группы
-            first_item_key = display_variants[0]["first_item_key"] if display_variants else None
-            if first_item_key:
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
+            # ✅ ОБЩАЯ КНОПКА УДАЛЕНИЯ (С ИНДЕКСОМ 1)
+            # Используем idx=1 для удаления первого/единственного варианта в группе
+            keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{1}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
@@ -917,22 +912,35 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет конкретный товар из корзины"""
+    """Удаляет товар по индексу в корзине"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    item_key = query.data.replace("cart_remove_", "")
     
-    print(f"🔍 [DIAGNOSTIC] cart_remove: item_key={item_key}")
+    # Пробуем получить индекс
+    try:
+        idx = int(query.data.replace("cart_remove_", ""))
+    except ValueError:
+        # Если не число — возможно это item_key (для совместимости)
+        item_key = query.data.replace("cart_remove_", "")
+        cart = context.user_data.get(f"cart_{user_id}", {})
+        if item_key in cart:
+            del cart[item_key]
+            save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+        await view_cart(update, context)
+        return
     
+    # Удаляем по индексу
     cart = context.user_data.get(f"cart_{user_id}", {})
+    items = list(cart.items())
     
-    if item_key in cart:
+    if idx <= len(items):
+        item_key = items[idx - 1][0]
         del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
         print(f"✅ [DIAGNOSTIC] Товар удалён: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
+        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
     
     await view_cart(update, context)
 
