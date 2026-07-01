@@ -679,7 +679,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             
             # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
             print(f"🔍 [DIAGNOSTIC] group_key для удаления: {group_key}")
-            print(f"🔍 [DIAGNOSTIC] product.id: {product.id}")
+            print(f"🔍 [DIAGNOSTIC] product_code: {product.id}")
+            print(f"🔍 [DIAGNOSTIC] main_attr_key: {main_attr_key}")
+            print(f"🔍 [DIAGNOSTIC] main_attr_value: {main_attr_value}")
             keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
@@ -830,7 +832,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             
             # ✅ КНОПКА УДАЛЕНИЯ (УДАЛЯЕТ ВСЮ ГРУППУ)
             print(f"🔍 [DIAGNOSTIC] group_key для удаления: {group_key}")
-            print(f"🔍 [DIAGNOSTIC] product.id: {product.id}")
+            print(f"🔍 [DIAGNOSTIC] product_code: {product.id}")
+            print(f"🔍 [DIAGNOSTIC] main_attr_key: {main_attr_key}")
+            print(f"🔍 [DIAGNOSTIC] main_attr_value: {main_attr_value}")
             keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
@@ -975,12 +979,12 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ УДАЛЯЕМ ТОВАРЫ, У КОТОРЫХ group_key СОВПАДАЕТ
     items_to_remove = []
     for item_key, item in cart.items():
-        # Формируем group_key для этого товара
+        # Формируем group_key для этого товара (учитываем цвет)
         product_code = item.get("product_code", "")
         color = item.get("color", "белый")
         current_group_key = f"{product_code}_{color}"
         
-        print(f"🔍 [DIAGNOSTIC] Сравниваем: current_group_key={current_group_key}, group_key={group_key}")
+        print(f"🔍 [DIAGNOSTIC] current_group_key={current_group_key}, target_group_key={group_key}")
         
         if current_group_key == group_key:
             items_to_remove.append(item_key)
