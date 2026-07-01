@@ -976,19 +976,49 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
     
-    # ✅ УДАЛЯЕМ ТОВАРЫ, У КОТОРЫХ group_key СОВПАДАЕТ
+    # ✅ РАЗБИРАЕМ group_key НА ЧАСТИ
+    # group_key = "CLS-001_цвет_коричневый" → product_code="CLS-001", attr_key="цвет", attr_value="коричневый"
+    parts = group_key.split("_")
+    product_code = parts[0]
+    
+    # Если в group_key больше 2 частей, значит там есть атрибут
+    if len(parts) >= 3:
+        attr_key = parts[1]  # "цвет" или "размер" или "жесткость"
+        attr_value = "_".join(parts[2:])  # "коричневый" или "20см" или "Мягкая"
+        print(f"🔍 [DIAGNOSTIC] Ищем товары с {attr_key}={attr_value}")
+    else:
+        attr_key = None
+        attr_value = None
+        print(f"🔍 [DIAGNOSTIC] Ищем все товары с product_code={product_code}")
+    
+    # ✅ УДАЛЯЕМ ТОВАРЫ, КОТОРЫЕ ПОДХОДЯТ
     items_to_remove = []
     for item_key, item in cart.items():
-        # Формируем group_key для этого товара (учитываем цвет)
-        product_code = item.get("product_code", "")
-        color = item.get("color", "белый")
-        current_group_key = f"{product_code}_{color}"
+        if item.get("product_code") != product_code:
+            continue
         
-        print(f"🔍 [DIAGNOSTIC] current_group_key={current_group_key}, target_group_key={group_key}")
-        
-        if current_group_key == group_key:
+        # Если есть атрибут — проверяем его
+        if attr_key and attr_value:
+            # Проверяем, есть ли у товара этот атрибут
+            if attr_key in item:
+                if str(item[attr_key]) == attr_value:
+                    items_to_remove.append(item_key)
+                    print(f"✅ [DIAGNOSTIC] Найден товар с {attr_key}={attr_value}: {item_key}")
+                else:
+                    print(f"❌ [DIAGNOSTIC] Не совпадает {attr_key}: {item[attr_key]} != {attr_value}")
+            # Если атрибут хранится как "цвет" или "color"
+            elif attr_key == "цвет" and "color" in item:
+                if str(item["color"]) == attr_value:
+                    items_to_remove.append(item_key)
+                    print(f"✅ [DIAGNOSTIC] Найден товар с color={attr_value}: {item_key}")
+            elif attr_key == "color" and "цвет" in item:
+                if str(item["цвет"]) == attr_value:
+                    items_to_remove.append(item_key)
+                    print(f"✅ [DIAGNOSTIC] Найден товар с цвет={attr_value}: {item_key}")
+        else:
+            # Нет атрибута — удаляем все товары с этим product_code
             items_to_remove.append(item_key)
-            print(f"✅ [DIAGNOSTIC] Добавлен в список удаления: {item_key}")
+            print(f"✅ [DIAGNOSTIC] Найден товар: {item_key}")
     
     print(f"🗑️ [DIAGNOSTIC] Удаляем позиции: {items_to_remove}")
     
