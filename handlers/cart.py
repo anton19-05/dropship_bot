@@ -963,9 +963,10 @@ async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все позиции в группе по полному group_key"""
+    print("🚨🚨🚨 cart_remove_group ВЫЗВАНА! 🚨🚨🚨")
     query = update.callback_query
     await query.answer()
+    # ... остальной код
     
     user_id = query.from_user.id
     target_group_key = query.data.replace("cart_remove_group_", "")

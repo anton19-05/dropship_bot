@@ -82,7 +82,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_select_attr, pattern="^oat_"))
     application.add_handler(CallbackQueryHandler(order_confirm, pattern="^ord_"))
     
-        # ============================================================
+    # ============================================================
     # ✅ КОРЗИНА — ПРАВИЛЬНЫЙ ПОРЯДОК
     # ============================================================
     
