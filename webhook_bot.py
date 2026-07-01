@@ -14,7 +14,6 @@ from handlers.cart import (
     view_cart,
     cart_increase,
     cart_decrease,
-    cart_remove,
     view_cart_from_profile,
     view_cart_from_product,
     cart_remove_group,
@@ -92,7 +91,6 @@ def main() -> None:
     # 1. САМЫЕ КОНКРЕТНЫЕ (точные паттерны)
     application.add_handler(CallbackQueryHandler(cart_increase, pattern="^cart_incr_"))
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
-    application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
     application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))

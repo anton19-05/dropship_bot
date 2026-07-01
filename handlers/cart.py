@@ -950,28 +950,6 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await view_cart(update, context)
 
 
-async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет товар по item_key (если используется)"""
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    item_key = query.data.replace("cart_remove_", "")
-    
-    # Если это удаление группы — перенаправляем
-    if item_key.startswith("group_"):
-        # Создаём фейковый update для cart_remove_group
-        update.callback_query.data = f"cart_remove_group_{item_key.replace('group_', '')}"
-        await cart_remove_group(update, context)
-        return
-    
-    cart = context.user_data.get(f"cart_{user_id}", {})
-    if item_key in cart:
-        del cart[item_key]
-        save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-    
-    await view_cart(update, context)
-
-
 async def view_cart_from_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await view_cart(update, context, from_product_card=False)
 
