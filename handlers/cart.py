@@ -958,23 +958,41 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     group_key = query.data.replace("cart_remove_group_", "")
     
+    print(f"🔍 [DIAGNOSTIC] cart_remove_group: group_key={group_key}")
+    
     cart = context.user_data.get(f"cart_{user_id}", {})
     
-    # Находим все позиции в группе и удаляем
+    print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
+    
+    # ✅ ИЩЕМ ВСЕ ПОЗИЦИИ, КОТОРЫЕ ВХОДЯТ В ГРУППУ
     items_to_remove = []
     for item_key, item in cart.items():
-        product_code = item.get("product_code", "")
-        color = item.get("color", "белый")
-        current_group_key = f"{product_code}_{color}"
-        
-        if current_group_key == group_key:
-            items_to_remove.append(item_key)
+        # Проверяем, принадлежит ли этот товар к группе
+        # group_key формируется как: {product_code}_{main_attr_key}_{main_value}
+        # или {product_code}_single_attr
+        if item_key.startswith(group_key.split("_")[0]):  # Проверяем по product_code
+            # Дополнительная проверка: если в group_key есть атрибут, проверяем и его
+            parts = group_key.split("_")
+            if len(parts) >= 3:
+                # group_key = product_code_main_attr_key_main_value
+                # Проверяем, что товар имеет этот атрибут
+                attr_key = parts[1]
+                attr_value = "_".join(parts[2:])
+                if item.get(attr_key) == attr_value:
+                    items_to_remove.append(item_key)
+            else:
+                # group_key = product_code_single_attr или product_code_grouped
+                items_to_remove.append(item_key)
+    
+    print(f"🗑️ [DIAGNOSTIC] Удаляем позиции: {items_to_remove}")
     
     for key in items_to_remove:
         del cart[key]
     
     if not cart:
         context.user_data.pop(f"cart_{user_id}", None)
+    
+    print(f"📋 [DIAGNOSTIC] cart после удаления: {cart}")
     
     save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     await view_cart(update, context)
