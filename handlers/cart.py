@@ -637,6 +637,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
             # ✅ КНОПКИ С КОРОТКИМ ХЕШЕМ
             keyboard = []
             key_map = {}
+            print(f"🔍 [DIAGNOSTIC] Формирование кнопок для {product.name}")
+            print(f"🔍 [DIAGNOSTIC] use_numbers={use_numbers}")
+            print(f"🔍 [DIAGNOSTIC] variant_list length={len(variant_list)}")
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
                 short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
@@ -781,6 +784,9 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 # ✅ Убираем дубли в кнопке
                 unique_parts = []
+                print(f"🔍 [DIAGNOSTIC] Формирование кнопок для {product.name}")
+                print(f"🔍 [DIAGNOSTIC] use_numbers={use_numbers}")
+                print(f"🔍 [DIAGNOSTIC] variant_list length={len(variant_list)}")
                 for p in parts:
                     if p not in unique_parts:
                         unique_parts.append(p)
@@ -858,16 +864,30 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] cart_increase ВЫЗВАНА!")
+    print(f"🔍 [DIAGNOSTIC] data: {query.data}")
+    
     user_id = query.from_user.id
     idx = int(query.data.replace("cart_incr_", ""))
+    
+    print(f"🔍 [DIAGNOSTIC] idx: {idx}")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
     items = list(cart.items())
     
+    print(f"🔍 [DIAGNOSTIC] items: {len(items)} товаров")
+    for i, (key, value) in enumerate(items, 1):
+        print(f"  {i}. key={key}, value={value}")
+    
     if idx <= len(items):
         item_key = items[idx - 1][0]
+        print(f"✅ [DIAGNOSTIC] Найден товар: {item_key}")
         cart[item_key]["quantity"] += 1
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+    else:
+        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
     
     await view_cart(update, context)
 
@@ -875,19 +895,33 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    
+    # ✅ ДИАГНОСТИКА
+    print(f"🔍 [DIAGNOSTIC] cart_decrease ВЫЗВАНА!")
+    print(f"🔍 [DIAGNOSTIC] data: {query.data}")
+    
     user_id = query.from_user.id
     idx = int(query.data.replace("cart_decr_", ""))
+    
+    print(f"🔍 [DIAGNOSTIC] idx: {idx}")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
     items = list(cart.items())
     
+    print(f"🔍 [DIAGNOSTIC] items: {len(items)} товаров")
+    for i, (key, value) in enumerate(items, 1):
+        print(f"  {i}. key={key}, value={value}")
+    
     if idx <= len(items):
         item_key = items[idx - 1][0]
+        print(f"✅ [DIAGNOSTIC] Найден товар: {item_key}")
         if cart[item_key]["quantity"] > 1:
             cart[item_key]["quantity"] -= 1
         else:
             del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+    else:
+        print(f"❌ [DIAGNOSTIC] idx={idx} > len(items)={len(items)}")
     
     await view_cart(update, context)
 

@@ -83,37 +83,36 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(order_select_attr, pattern="^oat_"))
     application.add_handler(CallbackQueryHandler(order_confirm, pattern="^ord_"))
     
-    # ============================================================
-    # ✅ КОРЗИНА — ТОЛЬКО ОДИН РАЗ!
+        # ============================================================
+    # ✅ КОРЗИНА — ПРАВИЛЬНЫЙ ПОРЯДОК
     # ============================================================
     
-    # 1. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК для cart_*
-    application.add_handler(CallbackQueryHandler(cart_callback_handler, pattern="^cart_"))
+    # 🔥 ВАЖНО: более конкретные паттерны должны быть ПЕРВЫМИ!
     
-    # 2. ОТДЕЛЬНЫЕ ОБРАБОТЧИКИ (не начинаются с cart_)
-    application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
-    application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
-    application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
+    # 1. САМЫЕ КОНКРЕТНЫЕ (точные паттерны)
     application.add_handler(CallbackQueryHandler(cart_increase, pattern="^cart_incr_"))
     application.add_handler(CallbackQueryHandler(cart_decrease, pattern="^cart_decr_"))
     application.add_handler(CallbackQueryHandler(cart_remove, pattern="^cart_remove_"))
     application.add_handler(CallbackQueryHandler(cart_remove_group, pattern="^cart_remove_group_"))
-    
-    # 3. ДЛЯ РАЗМЕРОВ
     application.add_handler(CallbackQueryHandler(cart_select_size, pattern="^cart_size_"))
     application.add_handler(CallbackQueryHandler(cart_confirm_quantity, pattern="^cart_qty_"))
-    
-    # 4. ДЛЯ ГРУППИРОВКИ ПО ЦВЕТУ
     application.add_handler(CallbackQueryHandler(cart_incr_color, pattern="^cart_incr_color_"))
     application.add_handler(CallbackQueryHandler(cart_decr_color, pattern="^cart_decr_color_"))
     application.add_handler(CallbackQueryHandler(cart_remove_color, pattern="^cart_remove_color_"))
-    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
-    
-    # 5. ДЛЯ ГРУППОВЫХ ОПЕРАЦИЙ
     application.add_handler(CallbackQueryHandler(cart_incr_group, pattern="^cart_incr_group_"))
     application.add_handler(CallbackQueryHandler(cart_decr_group, pattern="^cart_decr_group_"))
     application.add_handler(CallbackQueryHandler(cart_change_variant, pattern="^cart_change_"))
     application.add_handler(CallbackQueryHandler(cart_remove_all_variants, pattern="^cart_remove_all_"))
+    
+    # 2. УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК (САМЫЙ ПОСЛЕДНИЙ!)
+    # Он будет обрабатывать только то, что не попалось в предыдущие
+    application.add_handler(CallbackQueryHandler(cart_callback_handler, pattern="^cart_"))
+    
+    # 3. ОТДЕЛЬНЫЕ ОБРАБОТЧИКИ (не начинаются с cart_)
+    application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
+    application.add_handler(CallbackQueryHandler(view_cart_from_product, pattern="^view_cart_from_product$"))
+    application.add_handler(CallbackQueryHandler(view_cart_from_profile, pattern="^view_cart_from_profile$"))
+    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     
     # --- КАТАЛОГ ---
     application.add_handler(CallbackQueryHandler(change_page, pattern="^page_"))
