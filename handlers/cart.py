@@ -968,47 +968,51 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     user_id = query.from_user.id
-    group_key = query.data.replace("cart_remove_group_", "")
+    target_group_key = query.data.replace("cart_remove_group_", "")
     
-    print(f"🔍 [DIAGNOSTIC] cart_remove_group: group_key={group_key}")
+    print(f"🔍 [DIAGNOSTIC] cart_remove_group: target_group_key={target_group_key}")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
     
     print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
     
-    # ✅ УДАЛЯЕМ ТОВАРЫ, У КОТОРЫХ group_key СОВПАДАЕТ
+    # ✅ НАХОДИМ ВСЕ ТОВАРЫ, У КОТОРЫХ group_key СОВПАДАЕТ
     items_to_remove = []
     for item_key, item in cart.items():
-        # Получаем product_code из item
+        # Формируем group_key для этого товара (КАК В view_cart)
         product_code = item.get("product_code", "")
         
-        # Проверяем, совпадает ли group_key
-        # Для этого формируем ключ так же, как в view_cart
-        # Сначала пробуем получить цвет
-        color = item.get("цвет") or item.get("color")
-        if color:
-            # Формируем group_key как в view_cart
-            current_group_key = f"{product_code}_цвет_{color}"
+        # Проверяем, есть ли в товаре атрибут, который образует group_key
+        # group_key может быть: "CLS-001_цвет_коричневый" или "KIT-001_размер_20см" или "HEA-001_single_attr"
+        
+        # Пробуем найти совпадение
+        # 1. Проверяем, есть ли у товара атрибут, который совпадает с частью group_key
+        parts = target_group_key.split("_")
+        if len(parts) >= 3:
+            attr_key = parts[1]  # "цвет" или "размер" или "жесткость"
+            attr_value = "_".join(parts[2:])  # "коричневый" или "20см" или "Мягкая"
+            
+            # Проверяем, есть ли у товара этот атрибут с таким значением
+            if attr_key in item and str(item[attr_key]) == attr_value:
+                items_to_remove.append(item_key)
+                print(f"✅ [DIAGNOSTIC] Совпадение по {attr_key}={attr_value}: {item_key}")
+                continue
+            # Проверяем синонимы
+            if attr_key == "цвет" and "color" in item and str(item["color"]) == attr_value:
+                items_to_remove.append(item_key)
+                print(f"✅ [DIAGNOSTIC] Совпадение по color={attr_value}: {item_key}")
+                continue
+            if attr_key == "color" and "цвет" in item and str(item["цвет"]) == attr_value:
+                items_to_remove.append(item_key)
+                print(f"✅ [DIAGNOSTIC] Совпадение по цвет={attr_value}: {item_key}")
+                continue
         else:
-            # Если нет цвета — пробуем получить другой главный атрибут
-            # Для набора кастрюль это "размер"
-            size = item.get("размер") or item.get("size")
-            if size:
-                current_group_key = f"{product_code}_размер_{size}"
-            else:
-                # Для массажного валика это "жесткость"
-                hardness = item.get("жесткость")
-                if hardness:
-                    current_group_key = f"{product_code}_жесткость_{hardness}"
-                else:
-                    # Если ничего не подходит — пропускаем
-                    continue
-        
-        print(f"🔍 [DIAGNOSTIC] Сравниваем: current_group_key={current_group_key}, group_key={group_key}")
-        
-        if current_group_key == group_key:
-            items_to_remove.append(item_key)
-            print(f"✅ [DIAGNOSTIC] Добавлен в список удаления: {item_key}")
+            # Если group_key короткий (например, "HEA-001_single_attr" или "CLS-001_grouped")
+            # Проверяем, что product_code совпадает
+            if item.get("product_code") == product_code:
+                items_to_remove.append(item_key)
+                print(f"✅ [DIAGNOSTIC] Совпадение по product_code: {item_key}")
+                continue
     
     print(f"🗑️ [DIAGNOSTIC] Удаляем позиции: {items_to_remove}")
     
