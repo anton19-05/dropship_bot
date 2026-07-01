@@ -634,27 +634,27 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ)
+            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ)
             keyboard = []
             key_map = {}
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
                 key_map[str(idx)] = first_item_key
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{group_key}_{idx}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{group_key}_{idx}")
                 ])
             
             # ✅ КНОПКА УДАЛЕНИЯ
             first_item_key = list(variants.values())[0]["item_keys"][0] if variants else None
             if first_item_key:
                 key_map["delete"] = first_item_key
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_delete")])
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{group_key}_delete")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
             
-            # ✅ СОХРАНЯЕМ МАППИНГ
-            context.user_data[f"cart_key_map_{user_id}"] = key_map
+            # ✅ СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ (используем group_key)
+            context.user_data[f"cart_key_map_{user_id}_{group_key}"] = key_map
 
         # ============================================================
         # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ
@@ -738,7 +738,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ)
+            # ✅ КНОПКИ С ИНДЕКСАМИ (СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ)
             keyboard = []
             key_map = {}
             for idx, item in enumerate(display_variants, 1):
@@ -793,20 +793,20 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 button_text = ", ".join(unique_parts) if unique_parts else "Стандарт"
 
                 keyboard.append([
-                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
+                    InlineKeyboardButton("➖", callback_data=f"cart_decr_{group_key}_{idx}"),
                     InlineKeyboardButton(button_text, callback_data="noop"),
-                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
+                    InlineKeyboardButton("➕", callback_data=f"cart_incr_{group_key}_{idx}")
                 ])
-
-            # ✅ КНОПКА УДАЛЕНИЯ (ИСПОЛЬЗУЕТ ФИКСИРОВАННЫЙ КЛЮЧ "delete")
+            
+            # ✅ КНОПКА УДАЛЕНИЯ
             first_item_key = display_variants[0]["first_item_key"] if display_variants else None
             if first_item_key:
                 key_map["delete"] = first_item_key
-                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data="cart_remove_delete")])
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{group_key}_delete")])
             keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
-
-            # ✅ СОХРАНЯЕМ МАППИНГ В context.user_data
-            context.user_data[f"cart_key_map_{user_id}"] = key_map
+            
+            # ✅ СОХРАНЯЕМ МАППИНГ ДЛЯ ЭТОЙ ГРУППЫ (используем group_key)
+            context.user_data[f"cart_key_map_{user_id}_{group_key}"] = key_map
 
         # ============================================================
         # ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО ПЕРЕД ОТПРАВКОЙ
@@ -866,11 +866,14 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     
-    # Получаем индекс из callback_data
-    idx = query.data.replace("cart_incr_", "")
+    # Парсим: cart_incr_{group_key}_{idx}
+    parts = query.data.replace("cart_incr_", "").split("_")
+    # group_key может содержать подчеркивания, поэтому собираем все части кроме последней
+    idx = parts[-1]  # последняя часть — это индекс
+    group_key = "_".join(parts[:-1])  # всё остальное — group_key
     
-    # Восстанавливаем item_key по индексу
-    key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
+    # Восстанавливаем item_key по индексу из маппинга этой группы
+    key_map = context.user_data.get(f"cart_key_map_{user_id}_{group_key}", {})
     item_key = key_map.get(str(idx))
     
     if item_key:
@@ -882,7 +885,7 @@ async def cart_increase(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx}")
+        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx} для группы {group_key}")
     
     await view_cart(update, context)
 
@@ -892,11 +895,13 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     
-    # Получаем индекс из callback_data
-    idx = query.data.replace("cart_decr_", "")
+    # Парсим: cart_decr_{group_key}_{idx}
+    parts = query.data.replace("cart_decr_", "").split("_")
+    idx = parts[-1]
+    group_key = "_".join(parts[:-1])
     
-    # Восстанавливаем item_key по индексу
-    key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
+    # Восстанавливаем item_key по индексу из маппинга этой группы
+    key_map = context.user_data.get(f"cart_key_map_{user_id}_{group_key}", {})
     item_key = key_map.get(str(idx))
     
     if item_key:
@@ -911,7 +916,7 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx}")
+        print(f"❌ [DIAGNOSTIC] Индекс не найден: {idx} для группы {group_key}")
     
     await view_cart(update, context)
 
@@ -921,12 +926,14 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     
-    # Получаем ключ из callback_data (всегда "delete")
-    key = query.data.replace("cart_remove_", "")
+    # Парсим: cart_remove_{group_key}_delete
+    parts = query.data.replace("cart_remove_", "").split("_")
+    # Удаляем последнюю часть "delete"
+    group_key = "_".join(parts[:-1])
     
-    # Восстанавливаем item_key по ключу "delete"
-    key_map = context.user_data.get(f"cart_key_map_{user_id}", {})
-    item_key = key_map.get(key)  # key = "delete"
+    # Восстанавливаем item_key по ключу "delete" из маппинга этой группы
+    key_map = context.user_data.get(f"cart_key_map_{user_id}_{group_key}", {})
+    item_key = key_map.get("delete")
     
     if item_key:
         cart = context.user_data.get(f"cart_{user_id}", {})
@@ -937,7 +944,7 @@ async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     else:
-        print(f"❌ [DIAGNOSTIC] Ключ не найден: {key}")
+        print(f"❌ [DIAGNOSTIC] Ключ 'delete' не найден для группы {group_key}")
     
     await view_cart(update, context)
 
