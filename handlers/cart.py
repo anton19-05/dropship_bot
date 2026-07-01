@@ -959,29 +959,30 @@ async def view_cart_from_product(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все позиции в группе по product_code"""
+    """Удаляет все позиции в группе по полному group_key"""
     query = update.callback_query
     await query.answer()
     
     user_id = query.from_user.id
     group_key = query.data.replace("cart_remove_group_", "")
     
-    print(f"🔍 [DIAGNOSTIC] cart_remove_group ВЫЗВАНА!")
-    print(f"🔍 [DIAGNOSTIC] group_key = '{group_key}'")
-    
-    # ✅ ИЗВЛЕКАЕМ product_code ИЗ group_key
-    product_code = group_key.split("_")[0]
-    print(f"🔍 [DIAGNOSTIC] product_code = '{product_code}'")
+    print(f"🔍 [DIAGNOSTIC] cart_remove_group: group_key={group_key}")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
+    
     print(f"📋 [DIAGNOSTIC] cart до удаления: {cart}")
     
-    # ✅ УДАЛЯЕМ ВСЕ ТОВАРЫ С ЭТИМ product_code
+    # ✅ УДАЛЯЕМ ТОВАРЫ, У КОТОРЫХ group_key СОВПАДАЕТ
     items_to_remove = []
     for item_key, item in cart.items():
-        item_product_code = item.get("product_code")
-        print(f"🔍 [DIAGNOSTIC] Проверяем: item_key={item_key}, product_code={item_product_code}")
-        if item_product_code == product_code:
+        # Формируем group_key для этого товара
+        product_code = item.get("product_code", "")
+        color = item.get("color", "белый")
+        current_group_key = f"{product_code}_{color}"
+        
+        print(f"🔍 [DIAGNOSTIC] Сравниваем: current_group_key={current_group_key}, group_key={group_key}")
+        
+        if current_group_key == group_key:
             items_to_remove.append(item_key)
             print(f"✅ [DIAGNOSTIC] Добавлен в список удаления: {item_key}")
     
@@ -993,13 +994,11 @@ async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not cart:
         context.user_data.pop(f"cart_{user_id}", None)
-        print(f"📋 [DIAGNOSTIC] Корзина пуста, удалена")
+        print(f"📋 [DIAGNOSTIC] Корзина пуста")
     
     print(f"📋 [DIAGNOSTIC] cart после удаления: {cart}")
     
     save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-    print(f"✅ [DIAGNOSTIC] cart_remove_group ЗАВЕРШЕНА")
-    
     await view_cart(update, context)
 
 
