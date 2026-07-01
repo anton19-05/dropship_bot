@@ -1189,36 +1189,6 @@ async def cart_decrease_group(update: Update, context: ContextTypes.DEFAULT_TYPE
     await view_cart(update, context)
 
 
-async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все позиции в группе"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    group_key = query.data.replace("cart_remove_group_", "")
-    
-    cart = context.user_data.get(f"cart_{user_id}", {})
-    
-    # Находим все позиции в группе и удаляем
-    items_to_remove = []
-    for item_key, item in cart.items():
-        product_code = item.get("product_code", "")
-        color = item.get("color", "белый")
-        current_group_key = f"{product_code}_{color}"
-        
-        if current_group_key == group_key:
-            items_to_remove.append(item_key)
-    
-    for key in items_to_remove:
-        del cart[key]
-    
-    if not cart:
-        context.user_data.pop(f"cart_{user_id}", None)
-    
-    save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-    await view_cart(update, context)
-
-
 async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Полностью очищает корзину"""
     query = update.callback_query
@@ -1366,28 +1336,7 @@ async def cart_decr_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
     await view_cart(update, context)
-
-async def cart_remove_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет всю группу"""
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    group_key = query.data.replace("cart_remove_group_", "")
     
-    cart = context.user_data.get(f"cart_{user_id}", {})
-    items_to_remove = []
-    for item_key in list(cart.keys()):
-        if item_key.startswith(group_key.split("_")[0]):
-            items_to_remove.append(item_key)
-    
-    for key in items_to_remove:
-        del cart[key]
-    
-    if not cart:
-        context.user_data.pop(f"cart_{user_id}", None)
-    
-    save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
-    await view_cart(update, context)
 
 async def cart_change_variant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список вариантов для изменения количества (детальный режим)"""
