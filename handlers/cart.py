@@ -33,7 +33,6 @@ async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # 1. ВЫБОР АТРИБУТА (cart_attr_)
     # ============================================================
     if data.startswith("cart_attr_"):
-        # Парсим: cart_attr_PB-20000_емкость_10000_mah
         parts = data.replace("cart_attr_", "").split("_")
         logger.info(f"📋 cart_attr: parts={parts}")
         
@@ -50,7 +49,6 @@ async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 context.user_data[f"cart_attr_{attr_key}_{user_id}"] = attr_value
                 logger.info(f"✅ Атрибут {attr_key} = {attr_value}")
             
-            # Обновляем окно выбора атрибутов
             await show_cart_attributes(update, context, product_code)
             return
     
@@ -63,11 +61,36 @@ async def cart_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # ============================================================
-    # 3. ДОБАВЛЕНИЕ В КОРЗИНУ (cart_add_)
+    # 3. ДОБАВЛЕНИЕ В КОРЗИНУ (cart_add_) — С ПРОВЕРКОЙ
     # ============================================================
     elif data.startswith("cart_add_"):
         product_code = data.replace("cart_add_", "")
-        await show_cart_attributes(update, context, product_code)
+        product = products_manager.get_by_code(product_code)
+        
+        if not product:
+            await query.answer("❌ Товар не найден!", show_alert=True)
+            return
+        
+        # ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ДОПОЛНИТЕЛЬНЫЕ АТРИБУТЫ
+        extra_attrs = product.get_extra_attributes()
+        has_extra_attrs = False
+        
+        for key, value in extra_attrs.items():
+            if key in ["colors", "sizes"]:
+                continue
+            if isinstance(value, list) and value:
+                has_extra_attrs = True
+                break
+            elif isinstance(value, dict) and value:
+                has_extra_attrs = True
+                break
+        
+        if has_extra_attrs:
+            # Есть доп. атрибуты — показываем окно выбора
+            await show_cart_attributes(update, context, product_code)
+        else:
+            # Нет доп. атрибутов — сразу добавляем в корзину
+            await confirm_add_to_cart(update, context, product_code)
         return
 
 
