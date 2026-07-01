@@ -634,23 +634,22 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # ✅ КНОПКИ С КОРОТКИМ ХЕШЕМ
+            # ✅ КНОПКИ С ИНДЕКСАМИ
             keyboard = []
-            key_map = {}
-            print(f"🔍 [DIAGNOSTIC] Формирование кнопок для {product.name}")
-            print(f"🔍 [DIAGNOSTIC] use_numbers={use_numbers}")
-            print(f"🔍 [DIAGNOSTIC] variant_list length={len(variant_list)}")
             for idx, (v_key, v_data) in enumerate(variant_list, 1):
                 first_item_key = v_data["item_keys"][0]
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                key_map[short_key] = first_item_key
                 keyboard.append([
                     InlineKeyboardButton("➖", callback_data=f"cart_decr_{idx}"),
                     InlineKeyboardButton(str(idx), callback_data="noop"),
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
-            # ✅ СОХРАНЯЕМ МАППИНГ
-            context.user_data[f"cart_key_map_{user_id}"] = key_map
+            
+            # ✅ ОБЩИЕ КНОПКИ (УДАЛЕНИЕ КОНКРЕТНОГО ТОВАРА)
+            # Берём первый item_key для удаления
+            first_item_key = list(variants.values())[0]["item_keys"][0] if variants else None
+            if first_item_key:
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
+            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
         # 1-2 АТРИБУТА — ПОЛНЫЙ ТЕКСТ
@@ -662,7 +661,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                 qty = v_data['quantity']
                 item = v_data['item']
 
-                # ✅ СОЗДАЕМ clean_label НАПРЯМУЮ ИЗ item (НОРМАЛИЗУЯ КЛЮЧИ)
                 clean_parts = []
                 used_keys = set()
 
@@ -735,13 +733,10 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
             text += f"\n📦 Кол-во: {total_quantity} шт | 💰 {total_price} руб"
 
-            # КНОПКИ С КОРОТКИМ ХЕШЕМ
+            # ✅ КНОПКИ С ИНДЕКСАМИ (БЕЗ key_map)
             keyboard = []
-            key_map = {}
             for idx, item in enumerate(display_variants, 1):
                 first_item_key = item["first_item_key"]
-                short_key = hashlib.md5(first_item_key.encode()).hexdigest()[:8]
-                key_map[short_key] = first_item_key
 
                 clean_label = item["clean_label"]
 
@@ -784,9 +779,6 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
 
                 # ✅ Убираем дубли в кнопке
                 unique_parts = []
-                print(f"🔍 [DIAGNOSTIC] Формирование кнопок для {product.name}")
-                print(f"🔍 [DIAGNOSTIC] use_numbers={use_numbers}")
-                print(f"🔍 [DIAGNOSTIC] variant_list length={len(variant_list)}")
                 for p in parts:
                     if p not in unique_parts:
                         unique_parts.append(p)
@@ -799,14 +791,12 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE, from_pro
                     InlineKeyboardButton("➕", callback_data=f"cart_incr_{idx}")
                 ])
 
-            # ✅ СОХРАНЯЕМ МАППИНГ
-            context.user_data[f"cart_key_map_{user_id}"] = key_map
-
-        # ============================================================
-        # ОБЩИЕ КНОПКИ
-        # ============================================================
-        keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_group_{group_key}")])
-        keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
+            # ✅ ОБЩИЕ КНОПКИ
+            # Для удаления используем первый item_key из группы
+            first_item_key = display_variants[0]["first_item_key"] if display_variants else None
+            if first_item_key:
+                keyboard.append([InlineKeyboardButton("❌ Удалить", callback_data=f"cart_remove_{first_item_key}")])
+            keyboard.append([InlineKeyboardButton("🔗 К товару", callback_data=f"goto_product_{product.id}")])
 
         # ============================================================
         # ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ФОТО ПЕРЕД ОТПРАВКОЙ
@@ -927,17 +917,22 @@ async def cart_decrease(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cart_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет отдельный товар из корзины по item_key (если такая кнопка будет добавлена)"""
+    """Удаляет конкретный товар из корзины"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     item_key = query.data.replace("cart_remove_", "")
+    
+    print(f"🔍 [DIAGNOSTIC] cart_remove: item_key={item_key}")
     
     cart = context.user_data.get(f"cart_{user_id}", {})
     
     if item_key in cart:
         del cart[item_key]
         save_user_data_sync(user_id, {f"cart_{user_id}": cart}, context)
+        print(f"✅ [DIAGNOSTIC] Товар удалён: {item_key}")
+    else:
+        print(f"❌ [DIAGNOSTIC] Товар не найден: {item_key}")
     
     await view_cart(update, context)
 
